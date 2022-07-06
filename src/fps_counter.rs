@@ -8,7 +8,8 @@ pub struct FpsCounter;
 
 impl Plugin for FpsCounter {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(setup).add_system(fps_system)
+        app.add_startup_system(setup)
+            .add_system(fps_system)
             .add_plugin(FrameTimeDiagnosticsPlugin::default());
     }
 }

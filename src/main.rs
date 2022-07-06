@@ -19,7 +19,7 @@ use bevy::{
 use rand::Rng;
 
 mod fps_counter;
-use fps_counter::FpsCounter;
+mod character;
 
 fn main() {
     App::new()
@@ -34,8 +34,9 @@ fn main() {
             ..default()
         })
         .add_plugins(DefaultPlugins)
-        .add_plugin(FpsCounter)
-        .add_system(bevy::input::system::exit_on_esc_system)
+        .add_plugin(fps_counter::FpsCounter)
+        .add_plugin(character::Character)
+        // .add_system(bevy::input::system::exit_on_esc_system)
         .add_plugin(MaterialPlugin::<TraceMaterial>::default())
         .add_startup_system(setup)
         .run();
@@ -65,11 +66,11 @@ fn setup(
         ..default()
     });
 
-    // camera
-    commands.spawn_bundle(PerspectiveCameraBundle {
-        transform: Transform::from_xyz(0.0, 1.0, 0.0).looking_at(Vec3::ZERO, Vec3::Z),
-        ..default()
-    });
+    // // camera
+    // commands.spawn_bundle(PerspectiveCameraBundle {
+    //     transform: Transform::from_xyz(0.0, 1.0, 0.0).looking_at(Vec3::ZERO, Vec3::Z),
+    //     ..default()
+    // });
 }
 
 // This is the struct that will be passed to your shader
