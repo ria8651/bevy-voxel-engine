@@ -16,6 +16,7 @@ use bevy::{
     },
     window::PresentMode,
 };
+use rand::Rng;
 
 mod fps_counter;
 use fps_counter::FpsCounter;
@@ -27,8 +28,8 @@ fn main() {
             ..default()
         })
         .insert_resource(WindowDescriptor {
-            width: 720.0,
-            height: 720.0,
+            width: 600.0,
+            height: 600.0,
             present_mode: PresentMode::Mailbox,
             ..default()
         })
@@ -54,8 +55,6 @@ fn setup(
         0.0,
         0.0,
     );
-
-    println!("{:?}", resolution);
 
     // cube
     commands.spawn().insert_bundle(MaterialMeshBundle {
@@ -108,11 +107,30 @@ impl RenderAsset for TraceMaterial {
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
         });
 
+        // buffer
+        let mut rng = rand::thread_rng();
+        let mut values = Vec::new();
+        for _ in 0..16 {
+            values.push(rng.gen::<u8>());
+        }
+
+        let storage = render_device.create_buffer_with_data(&BufferInitDescriptor {
+            contents: &values,
+            label: None,
+            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
+        });
+
         let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: buffer.as_entire_binding(),
-            }],
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: buffer.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: storage.as_entire_binding(),
+                },
+            ],
             label: None,
             layout: &material_pipeline.material_layout,
         });
@@ -135,16 +153,28 @@ impl Material for TraceMaterial {
 
     fn bind_group_layout(render_device: &RenderDevice) -> BindGroupLayout {
         render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            entries: &[BindGroupLayoutEntry {
-                binding: 0,
-                visibility: ShaderStages::FRAGMENT,
-                ty: BindingType::Buffer {
-                    ty: BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: BufferSize::new(Vec4::std140_size_static() as u64),
+            entries: &[
+                BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: BufferSize::new(Vec4::std140_size_static() as u64),
+                    },
+                    count: None,
                 },
-                count: None,
-            }],
+                BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: BufferSize::new(Vec4::std140_size_static() as u64),
+                    },
+                    count: None,
+                },
+            ],
             label: None,
         })
     }
