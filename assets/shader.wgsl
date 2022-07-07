@@ -37,8 +37,8 @@ struct GH {
 
 [[group(2), binding(0)]]
 var<uniform> u: Uniforms;
-// [[group(1), binding(1)]]
-// var<storage, read_write> gh: GH; // nodes
+[[group(2), binding(1)]]
+var<storage, read_write> gh: GH; // nodes
 
 fn get_clip_space(frag_pos: vec4<f32>, dimensions: vec2<f32>) -> vec2<f32> {
     var clip_space = frag_pos.xy / dimensions * 2.0;
@@ -47,9 +47,21 @@ fn get_clip_space(frag_pos: vec4<f32>, dimensions: vec2<f32>) -> vec2<f32> {
     return clip_space;
 }
 
-// fn get_value(index: u32) -> bool {
-//     return ((gh.data[index / 32u] >> (index % 32u)) & 1u) != 0u;
-// }
+fn get_value_index(index: u32) -> bool {
+    return ((gh.data[index / 32u] >> (index % 32u)) & 1u) != 0u;
+}
+
+fn get_value(pos: vec3<f32>, size: u32) -> vec3<f32> {
+    let scaled = pos * 0.5 + 0.5;
+    let scaled = scaled * vec3<f32>(f32(size));
+    let scaled = vec3<u32>(scaled);
+    let index = scaled.x * size * size + scaled.y * size + scaled.z;
+    if (get_value_index(index)) {
+        return (floor(pos * f32(size) * 0.5) + 0.5) / (f32(size) * 0.5);
+    } else {
+        return vec3<f32>(0.0, 0.0, 0.0);
+    }
+}
 
 struct Ray {
     pos: vec3<f32>;
@@ -72,6 +84,74 @@ fn ray_box_dist(r: Ray, vmin: vec3<f32>, vmax: vec3<f32>) -> f32 {
     return v7;
 }
 
+fn in_bounds(v: vec3<f32>) -> bool {
+    let s = step(vec3<f32>(-1.0), v) - step(vec3<f32>(1.0), v);
+    return (s.x * s.y * s.z) > 0.5; 
+}
+
+struct Voxel {
+    value: u32;
+    pos: vec3<f32>;
+    depth: u32;
+};
+
+struct HitInfo {
+    hit: bool;
+    pos: vec3<f32>;
+    normal: vec3<f32>;
+    steps: u32;
+};
+
+fn shoot_ray(r: Ray, voxel_size: u32) -> HitInfo {
+    var pos = r.pos;
+    let dir_mask = vec3<f32>(r.dir == vec3<f32>(0.0));
+    var dir = r.dir + dir_mask * 0.000001;
+
+    var dist = 0.0;
+    if (!in_bounds(r.pos)) {
+        // Get position on surface of the octree
+        dist = ray_box_dist(r, vec3<f32>(-1.0), vec3<f32>(1.0));
+        if (dist == 0.0){
+            return HitInfo(false, vec3<f32>(0.0), vec3<f32>(0.0), 0u);
+        }
+
+        pos = r.pos + dir * (dist + 0.00001);
+    }
+
+    let r_sign = sign(dir);
+
+    var voxel_pos = pos;
+    var steps = 0u;
+    var normal = trunc(pos * 1.000001);
+    loop {
+        let voxel = get_value(voxel_pos, voxel_size);
+        if (any(voxel == vec3<f32>(0.0))) {
+            break;
+        }
+
+        let voxel_size = 2.0 / f32(voxel_size);
+        let t_max = (voxel - pos + r_sign * voxel_size / 2.0) / dir;
+
+        // https://www.shadertoy.com/view/4dX3zl (good old shader toy)
+        let mask = vec3<f32>(t_max.xyz <= min(t_max.yzx, t_max.zxy));
+        normal = mask * -r_sign;
+
+        let t_current = min(min(t_max.x, t_max.y), t_max.z);
+        voxel_pos = pos + dir * t_current - normal * 0.000002;
+
+        if (!in_bounds(voxel_pos)) {
+            return HitInfo(false, vec3<f32>(0.0), vec3<f32>(0.0), steps);
+        }
+
+        steps = steps + 1u;
+        if (steps > 100u) {
+            return HitInfo(true, voxel_pos, normal, steps);
+        }
+    }
+
+    return HitInfo(true, voxel_pos, normal, steps);
+}
+
 [[stage(fragment)]]
 fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f32> {
     var output_colour = vec3<f32>(0.0, 0.0, 0.0);
@@ -84,8 +164,12 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
     var ray = Ray(pos.xyz, dir.xyz);
     
     let dist = ray_box_dist(ray, vec3<f32>(-1.0, -1.0, -1.0), vec3<f32>(1.0, 1.0, 1.0));
+    let pos = ray.pos + ray.dir * dist;
 
-    output_colour = vec3<f32>(dist);
+    if (dist > 0.0) {
+        // output_colour = vec3<f32>(f32(get_value(pos * 0.99, 4u).x != vec3<f32>(0.0).x));
+        output_colour = shoot_ray(ray, 8u).pos * 0.5 + 0.5;
+    }
 
     // let screen = floor((clip_space / 2.0 + 0.5) * 8.0);
     // let index = screen.y * 8.0 + screen.x;

@@ -44,7 +44,7 @@ impl Plugin for Tracer {
         // storage
         let mut rng = rand::thread_rng();
         let mut values = Vec::new();
-        for _ in 0..16 {
+        for _ in 0..512 {
             values.push(rng.gen::<u8>());
         }
 
@@ -180,10 +180,16 @@ fn queue_trace_bind_group(
     let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
         label: None,
         layout: &pipeline.trace_bind_group_layout,
-        entries: &[BindGroupEntry {
-            binding: 0,
-            resource: trace_meta.uniform.as_entire_binding(),
-        }],
+        entries: &[
+            BindGroupEntry {
+                binding: 0,
+                resource: trace_meta.uniform.as_entire_binding(),
+            },
+            BindGroupEntry {
+                binding: 1,
+                resource: trace_meta.storage.as_entire_binding(),
+            },
+        ],
     });
     trace_meta.bind_group = Some(bind_group);
 }
@@ -210,16 +216,30 @@ impl FromWorld for TracePipeline {
         let trace_bind_group_layout =
             render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
                 label: None,
-                entries: &[BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::FRAGMENT,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: BufferSize::new(std::mem::size_of::<Uniforms>() as u64),
+                entries: &[
+                    BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Buffer {
+                            ty: BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: BufferSize::new(
+                                std::mem::size_of::<Uniforms>() as u64
+                            ),
+                        },
+                        count: None,
                     },
-                    count: None,
-                }],
+                    BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Buffer {
+                            ty: BufferBindingType::Storage { read_only: false },
+                            has_dynamic_offset: false,
+                            min_binding_size: BufferSize::new(4),
+                        },
+                        count: None,
+                    },
+                ],
             });
 
         let mesh_pipeline = world.get_resource::<MeshPipeline>().unwrap();
@@ -251,24 +271,6 @@ impl SpecializedMeshPipeline for TracePipeline {
         Ok(descriptor)
     }
 }
-
-// #[repr(C)]
-// #[derive(Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
-// pub struct Uniforms {
-//     pub camera: [[f32; 4]; 4],
-//     pub camera_inverse: [[f32; 4]; 4],
-//     pub dimensions: [f32; 4],
-// }
-
-// impl Uniforms {
-//     fn new() -> Self {
-//         Self {
-//             camera: [[0.0; 4]; 4],
-//             camera_inverse: [[0.0; 4]; 4],
-//             dimensions: [0.0, 0.0, 0.0, 0.0],
-//         }
-//     }
-// }
 
 // This is the struct that will be passed to your shader
 #[derive(Component)]
