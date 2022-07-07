@@ -30,18 +30,23 @@ impl Plugin for Character {
 fn setup_character(mut commands: Commands, mut windows: ResMut<Windows>) {
     toggle_grab_cursor(windows.get_primary_mut().unwrap());
 
-    commands
-        .spawn_bundle(PerspectiveCameraBundle {
-            transform: Transform::from_xyz(0.0, 1.0, -1.0).looking_at(Vec3::ZERO, Vec3::Y),
-            perspective_projection: PerspectiveProjection {
-                fov: 1.48353,
-                near: 0.05,
-                far: 10000.0,
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-        .insert(CharacterEntity::default());
+    // commands
+    //     .spawn_bundle(PerspectiveCameraBundle {
+    //         transform: Transform::from_xyz(0.0, 1.0, -1.0).looking_at(Vec3::ZERO, Vec3::Y),
+    //         perspective_projection: PerspectiveProjection {
+    //             fov: 1.48353,
+    //             near: 0.05,
+    //             far: 10000.0,
+    //             ..Default::default()
+    //         },
+    //         ..Default::default()
+    //     })
+    //     .insert(CharacterEntity::default());
+
+    commands.spawn_bundle((
+        Transform::from_xyz(0.0, 1.0, -1.0).looking_at(Vec3::ZERO, Vec3::Y),
+        CharacterEntity::default(),
+    ));
 }
 
 /// Grabs/ungrabs mouse cursor

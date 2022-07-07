@@ -1,0 +1,282 @@
+use bevy::{
+    core_pipeline::Transparent3d,
+    ecs::system::{lifetimeless::SRes, SystemParamItem},
+    pbr::{
+        DrawMesh, MeshPipeline, MeshPipelineKey, MeshUniform, SetMeshBindGroup,
+        SetMeshViewBindGroup,
+    },
+    prelude::*,
+    render::{
+        mesh::MeshVertexBufferLayout,
+        render_asset::RenderAssets,
+        render_phase::{
+            AddRenderCommand, DrawFunctions, EntityRenderCommand, RenderCommandResult, RenderPhase,
+            SetItemPipeline, TrackedRenderPass,
+        },
+        render_resource::{
+            std140::{AsStd140, Std140},
+            *,
+        },
+        renderer::{RenderDevice, RenderQueue},
+        view::{ExtractedView, Msaa},
+        RenderApp, RenderStage,
+    },
+};
+use rand::Rng;
+
+pub struct Tracer;
+
+impl Plugin for Tracer {
+    fn build(&self, app: &mut App) {
+        let render_device = app.world.resource::<RenderDevice>();
+
+        // uniforms
+        let uniform = render_device.create_buffer_with_data(&BufferInitDescriptor {
+            label: None,
+            contents: Vec4::new(1000.0, 1000.0, 0.0, 0.0).as_std140().as_bytes(),
+            // contents: resolution.as_std140().as_bytes(),
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+
+        // storage
+        let mut rng = rand::thread_rng();
+        let mut values = Vec::new();
+        for _ in 0..16 {
+            values.push(rng.gen::<u8>());
+        }
+
+        let storage = render_device.create_buffer_with_data(&BufferInitDescriptor {
+            contents: &values,
+            label: None,
+            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
+        });
+
+        app.sub_app_mut(RenderApp)
+            .add_render_command::<Transparent3d, DrawCustom>()
+            .insert_resource(TraceMeta {
+                uniform,
+                storage,
+                bind_group: None,
+            })
+            .init_resource::<TracePipeline>()
+            .init_resource::<SpecializedMeshPipelines<TracePipeline>>()
+            .add_system_to_stage(RenderStage::Extract, extract_uniforms)
+            .add_system_to_stage(RenderStage::Extract, extract_trace_material)
+            .add_system_to_stage(RenderStage::Prepare, prepare_time)
+            .add_system_to_stage(RenderStage::Queue, queue_custom)
+            .add_system_to_stage(RenderStage::Queue, queue_time_bind_group);
+        // .insert_resource(Buffers { uniform, storage })
+        // .add_plugin(MaterialPlugin::<TraceMaterial>::default());
+    }
+}
+
+#[repr(C)]
+#[derive(Default, Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
+struct Uniforms {
+    resolution: Vec4,
+}
+
+// extract the passed time into a resource in the render world
+fn extract_uniforms(mut commands: Commands, windows: Res<Windows>) {
+    let window = windows.primary();
+    let resolution = Vec4::new(
+        window.physical_width() as f32,
+        window.physical_height() as f32,
+        0.0,
+        0.0,
+    );
+
+    commands.insert_resource(Uniforms { resolution });
+}
+
+// extract the `CustomMaterial` component into the render world
+fn extract_trace_material(
+    mut commands: Commands,
+    mut previous_len: Local<usize>,
+    mut query: Query<Entity, With<TraceMaterial>>,
+) {
+    let mut values = Vec::with_capacity(*previous_len);
+    for entity in query.iter_mut() {
+        values.push((entity, (TraceMaterial,)));
+    }
+    *previous_len = values.len();
+    commands.insert_or_spawn_batch(values);
+}
+
+// write the extracted time into the corresponding uniform buffer
+fn prepare_time(
+    uniforms: Res<Uniforms>,
+    time_meta: ResMut<TraceMeta>,
+    render_queue: Res<RenderQueue>,
+) {
+    render_queue.write_buffer(
+        &time_meta.uniform,
+        0,
+        bevy::core::cast_slice(&[uniforms.resolution]),
+    );
+}
+
+fn queue_custom(
+    transparent_3d_draw_functions: Res<DrawFunctions<Transparent3d>>,
+    custom_pipeline: Res<TracePipeline>,
+    msaa: Res<Msaa>,
+    mut pipelines: ResMut<SpecializedMeshPipelines<TracePipeline>>,
+    mut pipeline_cache: ResMut<PipelineCache>,
+    render_meshes: Res<RenderAssets<Mesh>>,
+    material_meshes: Query<(Entity, &MeshUniform, &Handle<Mesh>), With<TraceMaterial>>,
+    mut views: Query<(&ExtractedView, &mut RenderPhase<Transparent3d>)>,
+) {
+    let draw_custom = transparent_3d_draw_functions
+        .read()
+        .get_id::<DrawCustom>()
+        .unwrap();
+
+    let key = MeshPipelineKey::from_msaa_samples(msaa.samples)
+        | MeshPipelineKey::from_primitive_topology(PrimitiveTopology::TriangleList);
+
+    for (view, mut transparent_phase) in views.iter_mut() {
+        let view_matrix = view.transform.compute_matrix();
+        let view_row_2 = view_matrix.row(2);
+        for (entity, mesh_uniform, mesh_handle) in material_meshes.iter() {
+            if let Some(mesh) = render_meshes.get(mesh_handle) {
+                let pipeline = pipelines
+                    .specialize(&mut pipeline_cache, &custom_pipeline, key, &mesh.layout)
+                    .unwrap();
+                transparent_phase.add(Transparent3d {
+                    entity,
+                    pipeline,
+                    draw_function: draw_custom,
+                    distance: view_row_2.dot(mesh_uniform.transform.col(3)),
+                });
+            }
+        }
+    }
+}
+
+// create a bind group for the time uniform buffer
+fn queue_time_bind_group(
+    render_device: Res<RenderDevice>,
+    mut time_meta: ResMut<TraceMeta>,
+    pipeline: Res<TracePipeline>,
+) {
+    let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
+        label: None,
+        layout: &pipeline.trace_bind_group_layout,
+        entries: &[BindGroupEntry {
+            binding: 0,
+            resource: time_meta.uniform.as_entire_binding(),
+        }],
+    });
+    time_meta.bind_group = Some(bind_group);
+}
+
+struct TraceMeta {
+    uniform: Buffer,
+    storage: Buffer,
+    bind_group: Option<BindGroup>,
+}
+
+pub struct TracePipeline {
+    shader: Handle<Shader>,
+    mesh_pipeline: MeshPipeline,
+    trace_bind_group_layout: BindGroupLayout,
+}
+
+impl FromWorld for TracePipeline {
+    fn from_world(world: &mut World) -> Self {
+        let world = world.cell();
+        let asset_server = world.get_resource::<AssetServer>().unwrap();
+        let shader = asset_server.load("shader.wgsl");
+
+        let render_device = world.get_resource_mut::<RenderDevice>().unwrap();
+        let trace_bind_group_layout =
+            render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+                label: None,
+                entries: &[BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: BufferSize::new(std::mem::size_of::<f32>() as u64 * 4),
+                    },
+                    count: None,
+                }],
+            });
+
+        let mesh_pipeline = world.get_resource::<MeshPipeline>().unwrap();
+
+        TracePipeline {
+            shader,
+            mesh_pipeline: mesh_pipeline.clone(),
+            trace_bind_group_layout,
+        }
+    }
+}
+
+impl SpecializedMeshPipeline for TracePipeline {
+    type Key = MeshPipelineKey;
+
+    fn specialize(
+        &self,
+        key: Self::Key,
+        layout: &MeshVertexBufferLayout,
+    ) -> Result<RenderPipelineDescriptor, SpecializedMeshPipelineError> {
+        let mut descriptor = self.mesh_pipeline.specialize(key, layout)?;
+        descriptor.vertex.shader = self.shader.clone();
+        descriptor.fragment.as_mut().unwrap().shader = self.shader.clone();
+        descriptor.layout = Some(vec![
+            self.mesh_pipeline.view_layout.clone(),
+            self.mesh_pipeline.mesh_layout.clone(),
+            self.trace_bind_group_layout.clone(),
+        ]);
+        Ok(descriptor)
+    }
+}
+
+// #[repr(C)]
+// #[derive(Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
+// pub struct Uniforms {
+//     pub camera: [[f32; 4]; 4],
+//     pub camera_inverse: [[f32; 4]; 4],
+//     pub dimensions: [f32; 4],
+// }
+
+// impl Uniforms {
+//     fn new() -> Self {
+//         Self {
+//             camera: [[0.0; 4]; 4],
+//             camera_inverse: [[0.0; 4]; 4],
+//             dimensions: [0.0, 0.0, 0.0, 0.0],
+//         }
+//     }
+// }
+
+// This is the struct that will be passed to your shader
+#[derive(Component)]
+pub struct TraceMaterial;
+
+type DrawCustom = (
+    SetItemPipeline,
+    SetMeshViewBindGroup<0>,
+    SetMeshBindGroup<1>,
+    SetTraceBindGroup<2>,
+    DrawMesh,
+);
+
+struct SetTraceBindGroup<const I: usize>;
+impl<const I: usize> EntityRenderCommand for SetTraceBindGroup<I> {
+    type Param = SRes<TraceMeta>;
+
+    fn render<'w>(
+        _view: Entity,
+        _item: Entity,
+        trace_meta: SystemParamItem<'w, '_, Self::Param>,
+        pass: &mut TrackedRenderPass<'w>,
+    ) -> RenderCommandResult {
+        let trace_bind_group = trace_meta.into_inner().bind_group.as_ref().unwrap();
+        pass.set_bind_group(I, trace_bind_group, &[]);
+
+        RenderCommandResult::Success
+    }
+}

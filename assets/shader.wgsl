@@ -1,3 +1,30 @@
+#import bevy_pbr::mesh_view_bind_group
+#import bevy_pbr::mesh_struct
+
+[[group(1), binding(0)]]
+var<uniform> mesh: Mesh;
+
+struct Vertex {
+    [[location(0)]] position: vec3<f32>;
+    [[location(1)]] normal: vec3<f32>;
+    [[location(2)]] uv: vec2<f32>;
+};
+
+struct VertexOutput {
+    [[builtin(position)]] clip_position: vec4<f32>;
+    [[location(0)]] uv: vec2<f32>;
+};
+
+[[stage(vertex)]]
+fn vertex(vertex: Vertex) -> VertexOutput {
+    let world_position = mesh.model * vec4<f32>(vertex.position, 1.0);
+
+    var out: VertexOutput;
+    out.clip_position = view.view_proj * world_position;
+    out.uv = vertex.uv;
+    return out;
+}
+
 struct Uniforms {
     resolution: vec2<f32>;
 };
@@ -6,10 +33,10 @@ struct GH {
     data: [[stride(4)]] array<u32>;
 };
 
-[[group(1), binding(0)]]
+[[group(2), binding(0)]]
 var<uniform> u: Uniforms;
-[[group(1), binding(1)]]
-var<storage, read_write> gh: GH; // nodes
+// [[group(1), binding(1)]]
+// var<storage, read_write> gh: GH; // nodes
 
 fn get_clip_space(frag_pos: vec4<f32>, dimensions: vec2<f32>) -> vec2<f32> {
     var clip_space = frag_pos.xy / dimensions * 2.0;
@@ -18,9 +45,9 @@ fn get_clip_space(frag_pos: vec4<f32>, dimensions: vec2<f32>) -> vec2<f32> {
     return clip_space;
 }
 
-fn get_value(index: u32) -> bool {
-    return ((gh.data[index / 32u] >> (index % 32u)) & 1u) != 0u;
-}
+// fn get_value(index: u32) -> bool {
+//     return ((gh.data[index / 32u] >> (index % 32u)) & 1u) != 0u;
+// }
 
 struct Ray {
     pos: vec3<f32>;
@@ -48,9 +75,11 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
     var output_colour = vec3<f32>(0.0, 0.0, 0.0);
     let clip_space = get_clip_space(frag_pos, u.resolution);
 
-    let screen = floor((clip_space / 2.0 + 0.5) * 8.0);
-    let index = screen.y * 8.0 + screen.x;
-    output_colour = vec3<f32>(f32(get_value(u32(index))));
+    // let screen = floor((clip_space / 2.0 + 0.5) * 8.0);
+    // let index = screen.y * 8.0 + screen.x;
+    // output_colour = vec3<f32>(f32(get_value(u32(index))));
+
+    output_colour = vec3<f32>(clip_space, 0.5);
 
     let knee = 0.2;
     let power = 2.2;
