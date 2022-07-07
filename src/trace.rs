@@ -7,6 +7,7 @@ use bevy::{
     },
     prelude::*,
     render::{
+        camera::CameraProjection,
         mesh::MeshVertexBufferLayout,
         render_asset::RenderAssets,
         render_phase::{
@@ -22,6 +23,7 @@ use bevy::{
         RenderApp, RenderStage,
     },
 };
+use bytemuck::bytes_of;
 use rand::Rng;
 
 pub struct Tracer;
@@ -31,9 +33,10 @@ impl Plugin for Tracer {
         let render_device = app.world.resource::<RenderDevice>();
 
         // uniforms
+        let uniforms = Uniforms::default();
         let uniform = render_device.create_buffer_with_data(&BufferInitDescriptor {
             label: None,
-            contents: Vec4::new(1000.0, 1000.0, 0.0, 0.0).as_std140().as_bytes(),
+            contents: bytemuck::cast_slice(&[uniforms]),
             // contents: resolution.as_std140().as_bytes(),
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
         });
@@ -64,7 +67,7 @@ impl Plugin for Tracer {
             .add_system_to_stage(RenderStage::Extract, extract_trace_material)
             .add_system_to_stage(RenderStage::Prepare, prepare_time)
             .add_system_to_stage(RenderStage::Queue, queue_custom)
-            .add_system_to_stage(RenderStage::Queue, queue_time_bind_group);
+            .add_system_to_stage(RenderStage::Queue, queue_trace_bind_group);
         // .insert_resource(Buffers { uniform, storage })
         // .add_plugin(MaterialPlugin::<TraceMaterial>::default());
     }
@@ -74,10 +77,16 @@ impl Plugin for Tracer {
 #[derive(Default, Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
 struct Uniforms {
     resolution: Vec4,
+    camera: Mat4,
+    camera_inverse: Mat4,
 }
 
 // extract the passed time into a resource in the render world
-fn extract_uniforms(mut commands: Commands, windows: Res<Windows>) {
+fn extract_uniforms(
+    mut commands: Commands,
+    windows: Res<Windows>,
+    main_cam: Query<(&Transform, &PerspectiveProjection), With<super::MainCamera>>,
+) {
     let window = windows.primary();
     let resolution = Vec4::new(
         window.physical_width() as f32,
@@ -86,7 +95,16 @@ fn extract_uniforms(mut commands: Commands, windows: Res<Windows>) {
         0.0,
     );
 
-    commands.insert_resource(Uniforms { resolution });
+    let (transform, _perspective) = main_cam.single();
+
+    let camera = Mat4::IDENTITY;
+    let camera_inverse = transform.compute_matrix();
+
+    commands.insert_resource(Uniforms {
+        resolution,
+        camera,
+        camera_inverse,
+    });
 }
 
 // extract the `CustomMaterial` component into the render world
@@ -112,7 +130,7 @@ fn prepare_time(
     render_queue.write_buffer(
         &time_meta.uniform,
         0,
-        bevy::core::cast_slice(&[uniforms.resolution]),
+        bytemuck::cast_slice(&[*uniforms.as_ref()]),
     );
 }
 
@@ -154,9 +172,9 @@ fn queue_custom(
 }
 
 // create a bind group for the time uniform buffer
-fn queue_time_bind_group(
+fn queue_trace_bind_group(
     render_device: Res<RenderDevice>,
-    mut time_meta: ResMut<TraceMeta>,
+    mut trace_meta: ResMut<TraceMeta>,
     pipeline: Res<TracePipeline>,
 ) {
     let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
@@ -164,10 +182,10 @@ fn queue_time_bind_group(
         layout: &pipeline.trace_bind_group_layout,
         entries: &[BindGroupEntry {
             binding: 0,
-            resource: time_meta.uniform.as_entire_binding(),
+            resource: trace_meta.uniform.as_entire_binding(),
         }],
     });
-    time_meta.bind_group = Some(bind_group);
+    trace_meta.bind_group = Some(bind_group);
 }
 
 struct TraceMeta {
@@ -198,7 +216,7 @@ impl FromWorld for TracePipeline {
                     ty: BindingType::Buffer {
                         ty: BufferBindingType::Uniform,
                         has_dynamic_offset: false,
-                        min_binding_size: BufferSize::new(std::mem::size_of::<f32>() as u64 * 4),
+                        min_binding_size: BufferSize::new(std::mem::size_of::<Uniforms>() as u64),
                     },
                     count: None,
                 }],

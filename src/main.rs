@@ -2,12 +2,16 @@ use bevy::{
     asset::AssetServerSettings,
     prelude::*,
     window::PresentMode,
+    render::view::NoFrustumCulling,
 };
 use trace::TraceMaterial;
 
 mod character;
 mod fps_counter;
 mod trace;
+
+#[derive(Component)]
+struct MainCamera;
 
 fn main() {
     App::new()
@@ -33,21 +37,14 @@ fn main() {
 fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    window: Res<Windows>,
 ) {
-    // cube
     commands.spawn().insert_bundle((
-        meshes.add(Mesh::from(shape::Plane { size: 1.0 })),
-        Transform::from_xyz(0.0, 0.0, 0.0),
+        meshes.add(Mesh::from(shape::Plane { size: 2.0 })),
+        Transform::from_xyz(0.0, 0.0, 0.001).looking_at(Vec3::Y, Vec3::Z),
         GlobalTransform::default(),
         TraceMaterial,
         Visibility::default(),
         ComputedVisibility::default(),
+        NoFrustumCulling,
     ));
-
-    // camera
-    commands.spawn_bundle(PerspectiveCameraBundle {
-        transform: Transform::from_xyz(0.0, 1.0, 0.0).looking_at(Vec3::ZERO, Vec3::Z),
-        ..default()
-    });
 }

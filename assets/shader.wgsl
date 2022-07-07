@@ -20,13 +20,15 @@ fn vertex(vertex: Vertex) -> VertexOutput {
     let world_position = mesh.model * vec4<f32>(vertex.position, 1.0);
 
     var out: VertexOutput;
-    out.clip_position = view.view_proj * world_position;
+    out.clip_position = world_position; //view.view_proj * 
     out.uv = vertex.uv;
     return out;
 }
 
 struct Uniforms {
     resolution: vec2<f32>;
+    camera: mat4x4<f32>;
+    camera_inverse: mat4x4<f32>;
 };
 
 struct GH {
@@ -75,11 +77,19 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
     var output_colour = vec3<f32>(0.0, 0.0, 0.0);
     let clip_space = get_clip_space(frag_pos, u.resolution);
 
+    let pos = u.camera_inverse * vec4<f32>(0.0, 0.0, 0.0, 1.0);
+    let dir = u.camera_inverse * vec4<f32>(clip_space.x, clip_space.y, -1.0, 1.0);
+    let pos = pos.xyz;
+    let dir = normalize(dir.xyz - pos);
+    var ray = Ray(pos.xyz, dir.xyz);
+    
+    let dist = ray_box_dist(ray, vec3<f32>(-1.0, -1.0, -1.0), vec3<f32>(1.0, 1.0, 1.0));
+
+    output_colour = vec3<f32>(dist);
+
     // let screen = floor((clip_space / 2.0 + 0.5) * 8.0);
     // let index = screen.y * 8.0 + screen.x;
     // output_colour = vec3<f32>(f32(get_value(u32(index))));
-
-    output_colour = vec3<f32>(clip_space, 0.5);
 
     let knee = 0.2;
     let power = 2.2;
