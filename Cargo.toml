@@ -1,9 +1,11 @@
 [package]
-name = "bevy-shaders"
+name = "grid-hierarchy"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 bevy = { version = "0.7", features = ["dynamic"] }
-rand = "0.8.5"
-bytemuck = "1.10.0"
+bytemuck = "1.10"
+rand = "0.8"
+dot_vox = "4.1"
+bevy_egui = "0.14"

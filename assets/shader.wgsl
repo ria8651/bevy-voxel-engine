@@ -40,7 +40,7 @@ var<uniform> u: Uniforms;
 [[group(2), binding(1)]]
 var<storage, read_write> gh: GH; // nodes
 
-let LEVELS: vec2<u32> = vec2<u32>(16u, 64u);
+let LEVELS: vec2<u32> = vec2<u32>(128u, 64u);
 let OFFSETS: vec2<u32> = vec2<u32>(0u, 4096u);
 
 fn get_clip_space(frag_pos: vec4<f32>, dimensions: vec2<f32>) -> vec2<f32> {
@@ -54,17 +54,21 @@ fn get_value_index(index: u32) -> bool {
     return ((gh.data[index / 32u] >> (index % 32u)) & 1u) != 0u;
 }
 
-fn get_value(pos: vec3<f32>, level: u32) -> vec3<f32> {
+struct Voxel {
+    value: bool;
+    pos: vec3<f32>;
+};
+
+fn get_value(pos: vec3<f32>, level: u32) -> Voxel {
     let size = LEVELS[level];
     let scaled = pos * 0.5 + 0.5;
     let scaled = scaled * vec3<f32>(f32(size));
     let scaled = vec3<u32>(scaled);
     let index = scaled.x * size * size + scaled.y * size + scaled.z;
-    if (get_value_index(index + OFFSETS[level])) {
-        return (floor(pos * f32(size) * 0.5) + 0.5) / (f32(size) * 0.5);
-    } else {
-        return vec3<f32>(0.0, 0.0, 0.0);
-    }
+
+    let value = get_value_index(index + OFFSETS[level]);
+    let pos = (floor(pos * f32(size) * 0.5) + 0.5) / (f32(size) * 0.5);
+    return Voxel(value, pos);
 }
 
 struct Ray {
@@ -92,12 +96,6 @@ fn in_bounds(v: vec3<f32>) -> bool {
     let s = step(vec3<f32>(-1.0), v) - step(vec3<f32>(1.0), v);
     return (s.x * s.y * s.z) > 0.5; 
 }
-
-struct Voxel {
-    value: u32;
-    pos: vec3<f32>;
-    depth: u32;
-};
 
 struct HitInfo {
     hit: bool;
@@ -130,14 +128,14 @@ fn shoot_ray(r: Ray, cs: vec2<f32>) -> HitInfo {
     var steps = 0u;
     var normal = trunc(pos * 1.00001);
     loop {
-        let level = u32(step(cs.x, 0.0));
+        let level = 0u;
         let voxel = get_value(voxel_pos, level);
-        if (any(voxel == vec3<f32>(0.0))) {
+        if (voxel.value) {
             break;
         }
 
         let voxel_size = 2.0 / f32(LEVELS[level]);
-        let t_max = (voxel - pos + r_sign * voxel_size / 2.0) / dir;
+        let t_max = (voxel.pos - pos + r_sign * voxel_size / 2.0) / dir;
 
         // https://www.shadertoy.com/view/4dX3zl (good old shader toy)
         let mask = vec3<f32>(t_max.xyz <= min(t_max.yzx, t_max.zxy));

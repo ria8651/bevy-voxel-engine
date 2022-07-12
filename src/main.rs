@@ -9,6 +9,7 @@ use trace::TraceMaterial;
 mod character;
 mod fps_counter;
 mod trace;
+mod load;
 
 #[derive(Component)]
 struct MainCamera;

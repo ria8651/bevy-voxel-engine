@@ -1,0 +1,21 @@
+[package]
+name = "sdf-tracer"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+wgpu = "0.12"
+winit = "0.26"
+cgmath = "0.18"
+pollster = "0.2"
+env_logger = "0.9"
+bytemuck = { version = "1.7", features = [ "derive" ] }
+dot_vox = "4.1.0"
+egui = "0.16"
+epi = "0.16"
+egui_winit_platform = "0.13"
+egui_wgpu_backend = "0.16"
+egui_demo_lib = "0.16"
+native-dialog = "0.6"
