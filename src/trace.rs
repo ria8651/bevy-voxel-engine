@@ -7,23 +7,18 @@ use bevy::{
     },
     prelude::*,
     render::{
-        camera::CameraProjection,
         mesh::MeshVertexBufferLayout,
         render_asset::RenderAssets,
         render_phase::{
             AddRenderCommand, DrawFunctions, EntityRenderCommand, RenderCommandResult, RenderPhase,
             SetItemPipeline, TrackedRenderPass,
         },
-        render_resource::{
-            std140::{AsStd140, Std140},
-            *,
-        },
+        render_resource::*,
         renderer::{RenderDevice, RenderQueue},
         view::{ExtractedView, Msaa},
         RenderApp, RenderStage,
     },
 };
-use bytemuck::bytes_of;
 use rand::Rng;
 
 pub struct Tracer;
@@ -42,15 +37,28 @@ impl Plugin for Tracer {
         });
 
         // storage
+        let levels = vec![16, 64];
+        // let mut offsets = Vec::new();
+        // let mut last = 0;
+        // for level in levels {
+        //     offsets.push(last);
+        //     last = last + level * level * level;
+        // }
+        // ^ offsets hardcoded on shader side for now
+
         let mut rng = rand::thread_rng();
         let mut values = Vec::new();
-        for _ in 0..16777216 {
-            let mut value = 0;
-            for i in 0..8 {
-                let bit = (rng.gen::<u8>() >= 1) as u8;
-                value |= bit << i;
+        for level in levels {
+            for i in 0..((level * level * level) / 8) {
+                // divided by 8 for bit per voxel
+                let mut value = 0;
+                for j in 0..8 {
+                    // let bit = (rng.gen::<u8>() >= 1) as u8;
+                    let bit = ((i * 8 + j) <= level) as u8;
+                    value |= bit << j;
+                }
+                values.push(value);
             }
-            values.push(value);
         }
 
         let storage = render_device.create_buffer_with_data(&BufferInitDescriptor {

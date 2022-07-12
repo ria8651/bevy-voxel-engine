@@ -40,6 +40,9 @@ var<uniform> u: Uniforms;
 [[group(2), binding(1)]]
 var<storage, read_write> gh: GH; // nodes
 
+let LEVELS: vec2<u32> = vec2<u32>(16u, 64u);
+let OFFSETS: vec2<u32> = vec2<u32>(0u, 4096u);
+
 fn get_clip_space(frag_pos: vec4<f32>, dimensions: vec2<f32>) -> vec2<f32> {
     var clip_space = frag_pos.xy / dimensions * 2.0;
     clip_space = clip_space - 1.0;
@@ -51,12 +54,13 @@ fn get_value_index(index: u32) -> bool {
     return ((gh.data[index / 32u] >> (index % 32u)) & 1u) != 0u;
 }
 
-fn get_value(pos: vec3<f32>, size: u32) -> vec3<f32> {
+fn get_value(pos: vec3<f32>, level: u32) -> vec3<f32> {
+    let size = LEVELS[level];
     let scaled = pos * 0.5 + 0.5;
     let scaled = scaled * vec3<f32>(f32(size));
     let scaled = vec3<u32>(scaled);
     let index = scaled.x * size * size + scaled.y * size + scaled.z;
-    if (get_value_index(index)) {
+    if (get_value_index(index + OFFSETS[level])) {
         return (floor(pos * f32(size) * 0.5) + 0.5) / (f32(size) * 0.5);
     } else {
         return vec3<f32>(0.0, 0.0, 0.0);
@@ -102,7 +106,7 @@ struct HitInfo {
     steps: u32;
 };
 
-fn shoot_ray(r: Ray, voxel_size: u32) -> HitInfo {
+fn shoot_ray(r: Ray, cs: vec2<f32>) -> HitInfo {
     var pos = r.pos;
     let dir_mask = vec3<f32>(r.dir == vec3<f32>(0.0));
     var dir = r.dir + dir_mask * 0.000001;
@@ -126,12 +130,13 @@ fn shoot_ray(r: Ray, voxel_size: u32) -> HitInfo {
     var steps = 0u;
     var normal = trunc(pos * 1.00001);
     loop {
-        let voxel = get_value(voxel_pos, voxel_size);
+        let level = u32(step(cs.x, 0.0));
+        let voxel = get_value(voxel_pos, level);
         if (any(voxel == vec3<f32>(0.0))) {
             break;
         }
 
-        let voxel_size = 2.0 / f32(voxel_size);
+        let voxel_size = 2.0 / f32(LEVELS[level]);
         let t_max = (voxel - pos + r_sign * voxel_size / 2.0) / dir;
 
         // https://www.shadertoy.com/view/4dX3zl (good old shader toy)
@@ -165,7 +170,8 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
     let dir = normalize(dir.xyz - pos);
     var ray = Ray(pos.xyz, dir.xyz);
 
-    output_colour = shoot_ray(ray, 512u).normal * 0.5 + 0.5;
+    output_colour = shoot_ray(ray, clip_space).normal * 0.5 + 0.5;
+    // output_colour = vec3<f32>(f32(shoot_ray(ray, 512u).steps));
 
     // let screen = floor((clip_space / 2.0 + 0.5) * 8.0);
     // let index = screen.y * 8.0 + screen.x;
