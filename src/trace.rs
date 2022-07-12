@@ -44,8 +44,13 @@ impl Plugin for Tracer {
         // storage
         let mut rng = rand::thread_rng();
         let mut values = Vec::new();
-        for _ in 0..512 {
-            values.push(rng.gen::<u8>());
+        for _ in 0..16777216 {
+            let mut value = 0;
+            for i in 0..8 {
+                let bit = (rng.gen::<u8>() >= 1) as u8;
+                value |= bit << i;
+            }
+            values.push(value);
         }
 
         let storage = render_device.create_buffer_with_data(&BufferInitDescriptor {

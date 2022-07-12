@@ -107,22 +107,24 @@ fn shoot_ray(r: Ray, voxel_size: u32) -> HitInfo {
     let dir_mask = vec3<f32>(r.dir == vec3<f32>(0.0));
     var dir = r.dir + dir_mask * 0.000001;
 
-    var dist = 0.0;
+    // return HitInfo(false, vec3<f32>(0.0), pos, 0u);
+
     if (!in_bounds(r.pos)) {
         // Get position on surface of the octree
-        dist = ray_box_dist(r, vec3<f32>(-1.0), vec3<f32>(1.0));
+        let dist = ray_box_dist(r, vec3<f32>(-1.0), vec3<f32>(1.0));
         if (dist == 0.0){
             return HitInfo(false, vec3<f32>(0.0), vec3<f32>(0.0), 0u);
         }
 
         pos = r.pos + dir * (dist + 0.00001);
+        // return HitInfo(false, vec3<f32>(0.0), vec3<f32>(0.0, 0.0, 1.0), 0u);
     }
 
     let r_sign = sign(dir);
 
     var voxel_pos = pos;
     var steps = 0u;
-    var normal = trunc(pos * 1.000001);
+    var normal = trunc(pos * 1.00001);
     loop {
         let voxel = get_value(voxel_pos, voxel_size);
         if (any(voxel == vec3<f32>(0.0))) {
@@ -144,7 +146,7 @@ fn shoot_ray(r: Ray, voxel_size: u32) -> HitInfo {
         }
 
         steps = steps + 1u;
-        if (steps > 100u) {
+        if (steps > 1000u) {
             return HitInfo(true, voxel_pos, normal, steps);
         }
     }
@@ -162,14 +164,8 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
     let pos = pos.xyz;
     let dir = normalize(dir.xyz - pos);
     var ray = Ray(pos.xyz, dir.xyz);
-    
-    let dist = ray_box_dist(ray, vec3<f32>(-1.0, -1.0, -1.0), vec3<f32>(1.0, 1.0, 1.0));
-    let pos = ray.pos + ray.dir * dist;
 
-    if (dist > 0.0) {
-        // output_colour = vec3<f32>(f32(get_value(pos * 0.99, 4u).x != vec3<f32>(0.0).x));
-        output_colour = shoot_ray(ray, 8u).pos * 0.5 + 0.5;
-    }
+    output_colour = shoot_ray(ray, 512u).normal * 0.5 + 0.5;
 
     // let screen = floor((clip_space / 2.0 + 0.5) * 8.0);
     // let index = screen.y * 8.0 + screen.x;
