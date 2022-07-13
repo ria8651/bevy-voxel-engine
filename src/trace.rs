@@ -20,7 +20,7 @@ use bevy::{
     },
 };
 use rand::Rng;
-use super::load;
+use super::{load, load::GH};
 
 pub struct Tracer;
 
@@ -38,22 +38,7 @@ impl Plugin for Tracer {
         });
 
         // storage
-        // let mut rng = rand::thread_rng();
-        // let mut values = Vec::new();
-        // for level in levels {
-        //     for i in 0..((level * level * level) / 8) {
-        //         // divided by 8 for bit per voxel
-        //         let mut value = 0;
-        //         for j in 0..8 {
-        //             // let bit = (rng.gen::<u8>() >= 1) as u8;
-        //             let bit = ((i * 8 + j) <= level) as u8;
-        //             value |= bit << j;
-        //         }
-        //         values.push(value);
-        //     }
-        // }
-
-        let gh = load::load_vox().unwrap();
+        let gh = app.world.resource::<GH>();
 
         let storage = render_device.create_buffer_with_data(&BufferInitDescriptor {
             contents: &gh.data,
@@ -86,6 +71,8 @@ struct Uniforms {
     resolution: Vec4,
     camera: Mat4,
     camera_inverse: Mat4,
+    levels: [u32; 8],
+    offsets: [u32; 8],
 }
 
 // extract the passed time into a resource in the render world
@@ -93,6 +80,7 @@ fn extract_uniforms(
     mut commands: Commands,
     windows: Res<Windows>,
     main_cam: Query<(&Transform, &PerspectiveProjection), With<super::MainCamera>>,
+    gh: Res<GH>,
 ) {
     let window = windows.primary();
     let resolution = Vec4::new(
@@ -111,6 +99,8 @@ fn extract_uniforms(
         resolution,
         camera,
         camera_inverse,
+        levels: gh.levels,
+        offsets: gh.get_offsets(),
     });
 }
 

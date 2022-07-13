@@ -13,13 +13,13 @@ impl GH {
         }
     }
 
-    pub fn get_offsets(&self) -> [usize; 8] {
+    pub fn get_offsets(&self) -> [u32; 8] {
         let mut offsets = [0; 8];
         let mut last = 0;
         for i in 0..8 {
             offsets[i] = last;
             last =
-                last + self.levels[i] as usize * self.levels[i] as usize * self.levels[i] as usize;
+                last + self.levels[i] as u32 * self.levels[i] as u32 * self.levels[i] as u32;
         }
         offsets
     }
@@ -44,17 +44,17 @@ impl GH {
 
                 let index = int_pos.x * size * size + int_pos.y * size + int_pos.z;
 
-                let byte = (index as usize + offsets[i]) / 8;
+                let byte = (index as u32 + offsets[i]) / 8;
                 let bit = index as usize % 8;
 
-                self.data[byte] |= 1 << bit;
+                self.data[byte as usize] |= 1 << bit;
             }
         }
     }
 }
 
 pub fn load_vox() -> Result<GH, String> {
-    let vox = dot_vox::load("assets/vox/sparse.vox")?;
+    let vox = dot_vox::load("assets/vox/treehouse.vox")?;
     let size = vox.models[0].size;
     if size.x != size.y || size.x != size.z || size.y != size.z {
         return Err("Voxel model is not a cube!".to_string());
@@ -62,7 +62,7 @@ pub fn load_vox() -> Result<GH, String> {
 
     let size = size.x as usize;
 
-    let mut gh = GH::new([32, 64, 128, 256, 0, 0, 0, 0]);
+    let mut gh = GH::new([4, 8, 16, 32, 64, 128, 0, 0]);
     println!("{:?}", gh.get_offsets());
 
     for _ in 0..(gh.get_final_length() / 8) {

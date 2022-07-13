@@ -26,6 +26,7 @@ fn main() {
             present_mode: PresentMode::Mailbox,
             ..default()
         })
+        .insert_resource(load::load_vox().unwrap())
         .add_plugins(DefaultPlugins)
         .add_plugin(fps_counter::FpsCounter)
         .add_plugin(character::Character)
