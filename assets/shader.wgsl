@@ -40,8 +40,8 @@ var<uniform> u: Uniforms;
 [[group(2), binding(1)]]
 var<storage, read_write> gh: GH; // nodes
 
-let LEVELS: vec2<u32> = vec2<u32>(128u, 64u);
-let OFFSETS: vec2<u32> = vec2<u32>(0u, 4096u);
+let LEVELS: vec4<u32> = vec4<u32>(128u, 64u, 32u, 16u);
+let OFFSETS: vec4<u32> = vec4<u32>(0u, 2097152u, 2359296u, 2392064u);
 
 fn get_clip_space(frag_pos: vec4<f32>, dimensions: vec2<f32>) -> vec2<f32> {
     var clip_space = frag_pos.xy / dimensions * 2.0;
@@ -128,7 +128,8 @@ fn shoot_ray(r: Ray, cs: vec2<f32>) -> HitInfo {
     var steps = 0u;
     var normal = trunc(pos * 1.00001);
     loop {
-        let level = 0u;
+        var level = u32((cs.x * 0.5 + 0.5) * 4.0);
+
         let voxel = get_value(voxel_pos, level);
         if (voxel.value) {
             break;

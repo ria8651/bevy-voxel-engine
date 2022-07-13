@@ -38,15 +38,6 @@ impl Plugin for Tracer {
         });
 
         // storage
-        // let levels = vec![16, 64];
-        // let mut offsets = Vec::new();
-        // let mut last = 0;
-        // for level in levels {
-        //     offsets.push(last);
-        //     last = last + level * level * level;
-        // }
-        // // ^ offsets hardcoded on shader side for now
-
         // let mut rng = rand::thread_rng();
         // let mut values = Vec::new();
         // for level in levels {
@@ -62,10 +53,10 @@ impl Plugin for Tracer {
         //     }
         // }
 
-        let values = load::load_vox().unwrap();
+        let gh = load::load_vox().unwrap();
 
         let storage = render_device.create_buffer_with_data(&BufferInitDescriptor {
-            contents: &values,
+            contents: &gh.data,
             label: None,
             usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
         });
