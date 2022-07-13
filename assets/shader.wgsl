@@ -40,8 +40,8 @@ var<uniform> u: Uniforms;
 [[group(2), binding(1)]]
 var<storage, read_write> gh: GH; // nodes
 
-let LEVELS: vec4<u32> = vec4<u32>(128u, 64u, 32u, 16u);
-let OFFSETS: vec4<u32> = vec4<u32>(0u, 2097152u, 2359296u, 2392064u);
+let LEVELS: vec4<u32> = vec4<u32>(4u, 8u, 32u, 128u);
+let OFFSETS: vec4<u32> = vec4<u32>(0u, 64u, 576u, 33344u);
 
 fn get_clip_space(frag_pos: vec4<f32>, dimensions: vec2<f32>) -> vec2<f32> {
     var clip_space = frag_pos.xy / dimensions * 2.0;
@@ -57,18 +57,24 @@ fn get_value_index(index: u32) -> bool {
 struct Voxel {
     value: bool;
     pos: vec3<f32>;
+    level: u32;
 };
 
-fn get_value(pos: vec3<f32>, level: u32) -> Voxel {
-    let size = LEVELS[level];
+fn get_value(pos: vec3<f32>) -> Voxel {
     let scaled = pos * 0.5 + 0.5;
-    let scaled = scaled * vec3<f32>(f32(size));
-    let scaled = vec3<u32>(scaled);
-    let index = scaled.x * size * size + scaled.y * size + scaled.z;
+    for (var i = 0; i < 4; i = i + 1) {
+        let size = LEVELS[i];
+        let scaled = scaled * vec3<f32>(f32(size));
+        let scaled = vec3<u32>(scaled);
+        let index = scaled.x * size * size + scaled.y * size + scaled.z;
 
-    let value = get_value_index(index + OFFSETS[level]);
-    let pos = (floor(pos * f32(size) * 0.5) + 0.5) / (f32(size) * 0.5);
-    return Voxel(value, pos);
+        if (!get_value_index(index + OFFSETS[i])) {
+            let rounded_pos = (floor(pos * f32(size) * 0.5) + 0.5) / (f32(size) * 0.5);
+            return Voxel(false, rounded_pos, u32(i));
+        }
+    }
+
+    return Voxel(true, pos, LEVELS[3]);
 }
 
 struct Ray {
@@ -128,14 +134,13 @@ fn shoot_ray(r: Ray, cs: vec2<f32>) -> HitInfo {
     var steps = 0u;
     var normal = trunc(pos * 1.00001);
     loop {
-        var level = u32((cs.x * 0.5 + 0.5) * 4.0);
-
-        let voxel = get_value(voxel_pos, level);
+        let voxel = get_value(voxel_pos);
+        // return HitInfo(false, vec3<f32>(0.0), voxel.pos, steps);
         if (voxel.value) {
             break;
         }
 
-        let voxel_size = 2.0 / f32(LEVELS[level]);
+        let voxel_size = 2.0 / f32(LEVELS[voxel.level]);
         let t_max = (voxel.pos - pos + r_sign * voxel_size / 2.0) / dir;
 
         // https://www.shadertoy.com/view/4dX3zl (good old shader toy)
@@ -169,8 +174,8 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
     let dir = normalize(dir.xyz - pos);
     var ray = Ray(pos.xyz, dir.xyz);
 
-    output_colour = shoot_ray(ray, clip_space).normal * 0.5 + 0.5;
-    // output_colour = vec3<f32>(f32(shoot_ray(ray, 512u).steps));
+    // output_colour = shoot_ray(ray, clip_space).normal * 0.5 + 0.5;
+    output_colour = vec3<f32>(f32(shoot_ray(ray, clip_space).steps) / 50.0);
 
     // let screen = floor((clip_space / 2.0 + 0.5) * 8.0);
     // let index = screen.y * 8.0 + screen.x;

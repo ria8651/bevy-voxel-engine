@@ -62,7 +62,8 @@ pub fn load_vox() -> Result<GH, String> {
 
     let size = size.x as usize;
 
-    let mut gh = GH::new([128, 64, 32, 16, 0, 0, 0, 0]);
+    let mut gh = GH::new([4, 8, 32, 128, 0, 0, 0, 0]);
+    println!("{:?}", gh.get_offsets());
 
     for _ in 0..(gh.get_final_length() / 8) {
         gh.data.push(0);
