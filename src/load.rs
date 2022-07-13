@@ -39,7 +39,7 @@ impl GH {
                 let size = self.levels[i] as i32;
 
                 let new_pos = pos * 0.5 + 0.5;
-                let new_pos = new_pos * self.levels[i] as f32;
+                let new_pos = new_pos * self.levels[i] as f32 - 0.5;
                 let int_pos = new_pos.as_ivec3();
 
                 let index = int_pos.x * size * size + int_pos.y * size + int_pos.z;
@@ -54,7 +54,7 @@ impl GH {
 }
 
 pub fn load_vox() -> Result<GH, String> {
-    let vox = dot_vox::load("assets/vox/monu1.vox")?;
+    let vox = dot_vox::load("assets/vox/sparse.vox")?;
     let size = vox.models[0].size;
     if size.x != size.y || size.x != size.z || size.y != size.z {
         return Err("Voxel model is not a cube!".to_string());
@@ -62,7 +62,7 @@ pub fn load_vox() -> Result<GH, String> {
 
     let size = size.x as usize;
 
-    let mut gh = GH::new([4, 8, 32, 128, 0, 0, 0, 0]);
+    let mut gh = GH::new([32, 64, 128, 256, 0, 0, 0, 0]);
     println!("{:?}", gh.get_offsets());
 
     for _ in 0..(gh.get_final_length() / 8) {

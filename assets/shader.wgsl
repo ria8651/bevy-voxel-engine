@@ -40,8 +40,8 @@ var<uniform> u: Uniforms;
 [[group(2), binding(1)]]
 var<storage, read_write> gh: GH; // nodes
 
-let LEVELS: vec4<u32> = vec4<u32>(4u, 8u, 32u, 128u);
-let OFFSETS: vec4<u32> = vec4<u32>(0u, 64u, 576u, 33344u);
+let LEVELS: vec4<u32> = vec4<u32>(32u, 64u, 128u, 256u);
+let OFFSETS: vec4<u32> = vec4<u32>(0u, 32768u, 294912u, 2392064u);
 
 fn get_clip_space(frag_pos: vec4<f32>, dimensions: vec2<f32>) -> vec2<f32> {
     var clip_space = frag_pos.xy / dimensions * 2.0;
