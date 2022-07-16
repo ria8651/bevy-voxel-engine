@@ -99,5 +99,6 @@ pub fn load_vox() -> Result<GH, String> {
 }
 
 fn pack(red: u8, green: u8, blue: u8) -> u8 {
-    return ((red / 64) | ((green / 64) << 2) | ((blue / 64) << 4)).max(0);
+    return ((red / 64) | ((green / 64) << 2) | ((blue / 64) << 4)).max(1);
+    // return 255;
 }

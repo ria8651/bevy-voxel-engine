@@ -77,15 +77,15 @@ fn get_value(pos: vec3<f32>) -> Voxel {
         let scaled = vec3<u32>(scaled);
         let index = scaled.x * size * size + scaled.y * size + scaled.z;
 
+        let rounded_pos = ((vec3<f32>(scaled) + 0.5) / f32(size)) * 2.0 - 1.0;
+        // let rounded_pos = (floor(pos * f32(size) * 0.5) + 0.5) / (f32(size) * 0.5);
         if (u.levels[i] != 0u) {
             if (!get_value_index(index + u.offsets[i])) {
-                // let rounded_pos = (floor(pos * f32(size) * 0.5) + 0.5) / (f32(size) * 0.5);
-                let rounded_pos = ((vec3<f32>(scaled) + 0.5) / f32(size)) * 2.0 - 1.0;
                 return Voxel(0u, rounded_pos, size);
             }
         } else {
             let value = textureLoad(texture, vec3<i32>(scaled)).r;
-            return Voxel(value, pos, size);
+            return Voxel(value, rounded_pos, size);
         }
     }
 
@@ -160,7 +160,8 @@ fn shoot_ray(r: Ray) -> HitInfo {
     var voxel = Voxel(0u, vec3<f32>(0.0), 0u);
     loop {
         voxel = get_value(voxel_pos);
-        // return HitInfo(true, voxel.value, vec3<f32>(f32(voxel_size) * 2.0), normal, steps);
+        let voxel_size = 2.0 / f32(voxel.grid_size);
+        // return HitInfo(true, voxel.value, (voxel.pos - pos + r_sign * voxel_size / 2.0) * 64.0, normal, steps);
         if (voxel.value != 0u) {
             return HitInfo(true, voxel.value, voxel_pos, normal, steps);
         }
@@ -180,7 +181,7 @@ fn shoot_ray(r: Ray) -> HitInfo {
         }
 
         steps = steps + 1u;
-        if (steps > 100u) {
+        if (steps > 1000u) {
             return HitInfo(true, voxel.value, voxel_pos, normal, steps);
         }
     }
@@ -200,6 +201,7 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
     var ray = Ray(pos.xyz, dir.xyz);
     let hit = shoot_ray(ray);
 
+    // output_colour = hit.pos;
     // output_colour = hit.normal * 0.5 + 0.5;
     // output_colour = vec3<f32>(unpack(hit.value)) / 3.0;
     output_colour = vec3<f32>(f32(hit.steps) / 100.0);
