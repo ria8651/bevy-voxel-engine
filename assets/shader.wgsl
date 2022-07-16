@@ -31,6 +31,7 @@ struct Uniforms {
     camera_inverse: mat4x4<f32>;
     levels: array<u32, 8>;
     offsets: array<u32, 8>;
+    texture_size: u32;
 };
 
 struct GH {
@@ -41,6 +42,8 @@ struct GH {
 var<uniform> u: Uniforms;
 [[group(2), binding(1)]]
 var<storage, read_write> gh: GH; // nodes
+[[group(2), binding(2)]]
+var texture: texture_storage_3d<r8uint, read_write>;
 
 fn get_clip_space(frag_pos: vec4<f32>, dimensions: vec2<f32>) -> vec2<f32> {
     var clip_space = frag_pos.xy / dimensions * 2.0;
@@ -54,30 +57,39 @@ fn get_value_index(index: u32) -> bool {
 }
 
 struct Voxel {
-    value: bool;
+    value: u32;
     pos: vec3<f32>;
-    level: u32;
+    grid_size: u32;
 };
 
 fn get_value(pos: vec3<f32>) -> Voxel {
     let scaled = pos * 0.5 + 0.5;
     for (var i = 0; i < 8; i = i + 1) {
-        let size = u.levels[i];
+        var size = 0u;
+        if (u.levels[i] == 0u) {
+            size = u.texture_size;
+        } else {
+            size = u.levels[i];
+            // return Voxel(1u, )
+        }
+
         let scaled = scaled * vec3<f32>(f32(size));
         let scaled = vec3<u32>(scaled);
         let index = scaled.x * size * size + scaled.y * size + scaled.z;
 
-        if (!get_value_index(index + u.offsets[i])) {
-            let rounded_pos = (floor(pos * f32(size) * 0.5) + 0.5) / (f32(size) * 0.5);
-            return Voxel(false, rounded_pos, u32(i));
-        }
-
-        if (u.levels[i + 1] == 0u) {
-            return Voxel(true, pos, u.levels[i + 1]);
+        if (u.levels[i] != 0u) {
+            if (!get_value_index(index + u.offsets[i])) {
+                // let rounded_pos = (floor(pos * f32(size) * 0.5) + 0.5) / (f32(size) * 0.5);
+                let rounded_pos = ((vec3<f32>(scaled) + 0.5) / f32(size)) * 2.0 - 1.0;
+                return Voxel(0u, rounded_pos, size);
+            }
+        } else {
+            let value = textureLoad(texture, vec3<i32>(scaled)).r;
+            return Voxel(value, pos, size);
         }
     }
 
-    return Voxel(true, pos, u.levels[7]);
+    return Voxel(0u, vec3<f32>(0.0), 0u);
 }
 
 struct Ray {
@@ -97,17 +109,26 @@ fn ray_box_dist(r: Ray, vmin: vec3<f32>, vmax: vec3<f32>) -> f32 {
     if (v8 < 0.0 || v7 > v8) {
         return 0.0;
     }
-    
+
     return v7;
 }
 
 fn in_bounds(v: vec3<f32>) -> bool {
     let s = step(vec3<f32>(-1.0), v) - step(vec3<f32>(1.0), v);
-    return (s.x * s.y * s.z) > 0.5; 
+    return (s.x * s.y * s.z) > 0.5;
+}
+
+fn unpack(i: u32) -> vec3<u32> {
+    return vec3<u32>(
+        i & 0x11u,
+        (i >> 2u) & 0x11u,
+        (i >> 4u) & 0x11u,
+    );
 }
 
 struct HitInfo {
     hit: bool;
+    value: u32;
     pos: vec3<f32>;
     normal: vec3<f32>;
     steps: u32;
@@ -123,8 +144,8 @@ fn shoot_ray(r: Ray) -> HitInfo {
     if (!in_bounds(r.pos)) {
         // Get position on surface of the octree
         let dist = ray_box_dist(r, vec3<f32>(-1.0), vec3<f32>(1.0));
-        if (dist == 0.0){
-            return HitInfo(false, vec3<f32>(0.0), vec3<f32>(0.0), 0u);
+        if (dist == 0.0) {
+            return HitInfo(false, 0u, vec3<f32>(0.0), vec3<f32>(0.0), 0u);
         }
 
         pos = r.pos + dir * (dist + 0.00001);
@@ -136,14 +157,15 @@ fn shoot_ray(r: Ray) -> HitInfo {
     var voxel_pos = pos;
     var steps = 0u;
     var normal = trunc(pos * 1.00001);
+    var voxel = Voxel(0u, vec3<f32>(0.0), 0u);
     loop {
-        let voxel = get_value(voxel_pos);
-        // return HitInfo(false, vec3<f32>(0.0), voxel.pos, steps);
-        if (voxel.value) {
-            break;
+        voxel = get_value(voxel_pos);
+        // return HitInfo(true, voxel.value, vec3<f32>(f32(voxel_size) * 2.0), normal, steps);
+        if (voxel.value != 0u) {
+            return HitInfo(true, voxel.value, voxel_pos, normal, steps);
         }
 
-        let voxel_size = 2.0 / f32(u.levels[voxel.level]);
+        let voxel_size = 2.0 / f32(voxel.grid_size);
         let t_max = (voxel.pos - pos + r_sign * voxel_size / 2.0) / dir;
 
         // https://www.shadertoy.com/view/4dX3zl (good old shader toy)
@@ -154,16 +176,16 @@ fn shoot_ray(r: Ray) -> HitInfo {
         voxel_pos = pos + dir * t_current - normal * 0.000002;
 
         if (!in_bounds(voxel_pos)) {
-            return HitInfo(false, vec3<f32>(0.0), vec3<f32>(0.0), steps);
+            return HitInfo(false, 0u, vec3<f32>(0.0), vec3<f32>(0.0), steps);
         }
 
         steps = steps + 1u;
-        if (steps > 1000u) {
-            return HitInfo(true, voxel_pos, normal, steps);
+        if (steps > 100u) {
+            return HitInfo(true, voxel.value, voxel_pos, normal, steps);
         }
     }
 
-    return HitInfo(true, voxel_pos, normal, steps);
+    return HitInfo(true, voxel.value, voxel_pos, normal, steps);
 }
 
 [[stage(fragment)]]
@@ -176,39 +198,34 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
     let pos = pos.xyz;
     let dir = normalize(dir.xyz - pos);
     var ray = Ray(pos.xyz, dir.xyz);
-
-    output_colour = shoot_ray(ray).normal * 0.5 + 0.5;
-    // output_colour = vec3<f32>(f32(shoot_ray(ray).steps) / 50.0);
-
     let hit = shoot_ray(ray);
-    // output_colour = vec3<f32>(hit.pos);
-    // if (u.show_steps) {
-        // output_colour = vec3<f32>(f32(hit.steps) / 64.0);
+
+    // output_colour = hit.normal * 0.5 + 0.5;
+    // output_colour = vec3<f32>(unpack(hit.value)) / 3.0;
+    output_colour = vec3<f32>(f32(hit.steps) / 100.0);
+
+    // if (hit.hit) {
+    //     // if (u.show_hits) {
+    //     //     output_colour = vec3<f32>(f32(n.data[hit.value] & 15u) / 15.0);
+    //     // } else {
+    //         let sun_dir = normalize(vec3<f32>(0.1, -0.5, -0.4));
+
+    //         let ambient = 0.3;
+    //         var diffuse = max(dot(hit.normal, -sun_dir), 0.0);
+
+    //         // if (u.shadows) {
+    //             let shadow_hit = shoot_ray(Ray(hit.pos + hit.normal * 0.0000025, -sun_dir));
+    //             if (shadow_hit.hit) {
+    //                 diffuse = 0.0;
+    //             }
+    //         // }
+
+    //         let colour = vec3<f32>(unpack(hit.value)) / 3.0;
+    //         // let colour = vec3<f32>(f32(hit.value));
+    //         output_colour = (ambient + diffuse) * colour;
+    //     // }
     // } else {
-        if (hit.hit) {
-            // if (u.show_hits) {
-            //     output_colour = vec3<f32>(f32(n.data[hit.value] & 15u) / 15.0);
-            // } else {
-                let sun_dir = normalize(vec3<f32>(0.1, -0.5, -0.4));
-
-                let ambient = 0.3;
-                var diffuse = max(dot(hit.normal, -sun_dir), 0.0);
-
-                // if (u.shadows) {
-                    let shadow_hit = shoot_ray(Ray(hit.pos + hit.normal * 0.0000025, -sun_dir));
-                    if (shadow_hit.hit) {
-                        diffuse = 0.0;
-                    }
-                // }
-
-                // let value = node(hit.value) - VOXEL_OFFSET;
-                // let colour = vec3<f32>(unpack_u8(value).yzw) / 255.0;
-                let colour = vec3<f32>(1.0);
-                output_colour = (ambient + diffuse) * colour;
-            // }
-        } else {
-            output_colour =  vec3<f32>(0.2);
-        }
+    //     output_colour =  vec3<f32>(0.2);
     // }
 
     let knee = 0.2;

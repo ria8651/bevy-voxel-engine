@@ -3,13 +3,17 @@ use bevy::prelude::*;
 pub struct GH {
     pub levels: [u32; 8],
     pub data: Vec<u8>,
+    pub texture_size: u32,
+    pub texture_data: Vec<u8>,
 }
 
 impl GH {
-    pub fn new(levels: [u32; 8]) -> Self {
+    pub fn new(levels: [u32; 8], texture_size: u32) -> Self {
         Self {
-            levels: levels,
+            levels,
             data: Vec::new(),
+            texture_size,
+            texture_data: Vec::new(),
         }
     }
 
@@ -18,8 +22,7 @@ impl GH {
         let mut last = 0;
         for i in 0..8 {
             offsets[i] = last;
-            last =
-                last + self.levels[i] as u32 * self.levels[i] as u32 * self.levels[i] as u32;
+            last = last + self.levels[i] as u32 * self.levels[i] as u32 * self.levels[i] as u32;
         }
         offsets
     }
@@ -32,22 +35,30 @@ impl GH {
         length
     }
 
-    fn set_bit(&mut self, pos: Vec3) {
+    // Assumes data and texture_data are filled to the correct length
+    fn set_bit(&mut self, pos: Vec3, value: u8) {
         let offsets = self.get_offsets();
         for i in 0..8 {
+            let size = if self.levels[i] != 0 {
+                self.levels[i] as i32
+            } else {
+                self.texture_size as i32
+            };
+
+            let new_pos = pos * 0.5 + 0.5;
+            let new_pos = new_pos * size as f32 - 0.5;
+            let int_pos = new_pos.as_ivec3();
+
+            let index = int_pos.x * size * size + int_pos.y * size + int_pos.z;
+
             if self.levels[i] != 0 {
-                let size = self.levels[i] as i32;
-
-                let new_pos = pos * 0.5 + 0.5;
-                let new_pos = new_pos * self.levels[i] as f32 - 0.5;
-                let int_pos = new_pos.as_ivec3();
-
-                let index = int_pos.x * size * size + int_pos.y * size + int_pos.z;
-
                 let byte = (index as u32 + offsets[i]) / 8;
                 let bit = index as usize % 8;
 
                 self.data[byte as usize] |= 1 << bit;
+            } else {
+                self.texture_data[index as usize] = value;
+                return;
             }
         }
     }
@@ -62,11 +73,15 @@ pub fn load_vox() -> Result<GH, String> {
 
     let size = size.x as usize;
 
-    let mut gh = GH::new([4, 8, 16, 32, 64, 128, 0, 0]);
+    let mut gh = GH::new([4, 8, 16, 32, 64, 0, 0, 0], 128);
     println!("{:?}", gh.get_offsets());
 
     for _ in 0..(gh.get_final_length() / 8) {
         gh.data.push(0);
+    }
+
+    for _ in 0..(gh.texture_size * gh.texture_size * gh.texture_size) {
+        gh.texture_data.push(0);
     }
 
     for voxel in &vox.models[0].voxels {
@@ -75,8 +90,14 @@ pub fn load_vox() -> Result<GH, String> {
         pos = pos * 2.0 - 1.0;
         pos = pos * Vec3::new(-1.0, 1.0, 1.0);
 
-        gh.set_bit(pos);
+        let colour = vox.palette[voxel.i as usize].to_le_bytes();
+
+        gh.set_bit(pos, pack(colour[0], colour[1], colour[2]));
     }
 
     Ok(gh)
+}
+
+fn pack(red: u8, green: u8, blue: u8) -> u8 {
+    return ((red / 64) | ((green / 64) << 2) | ((blue / 64) << 4)).max(0);
 }

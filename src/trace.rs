@@ -1,3 +1,4 @@
+use super::{load, load::GH};
 use bevy::{
     core_pipeline::Transparent3d,
     ecs::system::{lifetimeless::SRes, SystemParamItem},
@@ -20,13 +21,13 @@ use bevy::{
     },
 };
 use rand::Rng;
-use super::{load, load::GH};
 
 pub struct Tracer;
 
 impl Plugin for Tracer {
     fn build(&self, app: &mut App) {
         let render_device = app.world.resource::<RenderDevice>();
+        let render_queue = app.world.resource::<RenderQueue>();
 
         // uniforms
         let uniforms = Uniforms::default();
@@ -46,11 +47,35 @@ impl Plugin for Tracer {
             usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
         });
 
+        // texture
+        let texture = render_device.create_texture_with_data(
+            render_queue,
+            &TextureDescriptor {
+                label: None,
+                size: Extent3d {
+                    width: gh.texture_size,
+                    height: gh.texture_size,
+                    depth_or_array_layers: gh.texture_size,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: TextureDimension::D3,
+                format: TextureFormat::R8Uint,
+                usage: TextureUsages::STORAGE_BINDING | TextureUsages::COPY_DST,
+            },
+            &gh.texture_data,
+        );
+        let texture_view = texture.create_view(&TextureViewDescriptor::default());
+
+        // println!("{}", render_device.limits().max_storage_buffer_binding_size);
+
         app.sub_app_mut(RenderApp)
             .add_render_command::<Transparent3d, DrawCustom>()
             .insert_resource(TraceMeta {
                 uniform,
                 storage,
+                texture,
+                texture_view,
                 bind_group: None,
             })
             .init_resource::<TracePipeline>()
@@ -73,6 +98,8 @@ struct Uniforms {
     camera_inverse: Mat4,
     levels: [u32; 8],
     offsets: [u32; 8],
+    texture_size: u32,
+    padding: [u32; 3],
 }
 
 // extract the passed time into a resource in the render world
@@ -101,6 +128,8 @@ fn extract_uniforms(
         camera_inverse,
         levels: gh.levels,
         offsets: gh.get_offsets(),
+        texture_size: gh.texture_size,
+        padding: [0; 3],
     });
 }
 
@@ -186,6 +215,10 @@ fn queue_trace_bind_group(
                 binding: 1,
                 resource: trace_meta.storage.as_entire_binding(),
             },
+            BindGroupEntry {
+                binding: 2,
+                resource: BindingResource::TextureView(&trace_meta.texture_view),
+            },
         ],
     });
     trace_meta.bind_group = Some(bind_group);
@@ -194,6 +227,8 @@ fn queue_trace_bind_group(
 struct TraceMeta {
     uniform: Buffer,
     storage: Buffer,
+    texture: Texture,
+    texture_view: TextureView,
     bind_group: Option<BindGroup>,
 }
 
@@ -233,6 +268,16 @@ impl FromWorld for TracePipeline {
                             ty: BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
                             min_binding_size: BufferSize::new(4),
+                        },
+                        count: None,
+                    },
+                    BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::StorageTexture {
+                            access: StorageTextureAccess::ReadWrite,
+                            format: TextureFormat::R8Uint,
+                            view_dimension: TextureViewDimension::D3,
                         },
                         count: None,
                     },
