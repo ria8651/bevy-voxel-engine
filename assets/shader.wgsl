@@ -25,6 +25,10 @@ fn vertex(vertex: Vertex) -> VertexOutput {
     return out;
 }
 
+struct PalleteEntry {
+    colour: u32;
+};
+
 struct Uniforms {
     resolution: vec2<f32>;
     camera: mat4x4<f32>;
@@ -32,6 +36,7 @@ struct Uniforms {
     levels: array<u32, 8>;
     offsets: array<u32, 8>;
     texture_size: u32;
+    pallete: array<PalleteEntry, 256>;
 };
 
 struct GH {
@@ -118,14 +123,6 @@ fn in_bounds(v: vec3<f32>) -> bool {
     return (s.x * s.y * s.z) > 0.5;
 }
 
-fn unpack(i: u32) -> vec3<u32> {
-    return vec3<u32>(
-        i & 0x11u,
-        (i >> 2u) & 0x11u,
-        (i >> 4u) & 0x11u,
-    );
-}
-
 struct HitInfo {
     hit: bool;
     value: u32;
@@ -204,31 +201,31 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
     // output_colour = hit.pos;
     // output_colour = hit.normal * 0.5 + 0.5;
     // output_colour = vec3<f32>(unpack(hit.value)) / 3.0;
-    output_colour = vec3<f32>(f32(hit.steps) / 100.0);
+    // output_colour = vec3<f32>(f32(hit.steps) / 100.0);
 
-    // if (hit.hit) {
-    //     // if (u.show_hits) {
-    //     //     output_colour = vec3<f32>(f32(n.data[hit.value] & 15u) / 15.0);
-    //     // } else {
-    //         let sun_dir = normalize(vec3<f32>(0.1, -0.5, -0.4));
+    if (hit.hit) {
+        // if (u.show_hits) {
+        //     output_colour = vec3<f32>(f32(n.data[hit.value] & 15u) / 15.0);
+        // } else {
+            let sun_dir = normalize(vec3<f32>(0.1, -0.5, -0.4));
 
-    //         let ambient = 0.3;
-    //         var diffuse = max(dot(hit.normal, -sun_dir), 0.0);
+            let ambient = 0.3;
+            var diffuse = max(dot(hit.normal, -sun_dir), 0.0);
 
-    //         // if (u.shadows) {
-    //             let shadow_hit = shoot_ray(Ray(hit.pos + hit.normal * 0.0000025, -sun_dir));
-    //             if (shadow_hit.hit) {
-    //                 diffuse = 0.0;
-    //             }
-    //         // }
+            // if (u.shadows) {
+                let shadow_hit = shoot_ray(Ray(hit.pos + hit.normal * 0.0000025, -sun_dir));
+                if (shadow_hit.hit) {
+                    diffuse = 0.0;
+                }
+            // }
 
-    //         let colour = vec3<f32>(unpack(hit.value)) / 3.0;
-    //         // let colour = vec3<f32>(f32(hit.value));
-    //         output_colour = (ambient + diffuse) * colour;
-    //     // }
-    // } else {
-    //     output_colour =  vec3<f32>(0.2);
-    // }
+            let colour = unpack4x8unorm(u.pallete[hit.value].colour).rgb;
+            // let colour = vec3<f32>(f32(hit.value) / 255.0);
+            output_colour = (ambient + diffuse) * colour;
+        // }
+    } else {
+        output_colour =  vec3<f32>(0.2);
+    }
 
     let knee = 0.2;
     let power = 2.2;

@@ -1,3 +1,4 @@
+use super::trace::PalleteEntry;
 use bevy::prelude::*;
 
 pub struct GH {
@@ -5,6 +6,7 @@ pub struct GH {
     pub data: Vec<u8>,
     pub texture_size: u32,
     pub texture_data: Vec<u8>,
+    pub pallete: [PalleteEntry; 256],
 }
 
 impl GH {
@@ -14,6 +16,7 @@ impl GH {
             data: Vec::new(),
             texture_size,
             texture_data: Vec::new(),
+            pallete: [PalleteEntry::default(); 256],
         }
     }
 
@@ -65,7 +68,7 @@ impl GH {
 }
 
 pub fn load_vox() -> Result<GH, String> {
-    let vox = dot_vox::load("assets/vox/treehouse.vox")?;
+    let vox = dot_vox::load("assets/vox/phantom_mansion.vox")?;
     let size = vox.models[0].size;
     if size.x != size.y || size.x != size.z || size.y != size.z {
         return Err("Voxel model is not a cube!".to_string());
@@ -73,8 +76,12 @@ pub fn load_vox() -> Result<GH, String> {
 
     let size = size.x as usize;
 
-    let mut gh = GH::new([4, 8, 16, 32, 64, 0, 0, 0], 128);
-    println!("{:?}", gh.get_offsets());
+    let mut gh = GH::new([4, 8, 16, 32, 64, 128, 0, 0], 256);
+    for i in 0..256 {
+        gh.pallete[i] = PalleteEntry {
+            colour: vox.palette[i],
+        }
+    }
 
     for _ in 0..(gh.get_final_length() / 8) {
         gh.data.push(0);
@@ -90,15 +97,8 @@ pub fn load_vox() -> Result<GH, String> {
         pos = pos * 2.0 - 1.0;
         pos = pos * Vec3::new(-1.0, 1.0, 1.0);
 
-        let colour = vox.palette[voxel.i as usize].to_le_bytes();
-
-        gh.set_bit(pos, pack(colour[0], colour[1], colour[2]));
+        gh.set_bit(pos, voxel.i);
     }
 
     Ok(gh)
-}
-
-fn pack(red: u8, green: u8, blue: u8) -> u8 {
-    return ((red / 64) | ((green / 64) << 2) | ((blue / 64) << 4)).max(1);
-    // return 255;
 }

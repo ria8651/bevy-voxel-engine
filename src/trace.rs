@@ -1,4 +1,4 @@
-use super::{load, load::GH};
+use super::load::GH;
 use bevy::{
     core_pipeline::Transparent3d,
     ecs::system::{lifetimeless::SRes, SystemParamItem},
@@ -20,7 +20,6 @@ use bevy::{
         RenderApp, RenderStage,
     },
 };
-use rand::Rng;
 
 pub struct Tracer;
 
@@ -30,7 +29,16 @@ impl Plugin for Tracer {
         let render_queue = app.world.resource::<RenderQueue>();
 
         // uniforms
-        let uniforms = Uniforms::default();
+        let uniforms = Uniforms {
+            resolution: Vec4::default(),
+            camera: Mat4::default(),
+            camera_inverse: Mat4::default(),
+            levels: [0; 8],
+            offsets: [0; 8],
+            texture_size: 0,
+            padding: [0; 3],
+            pallete: [PalleteEntry::default(); 256],
+        };
         let uniform = render_device.create_buffer_with_data(&BufferInitDescriptor {
             label: None,
             contents: bytemuck::cast_slice(&[uniforms]),
@@ -74,7 +82,7 @@ impl Plugin for Tracer {
             .insert_resource(TraceMeta {
                 uniform,
                 storage,
-                texture,
+                _texture: texture,
                 texture_view,
                 bind_group: None,
             })
@@ -92,6 +100,12 @@ impl Plugin for Tracer {
 
 #[repr(C)]
 #[derive(Default, Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
+pub struct PalleteEntry {
+    pub colour: u32,
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
 struct Uniforms {
     resolution: Vec4,
     camera: Mat4,
@@ -100,6 +114,7 @@ struct Uniforms {
     offsets: [u32; 8],
     texture_size: u32,
     padding: [u32; 3],
+    pallete: [PalleteEntry; 256],
 }
 
 // extract the passed time into a resource in the render world
@@ -130,6 +145,7 @@ fn extract_uniforms(
         offsets: gh.get_offsets(),
         texture_size: gh.texture_size,
         padding: [0; 3],
+        pallete: gh.pallete,
     });
 }
 
@@ -227,7 +243,7 @@ fn queue_trace_bind_group(
 struct TraceMeta {
     uniform: Buffer,
     storage: Buffer,
-    texture: Texture,
+    _texture: Texture,
     texture_view: TextureView,
     bind_group: Option<BindGroup>,
 }
