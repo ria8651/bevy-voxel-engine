@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 bevy = { version = "0.7", features = ["dynamic"] }
+bevy_egui = "0.14"
 bytemuck = "1.10"
 rand = "0.8"
 dot_vox = "4.1"
-bevy_egui = "0.14"

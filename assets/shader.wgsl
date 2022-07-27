@@ -39,6 +39,7 @@ struct Uniforms {
     offsets: array<u32, 8>;
     texture_size: u32;
     pallete: array<PalleteEntry, 256>;
+    show_ray_steps: bool;
 };
 
 struct GH {
@@ -249,9 +250,6 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
     let hit = shoot_ray(ray);
     var steps = hit.steps;
 
-    // output_colour = hit.pos;
-    // output_colour = hit.normal * 0.5 + 0.5;
-
     if (hit.hit) {
         var diffuse_col = vec3<f32>(0.4);
         var diffuse_pos = vec3<f32>(0.0);
@@ -265,22 +263,22 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
                 rand(clip_space + 1.31048 * u.time)
             );
             let reflection_ray = Ray(hit.pos + hit.normal * 0.0000025, reflect(ray.dir, hit.normal) + rand * 0.02);
-                
+
             let reflection_hit = shoot_ray(reflection_ray);
             steps = steps + reflection_hit.steps;
-    
-                if (reflection_hit.hit) {
+
+            if (reflection_hit.hit) {
                 let reflection_material = unpack4x8unorm(u.pallete[reflection_hit.value].colour);
-                    diffuse_col = reflection_material.rgb;
-                    diffuse_pos = reflection_hit.pos;
-                    diffuse_normal = reflection_hit.normal;
-                }
-        } else {
-                diffuse_col = material.rgb;
-                diffuse_pos = hit.pos;
-                diffuse_normal = hit.normal;
+                diffuse_col = reflection_material.rgb;
+                diffuse_pos = reflection_hit.pos;
+                diffuse_normal = reflection_hit.normal;
             }
-    
+        } else {
+            diffuse_col = material.rgb;
+            diffuse_pos = hit.pos;
+            diffuse_normal = hit.normal;
+        }
+
         let sun_dir = normalize(vec3<f32>(-0.2, -0.5, 0.4));
 
         let ambient = 0.3;
@@ -294,11 +292,14 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
 
         output_colour = (ambient + diffuse) * diffuse_col;
     } else {
-            output_colour = vec3<f32>(0.2);
-        }
-        // output_colour = vec3<f32>(f32(steps) / 100.0);
-    
-        // let pos = vec3<f32>(clip_space, 0.0);
+        output_colour = vec3<f32>(0.2);
+    }
+
+    if (u.show_ray_steps) {
+        output_colour = vec3<f32>(f32(steps) / 100.0);
+    }
+
+    // let pos = vec3<f32>(clip_space, 0.0);
     
     // let scaled = (pos * 0.5 + 0.5) * f32(u.texture_size);
     // let value = textureLoad(texture, vec3<i32>(scaled.zyx)).r;

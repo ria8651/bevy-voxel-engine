@@ -7,6 +7,7 @@ mod character;
 mod fps_counter;
 mod load;
 mod trace;
+mod ui;
 
 #[derive(Component)]
 struct MainCamera;
@@ -25,10 +26,14 @@ fn main() {
         })
         .insert_resource(load::load_vox().unwrap())
         .insert_resource(trace::ShaderTimer(Timer::from_seconds(1000.0, true)))
+        .insert_resource(trace::Settings {
+            show_ray_steps: false,
+        })
         .add_plugins(DefaultPlugins)
         .add_plugin(fps_counter::FpsCounter)
         .add_plugin(character::Character)
         .add_plugin(trace::Tracer)
+        .add_plugin(ui::UiPlugin)
         .add_startup_system(setup)
         .run();
 }
