@@ -243,38 +243,51 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
     let pos = pos.xyz;
     let dir = normalize(dir.xyz - pos);
     var ray = Ray(pos.xyz, dir.xyz);
+
     let hit = shoot_ray(ray);
+    var steps = hit.steps;
 
     // output_colour = hit.pos;
     // output_colour = hit.normal * 0.5 + 0.5;
-    // output_colour = vec3<f32>(unpack(hit.value)) / 3.0;
-    // output_colour = vec3<f32>(f32(hit.steps) / 100.0);
 
     if (hit.hit) {
+        var diffuse_col = vec3<f32>(0.4);
+        var diffuse_pos = vec3<f32>(0.0);
+        var diffuse_normal = vec3<f32>(0.0);
+
         let material = unpack4x8unorm(u.pallete[hit.value].colour);
         if (material.a == 0.0) {
             let reflection_hit = shoot_ray(Ray(hit.pos + hit.normal * 0.0000025, reflect(ray.dir, hit.normal)));
+            steps = steps + reflection_hit.steps;
 
             if (reflection_hit.hit) {
                 let reflection_material = unpack4x8unorm(u.pallete[reflection_hit.value].colour);
-                output_colour = reflection_material.rgb;
+                diffuse_col = reflection_material.rgb;
+                diffuse_pos = reflection_hit.pos;
+                diffuse_normal = reflection_hit.normal;
             }
         } else {
-            let sun_dir = normalize(vec3<f32>(-0.2, -0.5, 0.4));
-
-            let ambient = 0.3;
-            var diffuse = max(dot(hit.normal, -sun_dir), 0.0);
-
-            let shadow_hit = shoot_ray(Ray(hit.pos + hit.normal * 0.0000025, -sun_dir));
-            if (shadow_hit.hit) {
-                diffuse = 0.0;
-            }
-
-            output_colour = (ambient + diffuse) * material.rgb;
+            diffuse_col = material.rgb;
+            diffuse_pos = hit.pos;
+            diffuse_normal = hit.normal;
         }
+
+        let sun_dir = normalize(vec3<f32>(-0.2, -0.5, 0.4));
+
+        let ambient = 0.3;
+        var diffuse = max(dot(diffuse_normal, -sun_dir), 0.0);
+
+        let shadow_hit = shoot_ray(Ray(diffuse_pos + diffuse_normal * 0.0000025, -sun_dir));
+        steps = steps + shadow_hit.steps;
+        if (shadow_hit.hit) {
+            diffuse = 0.0;
+        }
+
+        output_colour = (ambient + diffuse) * diffuse_col;
     } else {
         output_colour = vec3<f32>(0.2);
     }
+    // output_colour = vec3<f32>(f32(steps) / 100.0);
 
     // let pos = vec3<f32>(clip_space, 0.0);
     
