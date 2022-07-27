@@ -33,11 +33,12 @@ impl Plugin for Tracer {
             resolution: Vec4::default(),
             camera: Mat4::default(),
             camera_inverse: Mat4::default(),
+            time: 0.0,
             levels: [0; 8],
             offsets: [0; 8],
             texture_size: 0,
-            padding: [0; 3],
             pallete: [PalleteEntry::default(); 256],
+            padding: [0; 2],
         };
         let uniform = render_device.create_buffer_with_data(&BufferInitDescriptor {
             label: None,
@@ -98,6 +99,8 @@ impl Plugin for Tracer {
     }
 }
 
+pub struct ShaderTimer(pub Timer);
+
 #[repr(C)]
 #[derive(Default, Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct PalleteEntry {
@@ -110,11 +113,12 @@ struct Uniforms {
     resolution: Vec4,
     camera: Mat4,
     camera_inverse: Mat4,
+    time: f32,
     levels: [u32; 8],
     offsets: [u32; 8],
     texture_size: u32,
     pallete: [PalleteEntry; 256],
-    padding: [u32; 3],
+    padding: [u32; 2],
 }
 
 // extract the passed time into a resource in the render world
@@ -123,6 +127,8 @@ fn extract_uniforms(
     windows: Res<Windows>,
     main_cam: Query<(&Transform, &PerspectiveProjection), With<super::MainCamera>>,
     gh: Res<GH>,
+    mut shader_timer: ResMut<ShaderTimer>,
+    time: Res<Time>,
 ) {
     let window = windows.primary();
     let resolution = Vec4::new(
@@ -137,15 +143,18 @@ fn extract_uniforms(
     let camera = Mat4::IDENTITY;
     let camera_inverse = transform.compute_matrix();
 
+    shader_timer.0.tick(time.delta());
+
     commands.insert_resource(Uniforms {
         resolution,
         camera,
         camera_inverse,
+        time: shader_timer.0.elapsed_secs(),
         levels: gh.levels,
         offsets: gh.get_offsets(),
         texture_size: gh.texture_size,
-        padding: [0; 3],
         pallete: gh.pallete,
+        padding: [0; 2],
     });
 }
 

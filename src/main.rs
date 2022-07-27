@@ -1,15 +1,12 @@
 use bevy::{
-    asset::AssetServerSettings,
-    prelude::*,
-    window::PresentMode,
-    render::view::NoFrustumCulling,
+    asset::AssetServerSettings, prelude::*, render::view::NoFrustumCulling, window::PresentMode,
 };
 use trace::TraceMaterial;
 
 mod character;
 mod fps_counter;
-mod trace;
 mod load;
+mod trace;
 
 #[derive(Component)]
 struct MainCamera;
@@ -27,6 +24,7 @@ fn main() {
             ..default()
         })
         .insert_resource(load::load_vox().unwrap())
+        .insert_resource(trace::ShaderTimer(Timer::from_seconds(1000.0, true)))
         .add_plugins(DefaultPlugins)
         .add_plugin(fps_counter::FpsCounter)
         .add_plugin(character::Character)
@@ -36,10 +34,7 @@ fn main() {
 }
 
 /// set up a simple 3D scene
-fn setup(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-) {
+fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
     commands.spawn().insert_bundle((
         meshes.add(Mesh::from(shape::Plane { size: 2.0 })),
         Transform::from_xyz(0.0, 0.0, 0.001).looking_at(Vec3::Y, Vec3::Z),
