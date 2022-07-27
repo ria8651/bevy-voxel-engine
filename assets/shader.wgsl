@@ -69,39 +69,79 @@ struct Voxel {
 
 fn get_value(pos: vec3<f32>) -> Voxel {
     let scaled = pos * 0.5 + 0.5;
-    for (var i = 0; i < 8; i = i + 1) {
-        var size = 0u;
-        if (u.levels[i] == 0u) {
-            size = u.texture_size;
-        } else {
-            size = u.levels[i];
-            // return Voxel(1u, )
-        }
 
-        let scaled = scaled * f32(size);
-        let scaled = vec3<u32>(scaled);
-        let index = scaled.x * size * size + scaled.y * size + scaled.z;
+    let size0 = u.levels[0];
+    let size1 = u.levels[1];
+    let size2 = u.levels[2];
+    let size3 = u.levels[3];
+    let size4 = u.levels[4];
+    let size5 = u.levels[5];
+    let size6 = u.levels[6];
+    let size7 = u.levels[7];
 
-        let rounded_pos = ((vec3<f32>(scaled) + 0.5) / f32(size)) * 2.0 - 1.0;
-        // let rounded_pos = (floor(pos * f32(size) * 0.5) + 0.5) / (f32(size) * 0.5);
+    let scaled0 = vec3<u32>(scaled * f32(u.levels[0]));
+    let scaled1 = vec3<u32>(scaled * f32(u.levels[1]));
+    let scaled2 = vec3<u32>(scaled * f32(u.levels[2]));
+    let scaled3 = vec3<u32>(scaled * f32(u.levels[3]));
+    let scaled4 = vec3<u32>(scaled * f32(u.levels[4]));
+    let scaled5 = vec3<u32>(scaled * f32(u.levels[5]));
+    let scaled6 = vec3<u32>(scaled * f32(u.levels[6]));
+    let scaled7 = vec3<u32>(scaled * f32(u.levels[7]));
 
-        // if (!get_value_index(index + u.offsets[i])) {
-        //     return Voxel(0u, rounded_pos, size);
-        // } else if (size == 4u){
-        //     return Voxel(255u, rounded_pos, size);
-        // }
+    let index0 = u.offsets[0] + scaled0.x * size0 * size0 + scaled0.y * size0 + scaled0.z;
+    let index1 = u.offsets[1] + scaled1.x * size1 * size1 + scaled1.y * size1 + scaled1.z;
+    let index2 = u.offsets[2] + scaled2.x * size2 * size2 + scaled2.y * size2 + scaled2.z;
+    let index3 = u.offsets[3] + scaled3.x * size3 * size3 + scaled3.y * size3 + scaled3.z;
+    let index4 = u.offsets[4] + scaled4.x * size4 * size4 + scaled4.y * size4 + scaled4.z;
+    let index5 = u.offsets[5] + scaled5.x * size5 * size5 + scaled5.y * size5 + scaled5.z;
+    let index6 = u.offsets[6] + scaled6.x * size6 * size6 + scaled6.y * size6 + scaled6.z;
+    let index7 = u.offsets[7] + scaled7.x * size7 * size7 + scaled7.y * size7 + scaled7.z;
 
-        if (u.levels[i] != 0u) {
-            if (!get_value_index(index + u.offsets[i])) {
-                return Voxel(0u, rounded_pos, size);
-            }
-        } else {
-            let value = textureLoad(texture, vec3<i32>(scaled.zyx)).r;
-            return Voxel(value, rounded_pos, size);
-        }
+    let state0 = get_value_index(index0);
+    let state1 = get_value_index(index1);
+    let state2 = get_value_index(index2);
+    let state3 = get_value_index(index3);
+    let state4 = get_value_index(index4);
+    let state5 = get_value_index(index5);
+    let state6 = get_value_index(index6);
+    let state7 = get_value_index(index7);
+
+    if (!state0 && size0 != 0u) {
+        let rounded_pos = ((vec3<f32>(scaled0) + 0.5) / f32(size0)) * 2.0 - 1.0;
+        return Voxel(0u, rounded_pos, size0);
+    }
+    if (!state1 && size1 != 0u) {
+        let rounded_pos = ((vec3<f32>(scaled1) + 0.5) / f32(size1)) * 2.0 - 1.0;
+        return Voxel(0u, rounded_pos, size1);
+    }
+    if (!state2 && size2 != 0u) {
+        let rounded_pos = ((vec3<f32>(scaled2) + 0.5) / f32(size2)) * 2.0 - 1.0;
+        return Voxel(0u, rounded_pos, size2);
+    }
+    if (!state3 && size3 != 0u) {
+        let rounded_pos = ((vec3<f32>(scaled3) + 0.5) / f32(size3)) * 2.0 - 1.0;
+        return Voxel(0u, rounded_pos, size3);
+    }
+    if (!state4 && size4 != 0u) {
+        let rounded_pos = ((vec3<f32>(scaled4) + 0.5) / f32(size4)) * 2.0 - 1.0;
+        return Voxel(0u, rounded_pos, size4);
+    }
+    if (!state5 && size5 != 0u) {
+        let rounded_pos = ((vec3<f32>(scaled5) + 0.5) / f32(size5)) * 2.0 - 1.0;
+        return Voxel(0u, rounded_pos, size5);
+    }
+    if (!state6 && size6 != 0u) {
+        let rounded_pos = ((vec3<f32>(scaled6) + 0.5) / f32(size6)) * 2.0 - 1.0;
+        return Voxel(0u, rounded_pos, size6);
+    }
+    if (!state7 && size7 != 0u) {
+        let rounded_pos = ((vec3<f32>(scaled7) + 0.5) / f32(size7)) * 2.0 - 1.0;
+        return Voxel(0u, rounded_pos, size7);
     }
 
-    return Voxel(0u, vec3<f32>(0.0), 0u);
+    let rounded_pos = (floor(pos * f32(u.texture_size) * 0.5) + 0.5) / (f32(u.texture_size) * 0.5);
+    let value = textureLoad(texture, vec3<i32>(scaled.zyx * f32(u.texture_size))).r;
+    return Voxel(value, rounded_pos, u.texture_size);
 }
 
 struct Ray {

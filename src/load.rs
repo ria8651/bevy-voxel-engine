@@ -39,7 +39,7 @@ impl GH {
     }
 
     // Assumes data and texture_data are filled to the correct length
-    fn set_bit(&mut self, pos: Vec3, value: u8) {
+    fn set_bit(&mut self, pos: IVec3, value: u8) {
         let offsets = self.get_offsets();
         for i in 0..8 {
             let size = if self.levels[i] != 0 {
@@ -48,11 +48,7 @@ impl GH {
                 self.texture_size
             };
 
-            // let new_pos = pos * 0.5 + 0.5;
-            // let new_pos = new_pos * size as f32 - 0.5;
-            let new_pos =  pos * (size as f32 / self.texture_size as f32);
-            // let int_pos = new_pos.as_ivec3();
-
+            let new_pos = pos * size as i32 / self.texture_size as i32;
             let index = new_pos.x as u32 * size * size + new_pos.y as u32 * size + new_pos.z as u32;
 
             if self.levels[i] != 0 {
@@ -69,7 +65,7 @@ impl GH {
 }
 
 pub fn load_vox() -> Result<GH, String> {
-    let vox = dot_vox::load("assets/vox/phantom_mansion.vox")?;
+    let vox = dot_vox::load("assets/vox/sparse.vox")?;
     let size = vox.models[0].size;
     if size.x != size.y || size.x != size.z || size.y != size.z {
         return Err("Voxel model is not a cube!".to_string());
@@ -77,7 +73,7 @@ pub fn load_vox() -> Result<GH, String> {
 
     let size = size.x as usize;
 
-    let mut gh = GH::new([2, 4, 8, 16, 32, 64, 0, 0], size as u32);
+    let mut gh = GH::new([8, 16, 32, 64, 128, 0, 0, 0], size as u32);
     for i in 0..256 {
         gh.pallete[i] = PalleteEntry {
             colour: vox.palette[i],
@@ -93,7 +89,11 @@ pub fn load_vox() -> Result<GH, String> {
     }
 
     for voxel in &vox.models[0].voxels {
-        let pos = Vec3::new(voxel.x as f32, voxel.z as f32, voxel.y as f32);
+        let pos = IVec3::new(
+            size as i32 - 1 - voxel.x as i32,
+            voxel.z as i32,
+            voxel.y as i32,
+        );
 
         gh.set_bit(pos, voxel.i);
     }
