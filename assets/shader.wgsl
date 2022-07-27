@@ -251,27 +251,29 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
     // output_colour = vec3<f32>(f32(hit.steps) / 100.0);
 
     if (hit.hit) {
-        // if (u.show_hits) {
-        //     output_colour = vec3<f32>(f32(n.data[hit.value] & 15u) / 15.0);
-        // } else {
+        let material = unpack4x8unorm(u.pallete[hit.value].colour);
+        if (material.a == 0.0) {
+            let reflection_hit = shoot_ray(Ray(hit.pos + hit.normal * 0.0000025, reflect(ray.dir, hit.normal)));
+
+            if (reflection_hit.hit) {
+                let reflection_material = unpack4x8unorm(u.pallete[reflection_hit.value].colour);
+                output_colour = reflection_material.rgb;
+            }
+        } else {
             let sun_dir = normalize(vec3<f32>(-0.2, -0.5, 0.4));
 
             let ambient = 0.3;
             var diffuse = max(dot(hit.normal, -sun_dir), 0.0);
 
-            // if (u.shadows) {
-                let shadow_hit = shoot_ray(Ray(hit.pos + hit.normal * 0.0000025, -sun_dir));
-                if (shadow_hit.hit) {
-                    diffuse = 0.0;
-                }
-            // }
+            let shadow_hit = shoot_ray(Ray(hit.pos + hit.normal * 0.0000025, -sun_dir));
+            if (shadow_hit.hit) {
+                diffuse = 0.0;
+            }
 
-            let colour = unpack4x8unorm(u.pallete[hit.value].colour).rgb;
-            // let colour = vec3<f32>(f32(hit.value) / 255.0);
-            output_colour = (ambient + diffuse) * colour;
-        // }
+            output_colour = (ambient + diffuse) * material.rgb;
+        }
     } else {
-        output_colour =  vec3<f32>(0.2);
+        output_colour = vec3<f32>(0.2);
     }
 
     // let pos = vec3<f32>(clip_space, 0.0);
