@@ -78,18 +78,25 @@ fn get_value(pos: vec3<f32>) -> Voxel {
             // return Voxel(1u, )
         }
 
-        let scaled = scaled * vec3<f32>(f32(size));
+        let scaled = scaled * f32(size);
         let scaled = vec3<u32>(scaled);
         let index = scaled.x * size * size + scaled.y * size + scaled.z;
 
         let rounded_pos = ((vec3<f32>(scaled) + 0.5) / f32(size)) * 2.0 - 1.0;
         // let rounded_pos = (floor(pos * f32(size) * 0.5) + 0.5) / (f32(size) * 0.5);
+
+        // if (!get_value_index(index + u.offsets[i])) {
+        //     return Voxel(0u, rounded_pos, size);
+        // } else if (size == 4u){
+        //     return Voxel(255u, rounded_pos, size);
+        // }
+
         if (u.levels[i] != 0u) {
             if (!get_value_index(index + u.offsets[i])) {
                 return Voxel(0u, rounded_pos, size);
             }
         } else {
-            let value = textureLoad(texture, vec3<i32>(scaled)).r;
+            let value = textureLoad(texture, vec3<i32>(scaled.zyx)).r;
             return Voxel(value, rounded_pos, size);
         }
     }
@@ -207,7 +214,7 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
         // if (u.show_hits) {
         //     output_colour = vec3<f32>(f32(n.data[hit.value] & 15u) / 15.0);
         // } else {
-            let sun_dir = normalize(vec3<f32>(0.1, -0.5, -0.4));
+            let sun_dir = normalize(vec3<f32>(-0.2, -0.5, 0.4));
 
             let ambient = 0.3;
             var diffuse = max(dot(hit.normal, -sun_dir), 0.0);
@@ -226,6 +233,18 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
     } else {
         output_colour =  vec3<f32>(0.2);
     }
+
+    // let pos = vec3<f32>(clip_space, 0.0);
+    
+    // let scaled = (pos * 0.5 + 0.5) * f32(u.texture_size);
+    // let value = textureLoad(texture, vec3<i32>(scaled.zyx)).r;
+    
+    // let voxel = get_value(pos);
+    // if (value != 0u) {
+    //     output_colour = unpack4x8unorm(u.pallete[value].colour).rgb;
+    // } else {
+    //     output_colour = vec3<f32>(f32(voxel.grid_size) / 256.0);
+    // }
 
     let knee = 0.2;
     let power = 2.2;

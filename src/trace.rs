@@ -113,8 +113,8 @@ struct Uniforms {
     levels: [u32; 8],
     offsets: [u32; 8],
     texture_size: u32,
-    padding: [u32; 3],
     pallete: [PalleteEntry; 256],
+    padding: [u32; 3],
 }
 
 // extract the passed time into a resource in the render world

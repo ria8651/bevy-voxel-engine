@@ -43,20 +43,21 @@ impl GH {
         let offsets = self.get_offsets();
         for i in 0..8 {
             let size = if self.levels[i] != 0 {
-                self.levels[i] as i32
+                self.levels[i]
             } else {
-                self.texture_size as i32
+                self.texture_size
             };
 
-            let new_pos = pos * 0.5 + 0.5;
-            let new_pos = new_pos * size as f32 - 0.5;
-            let int_pos = new_pos.as_ivec3();
+            // let new_pos = pos * 0.5 + 0.5;
+            // let new_pos = new_pos * size as f32 - 0.5;
+            let new_pos =  pos * (size as f32 / self.texture_size as f32);
+            // let int_pos = new_pos.as_ivec3();
 
-            let index = int_pos.x * size * size + int_pos.y * size + int_pos.z;
+            let index = new_pos.x as u32 * size * size + new_pos.y as u32 * size + new_pos.z as u32;
 
             if self.levels[i] != 0 {
                 let byte = (index as u32 + offsets[i]) / 8;
-                let bit = index as usize % 8;
+                let bit = (index as u32 + offsets[i]) % 8;
 
                 self.data[byte as usize] |= 1 << bit;
             } else {
@@ -76,7 +77,7 @@ pub fn load_vox() -> Result<GH, String> {
 
     let size = size.x as usize;
 
-    let mut gh = GH::new([4, 8, 16, 32, 64, 128, 0, 0], 256);
+    let mut gh = GH::new([2, 4, 8, 16, 32, 64, 0, 0], size as u32);
     for i in 0..256 {
         gh.pallete[i] = PalleteEntry {
             colour: vox.palette[i],
@@ -92,10 +93,7 @@ pub fn load_vox() -> Result<GH, String> {
     }
 
     for voxel in &vox.models[0].voxels {
-        let mut pos = Vec3::new(voxel.x as f32, voxel.z as f32, voxel.y as f32);
-        pos /= size as f32;
-        pos = pos * 2.0 - 1.0;
-        pos = pos * Vec3::new(-1.0, 1.0, 1.0);
+        let pos = Vec3::new(voxel.x as f32, voxel.z as f32, voxel.y as f32);
 
         gh.set_bit(pos, voxel.i);
     }
