@@ -65,7 +65,7 @@ impl GH {
 }
 
 pub fn load_vox() -> Result<GH, String> {
-    let vox = dot_vox::load("assets/vox/odyssey_scene.vox")?;
+    let vox = dot_vox::load("assets/vox/mandlebulb.vox")?;
     let size = vox.models[0].size;
     if size.x != size.y || size.x != size.z || size.y != size.z {
         return Err("Voxel model is not a cube!".to_string());
@@ -75,17 +75,28 @@ pub fn load_vox() -> Result<GH, String> {
 
     let mut gh = GH::new([8, 16, 32, 64, 128, 0, 0, 0], size as u32);
     for i in 0..256 {
-        let value = vox.palette[i];
+        let value = vox.palette[i].to_le_bytes();
+        let mut col = Vec3::new(
+            value[0] as f32 / 255.0,
+            value[1] as f32 / 255.0,
+            value[2] as f32 / 255.0,
+        );
 
-        let mat;
-        if vox.materials[i].properties["_type"] == "_diffuse" {
-            mat = 255;
-        } else {
-            mat = 0;
+        let vox_material = vox.materials[i].properties.clone();
+        // println!("{:?}", vox_material);
+        if vox_material["_type"] == "_emit" {
+            col *= 1.0 + vox_material["_emit"].parse::<f32>().unwrap() * 5.0;
         }
 
+        // let mat;
+        // if vox.materials[i].properties["_type"] == "_diffuse" {
+        //     mat = 255;
+        // } else {
+        //     mat = 0;
+        // }
+
         gh.pallete[i] = PalleteEntry {
-            colour: (value & 0x00FFFFFF) | (mat << 24),
+            colour: [col.x, col.y, col.z, 0.0],
         }
     }
 

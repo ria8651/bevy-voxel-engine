@@ -27,10 +27,11 @@ fn vertex(vertex: Vertex) -> VertexOutput {
 }
 
 struct PalleteEntry {
-    colour: u32;
+    colour: vec4<f32>;
 };
 
 struct Uniforms {
+    pallete: array<PalleteEntry, 256>;
     resolution: vec2<f32>;
     camera: mat4x4<f32>;
     camera_inverse: mat4x4<f32>;
@@ -38,7 +39,6 @@ struct Uniforms {
     levels: array<u32, 8>;
     offsets: array<u32, 8>;
     texture_size: u32;
-    pallete: array<PalleteEntry, 256>;
     show_ray_steps: bool;
     misc_bool: bool;
     misc_float: f32;
@@ -51,7 +51,7 @@ struct GH {
 [[group(2), binding(0)]]
 var<uniform> u: Uniforms;
 [[group(2), binding(1)]]
-var screen_texture: texture_storage_2d<rgba8uint, read_write>;
+var screen_texture: texture_storage_2d<rgba16float, read_write>;
 [[group(2), binding(2)]]
 var<storage, read_write> gh: GH; // nodes
 [[group(2), binding(3)]]
@@ -227,8 +227,11 @@ fn calculate_direct(col: vec3<f32>, pos: vec3<f32>, normal: vec3<f32>, seed: vec
 
 [[stage(fragment)]]
 fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f32> {
+    // pixel jitter
+    let seed = vec3<u32>(frag_pos.xyz + u.time * 240.0);
+    let jitter = vec4<f32>(hash(seed).xy - 0.5, 0.0, 0.0);
+    let clip_space = get_clip_space(frag_pos + jitter, u.resolution);
     var output_colour = vec3<f32>(0.0, 0.0, 0.0);
-    let clip_space = get_clip_space(frag_pos, u.resolution);
 
     let pos = u.camera_inverse * vec4<f32>(0.0, 0.0, 0.0, 1.0);
     let dir = u.camera_inverse * vec4<f32>(clip_space.x, clip_space.y, -1.0, 1.0);
@@ -239,16 +242,16 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
     let hit = shoot_ray(ray);
     var steps = hit.steps;
 
+    var last_frame: vec4<f32>;
     if (hit.hit) {
-        let material = unpack4x8unorm(u.pallete[hit.value].colour);
-        let seed = vec3<u32>(frag_pos.xyz + u.time * 240.0);
+        let material = u.pallete[hit.value].colour;
             
         // diffuse
         var diffuse: vec3<f32>;
         let diffuse_dir = cosine_hemisphere(hit.normal, seed + 10u);
         let diffuse_hit = shoot_ray(Ray(hit.pos + hit.normal * 0.0000025, diffuse_dir));
         if (diffuse_hit.hit) {
-            let diffuse_material = unpack4x8unorm(u.pallete[diffuse_hit.value].colour);
+            let diffuse_material = u.pallete[diffuse_hit.value].colour;
             diffuse = calculate_direct(diffuse_material.rgb, hit.pos, hit.normal, seed + 15u);
         } else {
             diffuse = vec3<f32>(0.4);
@@ -267,12 +270,12 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
 
         // average colour over frames
         let texture_pos = vec2<i32>(frag_pos.xy);
-        let last_frame = textureLoad(screen_texture, texture_pos);
-        let last_frame_col = vec3<f32>(last_frame.rgb) / 255.0;
+        last_frame = textureLoad(screen_texture, texture_pos);
 
-        output_colour = last_frame_col + (output_colour - last_frame_col) / 5.0;
+        output_colour = last_frame.rgb + (output_colour - last_frame.rgb) / u.misc_float;
     } else {
         output_colour = vec3<f32>(0.2);
+        last_frame = vec4<f32>(output_colour, 0.0);
     }
 
     // let pos = vec3<f32>(clip_space, 0.0);
@@ -282,15 +285,15 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
     
     // let voxel = get_value(pos);
     // if (value != 0u) {
-    //     output_colour = unpack4x8unorm(u.pallete[value].colour).rgb;
+    //     output_colour = u.pallete[value].colour;
     // } else {
     //     output_colour = vec3<f32>(f32(voxel.grid_size) / 256.0);
     // }
 
     // store colour for next frame
     let texture_pos = vec2<i32>(frag_pos.xy);
-    let u32_colour = vec4<u32>(vec3<u32>(output_colour * 255.0), last_frame.a + 1u);
-    textureStore(screen_texture, texture_pos, u32_colour);
+    let colour_to_store = vec4<f32>(output_colour, last_frame.a + 1.0);
+    textureStore(screen_texture, texture_pos, colour_to_store);
 
     if (u.show_ray_steps) {
         output_colour = vec3<f32>(f32(steps) / 100.0);

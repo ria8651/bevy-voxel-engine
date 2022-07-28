@@ -60,7 +60,7 @@ impl Plugin for Tracer {
             mip_level_count: 1,
             sample_count: 1,
             dimension: TextureDimension::D2,
-            format: TextureFormat::Rgba8Uint,
+            format: TextureFormat::Rgba16Float,
             usage: TextureUsages::STORAGE_BINDING,
         });
         let screen_texture_view = screen_texture.create_view(&TextureViewDescriptor::default());
@@ -131,12 +131,13 @@ unsafe impl bytemuck::Pod for Settings {}
 #[repr(C)]
 #[derive(Default, Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct PalleteEntry {
-    pub colour: u32,
+    pub colour: [f32; 4],
 }
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
 struct Uniforms {
+    pallete: [PalleteEntry; 256],
     resolution: Vec4,
     camera: Mat4,
     camera_inverse: Mat4,
@@ -144,7 +145,6 @@ struct Uniforms {
     levels: [u32; 8],
     offsets: [u32; 8],
     texture_size: u32,
-    pallete: [PalleteEntry; 256],
     settings: Settings,
     padding: [u8; 0],
 }
@@ -325,7 +325,7 @@ impl FromWorld for TracePipeline {
                         visibility: ShaderStages::FRAGMENT,
                         ty: BindingType::StorageTexture {
                             access: StorageTextureAccess::ReadWrite,
-                            format: TextureFormat::Rgba8Uint,
+                            format: TextureFormat::Rgba16Float,
                             view_dimension: TextureViewDimension::D2,
                         },
                         count: None,

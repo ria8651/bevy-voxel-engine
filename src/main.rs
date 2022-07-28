@@ -29,7 +29,7 @@ fn main() {
         .insert_resource(trace::Settings {
             show_ray_steps: false,
             misc_bool: false,
-            misc_float: 1.0,
+            misc_float: 5.0,
         })
         .add_plugins(DefaultPlugins)
         .add_plugin(fps_counter::FpsCounter)
