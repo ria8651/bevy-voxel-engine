@@ -207,6 +207,24 @@ fn shoot_ray(r: Ray) -> HitInfo {
     return HitInfo(true, voxel.value, voxel_pos, normal, steps);
 }
 
+let light_dir = vec3<f32>(-1.3, -1.0, 0.8);
+
+fn calculate_direct(col: vec3<f32>, pos: vec3<f32>, normal: vec3<f32>, seed: vec3<u32>) -> vec3<f32> {
+    // ambient
+    let ambient = 0.0;
+
+    // diffuse
+    let diffuse = max(dot(normal, -normalize(light_dir)), 0.0);
+
+    // shadow
+    let rand = hash(seed) * 2.0 - 1.0;
+    let shadow_ray = Ray(pos + normal * 0.0000025, -light_dir + rand * 0.1);
+    let shadow_hit = shoot_ray(shadow_ray);
+    let shadow = f32(!shadow_hit.hit);
+
+    return (ambient + diffuse * shadow) * col;
+}
+
 [[stage(fragment)]]
 fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f32> {
     var output_colour = vec3<f32>(0.0, 0.0, 0.0);
@@ -223,31 +241,36 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
 
     if (hit.hit) {
         let material = unpack4x8unorm(u.pallete[hit.value].colour);
+        let seed = vec3<u32>(frag_pos.xyz + u.time * 240.0);
+            
+        // diffuse
+        var diffuse: vec3<f32>;
+        let diffuse_dir = cosine_hemisphere(hit.normal, seed + 10u);
+        let diffuse_hit = shoot_ray(Ray(hit.pos + hit.normal * 0.0000025, diffuse_dir));
+        if (diffuse_hit.hit) {
+            let diffuse_material = unpack4x8unorm(u.pallete[diffuse_hit.value].colour);
+            diffuse = calculate_direct(diffuse_material.rgb, hit.pos, hit.normal, seed + 15u);
+        } else {
+            diffuse = vec3<f32>(0.4);
+        }
 
-        let light_dir = normalize(vec3<f32>(-1.3, -1.0, 0.8));
+        // // shadows
+        // let rand = hash(vec3<u32>(frag_pos.xyz + u.time * 240.0)) * 2.0 - 1.0;
+        // let shadow_ray = Ray(hit.pos + hit.normal * 0.0000025, -light_dir + rand * 0.1);
+        // let shadow_hit = shoot_ray(shadow_ray);
+        // steps = steps + shadow_hit.steps;
 
-        let ambient = 0.3;
-        var diffuse = max(dot(hit.normal, -light_dir), 0.0);
-
-        // shadows
-        let rand = hash(vec3<u32>(frag_pos.xyz + u.time * 240.0)) * 2.0 - 1.0;
-        let light_pos = vec3<f32>(-1.0, 1.0, -1.0) + rand * 0.1;
-
-        let shadow_ray = Ray(hit.pos + hit.normal * 0.0000025, -light_dir + rand * 0.1);
-        let shadow_hit = shoot_ray(shadow_ray);
-        steps = steps + shadow_hit.steps;
-
-        var shadow = f32(!shadow_hit.hit);
+        // var shadow = f32(!shadow_hit.hit);
 
         // final blend
-        output_colour = (ambient + diffuse * shadow) * material.rgb;
+        output_colour = diffuse * material.rgb;
 
         // average colour over frames
         let texture_pos = vec2<i32>(frag_pos.xy);
         let last_frame = textureLoad(screen_texture, texture_pos);
         let last_frame_col = vec3<f32>(last_frame.rgb) / 255.0;
 
-        output_colour = last_frame_col + (output_colour - last_frame_col) / u.misc_float;
+        output_colour = last_frame_col + (output_colour - last_frame_col) / 5.0;
     } else {
         output_colour = vec3<f32>(0.2);
     }
