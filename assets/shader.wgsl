@@ -40,6 +40,8 @@ struct Uniforms {
     texture_size: u32;
     pallete: array<PalleteEntry, 256>;
     show_ray_steps: bool;
+    misc_bool: bool;
+    misc_float: f32;
 };
 
 struct GH {
@@ -49,16 +51,11 @@ struct GH {
 [[group(2), binding(0)]]
 var<uniform> u: Uniforms;
 [[group(2), binding(1)]]
-var<storage, read_write> gh: GH; // nodes
+var screen_texture: texture_storage_2d<rgba8uint, read_write>;
 [[group(2), binding(2)]]
+var<storage, read_write> gh: GH; // nodes
+[[group(2), binding(3)]]
 var texture: texture_storage_3d<r8uint, read_write>;
-
-fn get_clip_space(frag_pos: vec4<f32>, dimensions: vec2<f32>) -> vec2<f32> {
-    var clip_space = frag_pos.xy / dimensions * 2.0;
-    clip_space = clip_space - 1.0;
-    clip_space = clip_space * vec2<f32>(1.0, -1.0);
-    return clip_space;
-}
 
 fn get_value_index(index: u32) -> bool {
     return ((gh.data[index / 32u] >> (index % 32u)) & 1u) != 0u;
@@ -147,32 +144,6 @@ fn get_value(pos: vec3<f32>) -> Voxel {
     return Voxel(value, rounded_pos, u.texture_size);
 }
 
-struct Ray {
-    pos: vec3<f32>;
-    dir: vec3<f32>;
-};
-
-fn ray_box_dist(r: Ray, vmin: vec3<f32>, vmax: vec3<f32>) -> f32 {
-    let v1 = (vmin.x - r.pos.x) / r.dir.x;
-    let v2 = (vmax.x - r.pos.x) / r.dir.x;
-    let v3 = (vmin.y - r.pos.y) / r.dir.y;
-    let v4 = (vmax.y - r.pos.y) / r.dir.y;
-    let v5 = (vmin.z - r.pos.z) / r.dir.z;
-    let v6 = (vmax.z - r.pos.z) / r.dir.z;
-    let v7 = max(max(min(v1, v2), min(v3, v4)), min(v5, v6));
-    let v8 = min(min(max(v1, v2), max(v3, v4)), max(v5, v6));
-    if (v8 < 0.0 || v7 > v8) {
-        return 0.0;
-    }
-
-    return v7;
-}
-
-fn in_bounds(v: vec3<f32>) -> bool {
-    let s = step(vec3<f32>(-1.0), v) - step(vec3<f32>(1.0), v);
-    return (s.x * s.y * s.z) > 0.5;
-}
-
 struct HitInfo {
     hit: bool;
     value: u32;
@@ -251,52 +222,34 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
     var steps = hit.steps;
 
     if (hit.hit) {
-        var diffuse_col = vec3<f32>(0.4);
-        var diffuse_pos = vec3<f32>(0.0);
-        var diffuse_normal = vec3<f32>(0.0);
-
         let material = unpack4x8unorm(u.pallete[hit.value].colour);
-        if (material.a == 0.0) {
-            let rand = vec3<f32>(
-                rand(clip_space + 1.01048 * u.time),
-                rand(clip_space + 1.51048 * u.time),
-                rand(clip_space + 1.31048 * u.time)
-            );
-            let reflection_ray = Ray(hit.pos + hit.normal * 0.0000025, reflect(ray.dir, hit.normal) + rand * 0.02);
 
-            let reflection_hit = shoot_ray(reflection_ray);
-            steps = steps + reflection_hit.steps;
-
-            if (reflection_hit.hit) {
-                let reflection_material = unpack4x8unorm(u.pallete[reflection_hit.value].colour);
-                diffuse_col = reflection_material.rgb;
-                diffuse_pos = reflection_hit.pos;
-                diffuse_normal = reflection_hit.normal;
-            }
-        } else {
-            diffuse_col = material.rgb;
-            diffuse_pos = hit.pos;
-            diffuse_normal = hit.normal;
-        }
-
-        let sun_dir = normalize(vec3<f32>(-0.2, -0.5, 0.4));
+        let light_dir = normalize(vec3<f32>(-1.3, -1.0, 0.8));
 
         let ambient = 0.3;
-        var diffuse = max(dot(diffuse_normal, -sun_dir), 0.0);
+        var diffuse = max(dot(hit.normal, -light_dir), 0.0);
 
-        let shadow_hit = shoot_ray(Ray(diffuse_pos + diffuse_normal * 0.0000025, -sun_dir));
+        // shadows
+        let rand = hash(vec3<u32>(frag_pos.xyz + u.time * 240.0)) * 2.0 - 1.0;
+        let light_pos = vec3<f32>(-1.0, 1.0, -1.0) + rand * 0.1;
+
+        let shadow_ray = Ray(hit.pos + hit.normal * 0.0000025, -light_dir + rand * 0.1);
+        let shadow_hit = shoot_ray(shadow_ray);
         steps = steps + shadow_hit.steps;
-        if (shadow_hit.hit) {
-            diffuse = 0.0;
-        }
 
-        output_colour = (ambient + diffuse) * diffuse_col;
+        var shadow = f32(!shadow_hit.hit);
+
+        // final blend
+        output_colour = (ambient + diffuse * shadow) * material.rgb;
+
+        // average colour over frames
+        let texture_pos = vec2<i32>(frag_pos.xy);
+        let last_frame = textureLoad(screen_texture, texture_pos);
+        let last_frame_col = vec3<f32>(last_frame.rgb) / 255.0;
+
+        output_colour = last_frame_col + (output_colour - last_frame_col) / u.misc_float;
     } else {
         output_colour = vec3<f32>(0.2);
-    }
-
-    if (u.show_ray_steps) {
-        output_colour = vec3<f32>(f32(steps) / 100.0);
     }
 
     // let pos = vec3<f32>(clip_space, 0.0);
@@ -310,6 +263,15 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
     // } else {
     //     output_colour = vec3<f32>(f32(voxel.grid_size) / 256.0);
     // }
+
+    // store colour for next frame
+    let texture_pos = vec2<i32>(frag_pos.xy);
+    let u32_colour = vec4<u32>(vec3<u32>(output_colour * 255.0), last_frame.a + 1u);
+    textureStore(screen_texture, texture_pos, u32_colour);
+
+    if (u.show_ray_steps) {
+        output_colour = vec3<f32>(f32(steps) / 100.0);
+    }
 
     let knee = 0.2;
     let power = 2.2;

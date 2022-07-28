@@ -28,6 +28,8 @@ fn main() {
         .insert_resource(trace::ShaderTimer(Timer::from_seconds(1000.0, true)))
         .insert_resource(trace::Settings {
             show_ray_steps: false,
+            misc_bool: false,
+            misc_float: 1.0,
         })
         .add_plugins(DefaultPlugins)
         .add_plugin(fps_counter::FpsCounter)

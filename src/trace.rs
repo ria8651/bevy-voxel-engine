@@ -39,7 +39,7 @@ impl Plugin for Tracer {
             texture_size: 0,
             pallete: [PalleteEntry::default(); 256],
             settings: *app.world.resource::<Settings>(),
-            padding: [0; 7],
+            padding: [0; 0],
         };
         let uniform = render_device.create_buffer_with_data(&BufferInitDescriptor {
             label: None,
@@ -47,6 +47,23 @@ impl Plugin for Tracer {
             // contents: resolution.as_std140().as_bytes(),
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
         });
+
+        // screen texture
+        let window = app.world.resource::<Windows>().primary();
+        let screen_texture = render_device.create_texture(&TextureDescriptor {
+            label: None,
+            size: Extent3d {
+                width: window.physical_width(),
+                height: window.physical_height(),
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Rgba8Uint,
+            usage: TextureUsages::STORAGE_BINDING,
+        });
+        let screen_texture_view = screen_texture.create_view(&TextureViewDescriptor::default());
 
         // storage
         let gh = app.world.resource::<GH>();
@@ -84,7 +101,7 @@ impl Plugin for Tracer {
             .insert_resource(TraceMeta {
                 uniform,
                 storage,
-                _texture: texture,
+                screen_texture_view,
                 texture_view,
                 bind_group: None,
             })
@@ -106,6 +123,8 @@ pub struct ShaderTimer(pub Timer);
 #[derive(Default, Debug, Copy, Clone, bytemuck::Zeroable)]
 pub struct Settings {
     pub show_ray_steps: bool,
+    pub misc_bool: bool,
+    pub misc_float: f32,
 }
 unsafe impl bytemuck::Pod for Settings {}
 
@@ -127,7 +146,7 @@ struct Uniforms {
     texture_size: u32,
     pallete: [PalleteEntry; 256],
     settings: Settings,
-    padding: [u8; 7],
+    padding: [u8; 0],
 }
 
 // extract the passed time into a resource in the render world
@@ -165,7 +184,7 @@ fn extract_uniforms(
         texture_size: gh.texture_size,
         pallete: gh.pallete,
         settings: *settings,
-        padding: [0; 7],
+        padding: [0; 0],
     });
 }
 
@@ -249,10 +268,14 @@ fn queue_trace_bind_group(
             },
             BindGroupEntry {
                 binding: 1,
-                resource: trace_meta.storage.as_entire_binding(),
+                resource: BindingResource::TextureView(&trace_meta.screen_texture_view),
             },
             BindGroupEntry {
                 binding: 2,
+                resource: trace_meta.storage.as_entire_binding(),
+            },
+            BindGroupEntry {
+                binding: 3,
                 resource: BindingResource::TextureView(&trace_meta.texture_view),
             },
         ],
@@ -263,7 +286,7 @@ fn queue_trace_bind_group(
 struct TraceMeta {
     uniform: Buffer,
     storage: Buffer,
-    _texture: Texture,
+    screen_texture_view: TextureView,
     texture_view: TextureView,
     bind_group: Option<BindGroup>,
 }
@@ -300,6 +323,16 @@ impl FromWorld for TracePipeline {
                     BindGroupLayoutEntry {
                         binding: 1,
                         visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::StorageTexture {
+                            access: StorageTextureAccess::ReadWrite,
+                            format: TextureFormat::Rgba8Uint,
+                            view_dimension: TextureViewDimension::D2,
+                        },
+                        count: None,
+                    },
+                    BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: ShaderStages::FRAGMENT,
                         ty: BindingType::Buffer {
                             ty: BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
@@ -308,7 +341,7 @@ impl FromWorld for TracePipeline {
                         count: None,
                     },
                     BindGroupLayoutEntry {
-                        binding: 2,
+                        binding: 3,
                         visibility: ShaderStages::FRAGMENT,
                         ty: BindingType::StorageTexture {
                             access: StorageTextureAccess::ReadWrite,
