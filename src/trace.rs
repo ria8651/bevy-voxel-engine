@@ -1,7 +1,10 @@
 use super::load::GH;
 use bevy::{
     core_pipeline::Transparent3d,
-    ecs::system::{lifetimeless::SRes, SystemParamItem},
+    ecs::{
+        event::Events,
+        system::{lifetimeless::SRes, SystemParamItem},
+    },
     pbr::{
         DrawMesh, MeshPipeline, MeshPipelineKey, MeshUniform, SetMeshBindGroup,
         SetMeshViewBindGroup,
@@ -19,6 +22,7 @@ use bevy::{
         view::{ExtractedView, Msaa},
         RenderApp, RenderStage,
     },
+    window::WindowResized,
 };
 
 pub struct Tracer;
@@ -31,6 +35,7 @@ impl Plugin for Tracer {
         // uniforms
         let uniforms = Uniforms {
             resolution: Vec4::default(),
+            last_camera: Mat4::default(),
             camera: Mat4::default(),
             camera_inverse: Mat4::default(),
             time: 0.0,
@@ -109,7 +114,9 @@ impl Plugin for Tracer {
             .init_resource::<SpecializedMeshPipelines<TracePipeline>>()
             .add_system_to_stage(RenderStage::Extract, extract_uniforms)
             .add_system_to_stage(RenderStage::Extract, extract_trace_material)
-            .add_system_to_stage(RenderStage::Prepare, prepare_time)
+            .add_system_to_stage(RenderStage::Extract, resize_extract)
+            .add_system_to_stage(RenderStage::Prepare, resize_prepare)
+            .add_system_to_stage(RenderStage::Prepare, prepare_uniforms)
             .add_system_to_stage(RenderStage::Queue, queue_custom)
             .add_system_to_stage(RenderStage::Queue, queue_trace_bind_group);
         // .insert_resource(Buffers { uniform, storage })
@@ -119,10 +126,15 @@ impl Plugin for Tracer {
 
 pub struct ShaderTimer(pub Timer);
 
+pub struct LastFrameData {
+    pub last_camera: Mat4,
+}
+
 #[repr(C)]
 #[derive(Default, Debug, Copy, Clone, bytemuck::Zeroable)]
 pub struct Settings {
     pub show_ray_steps: bool,
+    pub freeze: bool,
     pub misc_bool: bool,
     pub misc_float: f32,
 }
@@ -139,6 +151,7 @@ pub struct PalleteEntry {
 struct Uniforms {
     pallete: [PalleteEntry; 256],
     resolution: Vec4,
+    last_camera: Mat4,
     camera: Mat4,
     camera_inverse: Mat4,
     time: f32,
@@ -158,6 +171,7 @@ fn extract_uniforms(
     mut shader_timer: ResMut<ShaderTimer>,
     time: Res<Time>,
     settings: Res<Settings>,
+    mut last_frame_data: ResMut<LastFrameData>,
 ) {
     let window = windows.primary();
     let resolution = Vec4::new(
@@ -169,13 +183,18 @@ fn extract_uniforms(
 
     let (transform, _perspective) = main_cam.single();
 
-    let camera = transform.compute_matrix().inverse();
     let camera_inverse = transform.compute_matrix();
+    let camera = camera_inverse.inverse();
+    let last_camera = last_frame_data.last_camera;
+    if !settings.freeze {
+        last_frame_data.last_camera = camera;
+    }
 
     shader_timer.0.tick(time.delta());
 
     commands.insert_resource(Uniforms {
         resolution,
+        last_camera,
         camera,
         camera_inverse,
         time: shader_timer.0.elapsed_secs(),
@@ -203,7 +222,7 @@ fn extract_trace_material(
 }
 
 // write the extracted time into the corresponding uniform buffer
-fn prepare_time(
+fn prepare_uniforms(
     uniforms: Res<Uniforms>,
     time_meta: ResMut<TraceMeta>,
     render_queue: Res<RenderQueue>,
@@ -411,3 +430,51 @@ impl<const I: usize> EntityRenderCommand for SetTraceBindGroup<I> {
         RenderCommandResult::Success
     }
 }
+
+fn resize_extract(
+    mut commands: Commands,
+    resize_event: Res<Events<WindowResized>>,
+    windows: Res<Windows>,
+) {
+    let window = windows.primary();
+    let mut reader = resize_event.get_reader();
+    let mut width = 0.0;
+    let mut height = 0.0;
+
+    for e in reader.iter(&resize_event) {
+        width = e.width * window.scale_factor() as f32;
+        height = e.height * window.scale_factor() as f32;
+        println!("resizing window to ({}, {})", width, height);
+    }
+
+    commands.insert_resource(ResizeEvent(width, height));
+}
+
+fn resize_prepare(
+    resize_event: Res<ResizeEvent>,
+    render_device: Res<RenderDevice>,
+    mut trace_meta: ResMut<TraceMeta>,
+) {
+    if resize_event.0 == 0.0 || resize_event.1 == 0.0 {
+        return;
+    }
+
+    let screen_texture = render_device.create_texture(&TextureDescriptor {
+        label: None,
+        size: Extent3d {
+            width: resize_event.0 as u32,
+            height: resize_event.1 as u32,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: TextureDimension::D2,
+        format: TextureFormat::Rgba16Float,
+        usage: TextureUsages::STORAGE_BINDING,
+    });
+    let screen_texture_view = screen_texture.create_view(&TextureViewDescriptor::default());
+
+    trace_meta.screen_texture_view = screen_texture_view;
+}
+
+pub struct ResizeEvent(f32, f32);

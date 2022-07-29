@@ -28,8 +28,12 @@ fn main() {
         .insert_resource(trace::ShaderTimer(Timer::from_seconds(1000.0, true)))
         .insert_resource(trace::Settings {
             show_ray_steps: false,
+            freeze: false,
             misc_bool: false,
             misc_float: 5.0,
+        })
+        .insert_resource(trace::LastFrameData {
+            last_camera: Mat4::default(),
         })
         .add_plugins(DefaultPlugins)
         .add_plugin(fps_counter::FpsCounter)
