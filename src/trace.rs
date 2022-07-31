@@ -60,7 +60,7 @@ impl Plugin for Tracer {
             size: Extent3d {
                 width: window.physical_width(),
                 height: window.physical_height(),
-                depth_or_array_layers: 1,
+                depth_or_array_layers: 2,
             },
             mip_level_count: 1,
             sample_count: 1,
@@ -122,6 +122,14 @@ impl Plugin for Tracer {
         // .insert_resource(Buffers { uniform, storage })
         // .add_plugin(MaterialPlugin::<TraceMaterial>::default());
     }
+}
+
+struct TraceMeta {
+    uniform: Buffer,
+    storage: Buffer,
+    screen_texture_view: TextureView,
+    texture_view: TextureView,
+    bind_group: Option<BindGroup>,
 }
 
 pub struct ShaderTimer(pub Timer);
@@ -302,14 +310,6 @@ fn queue_trace_bind_group(
     trace_meta.bind_group = Some(bind_group);
 }
 
-struct TraceMeta {
-    uniform: Buffer,
-    storage: Buffer,
-    screen_texture_view: TextureView,
-    texture_view: TextureView,
-    bind_group: Option<BindGroup>,
-}
-
 pub struct TracePipeline {
     shader: Handle<Shader>,
     mesh_pipeline: MeshPipeline,
@@ -345,7 +345,7 @@ impl FromWorld for TracePipeline {
                         ty: BindingType::StorageTexture {
                             access: StorageTextureAccess::ReadWrite,
                             format: TextureFormat::Rgba16Float,
-                            view_dimension: TextureViewDimension::D2,
+                            view_dimension: TextureViewDimension::D2Array,
                         },
                         count: None,
                     },
@@ -464,7 +464,7 @@ fn resize_prepare(
         size: Extent3d {
             width: resize_event.0 as u32,
             height: resize_event.1 as u32,
-            depth_or_array_layers: 1,
+            depth_or_array_layers: 2,
         },
         mip_level_count: 1,
         sample_count: 1,
@@ -477,4 +477,4 @@ fn resize_prepare(
     trace_meta.screen_texture_view = screen_texture_view;
 }
 
-pub struct ResizeEvent(f32, f32);
+pub struct ResizeEvent(pub f32, pub f32);
