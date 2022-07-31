@@ -16,8 +16,12 @@ fn ui_system(mut egui_context: ResMut<EguiContext>, mut settings: ResMut<trace::
         .anchor(egui::Align2::RIGHT_TOP, [-5.0, 5.0])
         .show(egui_context.ctx_mut(), |ui| {
             ui.checkbox(&mut settings.show_ray_steps, "Show ray steps");
+            ui.add(
+                Slider::new(&mut settings.accumulation_frames, 1.0..=100.0)
+                    .text("Accumulation frames"),
+            );
             ui.checkbox(&mut settings.freeze, "Freeze");
             ui.checkbox(&mut settings.misc_bool, "Misc bool");
-            ui.add(Slider::new(&mut settings.misc_float, 1.0..=100.0).text("Misc float"));
+            ui.add(Slider::new(&mut settings.misc_float, 30.0..=35.0).text("Misc float"));
         });
 }

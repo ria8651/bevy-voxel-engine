@@ -44,7 +44,7 @@ impl Plugin for Tracer {
             texture_size: 0,
             pallete: [PalleteEntry::default(); 256],
             settings: *app.world.resource::<Settings>(),
-            padding: [0; 0],
+            padding: [0; 8],
         };
         let uniform = render_device.create_buffer_with_data(&BufferInitDescriptor {
             label: None,
@@ -142,6 +142,7 @@ pub struct LastFrameData {
 #[derive(Default, Debug, Copy, Clone, bytemuck::Zeroable)]
 pub struct Settings {
     pub show_ray_steps: bool,
+    pub accumulation_frames: f32,
     pub freeze: bool,
     pub misc_bool: bool,
     pub misc_float: f32,
@@ -167,7 +168,7 @@ struct Uniforms {
     offsets: [u32; 8],
     texture_size: u32,
     settings: Settings,
-    padding: [u8; 0],
+    padding: [u8; 8],
 }
 
 // extract the passed time into a resource in the render world
@@ -211,7 +212,7 @@ fn extract_uniforms(
         texture_size: gh.texture_size,
         pallete: gh.pallete,
         settings: *settings,
-        padding: [0; 0],
+        padding: [0; 8],
     });
 }
 

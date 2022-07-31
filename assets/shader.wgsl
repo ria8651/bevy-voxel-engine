@@ -41,6 +41,7 @@ struct Uniforms {
     offsets: array<u32, 8>;
     texture_size: u32;
     show_ray_steps: bool;
+    accumulation_frames: f32;
     freeze: bool;
     misc_bool: bool;
     misc_float: f32;
@@ -150,6 +151,7 @@ struct HitInfo {
     hit: bool;
     value: u32;
     pos: vec3<f32>;
+    reprojection_pos: vec3<f32>;
     normal: vec3<f32>;
     steps: u32;
 };
@@ -163,7 +165,7 @@ fn shoot_ray(r: Ray) -> HitInfo {
         // Get position on surface of the octree
         let dist = ray_box_dist(r, vec3<f32>(-1.0), vec3<f32>(1.0));
         if (dist == 0.0) {
-            return HitInfo(false, 0u, vec3<f32>(0.0), vec3<f32>(0.0), 0u);
+            return HitInfo(false, 0u, vec3<f32>(0.0), vec3<f32>(0.0), vec3<f32>(0.0), 0u);
         }
 
         pos = r.pos + dir * (dist + 0.00001);
@@ -175,14 +177,22 @@ fn shoot_ray(r: Ray) -> HitInfo {
     var steps = 0u;
     var normal = trunc(pos * 1.00001);
     var voxel = Voxel(0u, vec3<f32>(0.0), 0u);
+    var reprojection_pos = vec3<f32>(0.0);
     loop {
         voxel = get_value(voxel_pos);
         let voxel_size = 2.0 / f32(voxel.grid_size);
-        if (voxel.value != 0u) {
-            return HitInfo(true, voxel.value, voxel_pos, normal, steps);
+        if (voxel.value == 111u) {
+            let portal_offset = vec3<f32>(-u.misc_float, 0.0, 0.0) * voxel_size * -normal;
+            pos = pos + portal_offset;
+            voxel_pos = voxel_pos + portal_offset;
+            reprojection_pos = reprojection_pos + portal_offset;
+            voxel = get_value(voxel_pos);
         }
 
-        let voxel_size = 2.0 / f32(voxel.grid_size);
+        if (voxel.value != 0u) {
+            return HitInfo(true, voxel.value, voxel_pos, voxel_pos - reprojection_pos, normal, steps);
+        }
+
         let t_max = (voxel.pos - pos + r_sign * voxel_size / 2.0) / dir;
 
         // https://www.shadertoy.com/view/4dX3zl (good old shader toy)
@@ -193,16 +203,16 @@ fn shoot_ray(r: Ray) -> HitInfo {
         voxel_pos = pos + dir * t_current - normal * 0.000002;
 
         if (!in_bounds(voxel_pos)) {
-            return HitInfo(false, 0u, vec3<f32>(0.0), vec3<f32>(0.0), steps);
+            return HitInfo(false, 0u, vec3<f32>(0.0), vec3<f32>(0.0), vec3<f32>(0.0), steps);
         }
 
         steps = steps + 1u;
         if (steps > 1000u) {
-            return HitInfo(true, voxel.value, voxel_pos, normal, steps);
+            return HitInfo(true, voxel.value, voxel_pos, voxel_pos - reprojection_pos, normal, steps);
         }
     }
 
-    return HitInfo(true, voxel.value, voxel_pos, normal, steps);
+    return HitInfo(true, voxel.value, voxel_pos, voxel_pos - reprojection_pos, normal, steps);
 }
 
 let light_dir = vec3<f32>(-1.3, -1.0, 0.8);
@@ -233,7 +243,7 @@ fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed
 fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f32> {
     // pixel jitter
     let seed = vec3<u32>(frag_pos.xyz + u.time * 240.0);
-    // let jitter = vec4<f32>(hash(seed).xy - 0.5, 0.0, 0.0);
+    let jitter = vec4<f32>(hash(seed).xy - 0.5, 0.0, 0.0);
     var clip_space = get_clip_space(frag_pos, u.resolution);
     let aspect = u.resolution.x / u.resolution.y;
     clip_space.x = clip_space.x * aspect;
@@ -270,7 +280,7 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
         output_colour = (direct_lighting + indirect_lighting) * material.rgb * 1.5;
 
         // reprojection
-        let last_frame_clip_space = u.last_camera * vec4<f32>(hit.pos, 1.0);
+        let last_frame_clip_space = u.last_camera * vec4<f32>(hit.reprojection_pos, 1.0);
         var last_frame_pos = vec2<f32>(-1.0, 1.0) * (last_frame_clip_space.xy / last_frame_clip_space.z);
         last_frame_pos.x = last_frame_pos.x / aspect;
         let texture_pos = vec2<i32>((last_frame_pos.xy * 0.5 + 0.5) * u.resolution);
@@ -284,7 +294,7 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
             last_frame_pos = vec4<f32>(0.0);
         }
 
-        samples = min(last_frame_col.a + 1.0, u.misc_float);
+        samples = min(last_frame_col.a + 1.0, u.accumulation_frames);
         if (!u.freeze) {
             output_colour = last_frame_col.rgb + (output_colour - last_frame_col.rgb) / samples;
         } else {
@@ -298,7 +308,7 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
         // store colour for next frame
         let texture_pos = vec2<i32>(frag_pos.xy);
         textureStore(screen_texture, texture_pos, 0, vec4<f32>(output_colour.rgb, samples));
-        textureStore(screen_texture, texture_pos, 1, hit.pos.xyzz);
+        textureStore(screen_texture, texture_pos, 1, hit.reprojection_pos.xyzz);
     }
 
     if (u.show_ray_steps) {
