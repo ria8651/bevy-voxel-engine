@@ -208,19 +208,25 @@ fn shoot_ray(r: Ray) -> HitInfo {
 let light_dir = vec3<f32>(-1.3, -1.0, 0.8);
 
 fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed: vec3<u32>) -> vec3<f32> {
-    // ambient
-    let ambient = 0.0;
+    var lighting = 0.0;
+    if (material.a == 0.0) {
+        // ambient
+        let ambient = 0.0;
 
-    // diffuse
-    let diffuse = max(dot(normal, -normalize(light_dir)), 0.0);
+        // diffuse
+        let diffuse = max(dot(normal, -normalize(light_dir)), 0.0);
 
-    // shadow
-    let rand = hash(seed) * 2.0 - 1.0;
-    let shadow_ray = Ray(pos + normal * 0.0000025, -light_dir + rand * 0.1);
-    let shadow_hit = shoot_ray(shadow_ray);
-    let shadow = f32(!shadow_hit.hit);
+        // shadow
+        let rand = hash(seed) * 2.0 - 1.0;
+        let shadow_ray = Ray(pos + normal * 0.0000025, -light_dir + rand * 0.1);
+        let shadow_hit = shoot_ray(shadow_ray);
+        let shadow = f32(!shadow_hit.hit);
 
-    return (ambient + diffuse * shadow) * material.rgb;
+        lighting = ambient + diffuse * shadow;
+    } else {
+        lighting = 1.0;
+    }
+    return lighting * material.rgb;
 }
 
 [[stage(fragment)]]
@@ -246,19 +252,22 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
     if (hit.hit) {
         let material = u.pallete[hit.value].colour;
             
-        // diffuse
-        var diffuse: vec3<f32>;
-        let diffuse_dir = cosine_hemisphere(hit.normal, seed + 10u);
-        let diffuse_hit = shoot_ray(Ray(hit.pos + hit.normal * 0.0000025, diffuse_dir));
-        if (diffuse_hit.hit) {
-            let diffuse_material = u.pallete[diffuse_hit.value].colour;
-            diffuse = calculate_direct(diffuse_material, hit.pos, hit.normal, seed + 15u);
+        // direct lighting
+        let direct_lighting = calculate_direct(material, hit.pos, hit.normal, seed + 15u);
+
+        // indirect lighting
+        var indirect_lighting: vec3<f32>;
+        let indirect_dir = cosine_hemisphere(hit.normal, seed + 10u);
+        let indirect_hit = shoot_ray(Ray(hit.pos + hit.normal * 0.0000025, indirect_dir));
+        if (indirect_hit.hit) {
+            let indirect_material = u.pallete[indirect_hit.value].colour;
+            indirect_lighting = calculate_direct(indirect_material, indirect_hit.pos, indirect_hit.normal, seed + 15u);
         } else {
-            diffuse = vec3<f32>(0.4);
+            indirect_lighting = vec3<f32>(0.2);
         }
 
         // final blend
-        output_colour = diffuse * material.rgb * 1.5;
+        output_colour = (direct_lighting + indirect_lighting) * material.rgb * 1.5;
 
         // reprojection
         let last_frame_clip_space = u.last_camera * vec4<f32>(hit.pos, 1.0);

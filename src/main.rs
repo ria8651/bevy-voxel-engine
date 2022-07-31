@@ -30,7 +30,7 @@ fn main() {
             show_ray_steps: false,
             freeze: false,
             misc_bool: false,
-            misc_float: 5.0,
+            misc_float: 20.0,
         })
         .insert_resource(trace::LastFrameData {
             last_camera: Mat4::default(),

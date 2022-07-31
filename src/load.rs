@@ -86,7 +86,7 @@ pub fn load_vox() -> Result<GH, String> {
         let vox_material = vox.materials[i].properties.clone();
         // println!("{:?}", vox_material);
         if vox_material["_type"] == "_emit" {
-            material *= 1.0 + vox_material["_emit"].parse::<f32>().unwrap() * 5.0;
+            material *= 1.0 + vox_material["_emit"].parse::<f32>().unwrap();
             material.w = 1.0;
         }
 
