@@ -182,7 +182,7 @@ fn shoot_ray(r: Ray) -> HitInfo {
         voxel = get_value(voxel_pos);
         let voxel_size = 2.0 / f32(voxel.grid_size);
         if (voxel.value == 111u) {
-            let portal_offset = vec3<f32>(-u.misc_float, 0.0, 0.0) * voxel_size * -normal;
+            let portal_offset = vec3<f32>(-34.0, 0.0, 0.0) * voxel_size * -normal;
             pos = pos + portal_offset;
             voxel_pos = voxel_pos + portal_offset;
             reprojection_pos = reprojection_pos + portal_offset;
@@ -290,6 +290,10 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
 
         let last_frame_clip_space_from_texture = u.last_camera * vec4<f32>(last_frame_pos.xyz, 1.0);
         if (length(last_frame_clip_space.z - last_frame_clip_space_from_texture.z) > 0.001) {
+            last_frame_col = vec4<f32>(0.0);
+            last_frame_pos = vec4<f32>(0.0);
+        }
+        if (last_frame_clip_space.z > 0.0) {
             last_frame_col = vec4<f32>(0.0);
             last_frame_pos = vec4<f32>(0.0);
         }

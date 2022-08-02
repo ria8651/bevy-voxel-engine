@@ -22,6 +22,6 @@ fn ui_system(mut egui_context: ResMut<EguiContext>, mut settings: ResMut<trace::
             );
             ui.checkbox(&mut settings.freeze, "Freeze");
             ui.checkbox(&mut settings.misc_bool, "Misc bool");
-            ui.add(Slider::new(&mut settings.misc_float, 30.0..=35.0).text("Misc float"));
+            ui.add(Slider::new(&mut settings.misc_float, 0.0..=1.0).text("Misc float"));
         });
 }
