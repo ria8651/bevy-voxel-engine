@@ -114,9 +114,11 @@ impl Plugin for Tracer {
 
         // As the render world can no longer acces the main world we have to add seperate plugins to the main world
         app.add_system(update_uniforms)
+            .add_system(resize_system)
             .insert_resource(uniforms_struct)
             .add_plugin(ExtractComponentPlugin::<TraceMaterial>::default())
-            .add_plugin(ExtractResourcePlugin::<ExtractedUniforms>::default());
+            .add_plugin(ExtractResourcePlugin::<ExtractedUniforms>::default())
+            .add_plugin(ExtractResourcePlugin::<ResizeEvent>::default());
 
         app.sub_app_mut(RenderApp)
             .add_render_command::<Transparent3d, DrawCustom>()
@@ -129,6 +131,7 @@ impl Plugin for Tracer {
             })
             .init_resource::<TracePipeline>()
             .init_resource::<SpecializedMeshPipelines<TracePipeline>>()
+            .add_system_to_stage(RenderStage::Prepare, resize_prepare)
             .add_system_to_stage(RenderStage::Prepare, prepare_uniforms)
             .add_system_to_stage(RenderStage::Queue, queue_custom)
             .add_system_to_stage(RenderStage::Queue, queue_trace_bind_group);
@@ -458,7 +461,7 @@ impl<const I: usize> EntityRenderCommand for SetTraceBindGroup<I> {
     }
 }
 
-fn resize_extract(
+fn resize_system(
     mut commands: Commands,
     resize_event: Res<Events<WindowResized>>,
     windows: Res<Windows>,
@@ -502,6 +505,17 @@ fn resize_prepare(
     let screen_texture_view = screen_texture.create_view(&TextureViewDescriptor::default());
 
     trace_meta.screen_texture_view = screen_texture_view;
+
+    println!("resized window to ({}, {})", resize_event.0, resize_event.1);
 }
 
-pub struct ResizeEvent(pub f32, pub f32);
+#[derive(Clone, Copy)]
+struct ResizeEvent(f32, f32);
+
+impl ExtractResource for ResizeEvent {
+    type Source = ResizeEvent;
+
+    fn extract_resource(source: &Self::Source) -> Self {
+        *source
+    }
+}
