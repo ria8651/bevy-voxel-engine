@@ -30,8 +30,8 @@ fn cosine_hemisphere(n: vec3<f32>, seed: vec3<u32>) -> vec3<f32> {
 }
 
 struct Ray {
-    pos: vec3<f32>;
-    dir: vec3<f32>;
+    pos: vec3<f32>,
+    dir: vec3<f32>,
 };
 
 fn ray_box_dist(r: Ray, vmin: vec3<f32>, vmax: vec3<f32>) -> f32 {
@@ -94,7 +94,7 @@ fn skybox(dir: vec3<f32>, time_of_day: f32) -> vec3<f32> {
         let e110: vec3<f32> = sun_pos;
         brightness_a = acos(dot(e109, e110));
         let e132: f32 = brightness_a;
-        brightness_d = ((1.5 * smoothStep((80.0 * 0.017453292519943295), (0.0 * 0.017453292519943295), e132)) - 0.5);
+        brightness_d = ((1.5 * smoothstep((80.0 * 0.017453292519943295), (0.0 * 0.017453292519943295), e132)) - 0.5);
         let e139: array<vec3<f32>,4u> = p_sunset_dark;
         let e142: array<vec3<f32>,4u> = p_sunset_bright;
         let e146: array<vec3<f32>,4u> = p_sunset_dark;
@@ -120,7 +120,7 @@ fn skybox(dir: vec3<f32>, time_of_day: f32) -> vec3<f32> {
         let e220: vec3<f32> = sun_pos;
         sun_a = acos(dot(e220, vec3<f32>(0.0, 1.0, 0.0)));
         let e245: f32 = sun_a;
-        sun_d = smoothStep((100.0 * 0.017453292519943295), (60.0 * 0.017453292519943295), e245);
+        sun_d = smoothstep((100.0 * 0.017453292519943295), (60.0 * 0.017453292519943295), e245);
         let e249: array<vec3<f32>,4u> = p_sunset;
         let e252: array<vec3<f32>,4u> = p_day;
         let e256: array<vec3<f32>,4u> = p_sunset;
@@ -149,7 +149,7 @@ fn skybox(dir: vec3<f32>, time_of_day: f32) -> vec3<f32> {
         let e332: vec3<f32> = dir1;
         sky_a = acos(dot(e332, vec3<f32>(0.0, 1.0, 0.0)));
         let e357: f32 = sky_a;
-        sky_d = smoothStep((90.0 * 0.017453292519943295), (60.0 * 0.017453292519943295), e357);
+        sky_d = smoothstep((90.0 * 0.017453292519943295), (60.0 * 0.017453292519943295), e357);
         let e360: vec3<f32> = col;
         let e361: vec3<f32> = b;
         let e362: vec3<f32> = d;

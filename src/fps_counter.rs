@@ -15,9 +15,6 @@ impl Plugin for FpsCounter {
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // ui
-    commands.spawn_bundle(UiCameraBundle::default());
-
     // fps
     commands.spawn_bundle(TextBundle {
         text: Text {
@@ -34,7 +31,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         },
         style: Style {
             position_type: PositionType::Absolute,
-            position: Rect {
+            position: UiRect {
                 top: Val::Px(10.0),
                 left: Val::Px(10.0),
                 ..Default::default()

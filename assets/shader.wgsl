@@ -1,104 +1,100 @@
-#import bevy_pbr::mesh_view_bind_group
-#import bevy_pbr::mesh_struct
+#import bevy_pbr::mesh_types
+#import bevy_pbr::mesh_view_bindings
 #import "common.wgsl"
 
-[[group(1), binding(0)]]
+@group(1) @binding(0)
 var<uniform> mesh: Mesh;
 
 struct Vertex {
-    [[location(0)]] position: vec3<f32>;
-    [[location(1)]] normal: vec3<f32>;
-    [[location(2)]] uv: vec2<f32>;
+    @location(0) position: vec3<f32>,
+    @location(1) normal: vec3<f32>,
+    @location(2) uv: vec2<f32>,
 };
 
-struct VertexOutput {
-    [[builtin(position)]] clip_position: vec4<f32>;
-    [[location(0)]] uv: vec2<f32>;
-};
+// struct VertexOutput {
+//     @builtin(position) clip_position: vec4<f32>,
+//     @location(0) uv: vec2<f32>,
+// };
 
-[[stage(vertex)]]
-fn vertex(vertex: Vertex) -> VertexOutput {
+@vertex
+fn vertex(vertex: Vertex) -> @builtin(position) vec4<f32>{
     let world_position = mesh.model * vec4<f32>(vertex.position, 1.0);
 
-    var out: VertexOutput;
-    out.clip_position = world_position; //view.view_proj * 
-    out.uv = vertex.uv;
-    return out;
+    // var out: VertexOutput;
+    // out.clip_position = world_position; //view.view_proj * 
+    // out.uv = vertex.uv;
+    return world_position;
 }
 
 struct PalleteEntry {
-    colour: vec4<f32>;
+    colour: vec4<f32>,
 };
 
 struct Uniforms {
-    pallete: array<PalleteEntry, 256>;
-    resolution: vec2<f32>;
-    last_camera: mat4x4<f32>;
-    camera: mat4x4<f32>;
-    camera_inverse: mat4x4<f32>;
-    time: f32;
-    levels: array<u32, 8>;
-    offsets: array<u32, 8>;
-    texture_size: u32;
-    show_ray_steps: bool;
-    accumulation_frames: f32;
-    freeze: bool;
-    misc_bool: bool;
-    misc_float: f32;
+    pallete: array<PalleteEntry, 256>,
+    resolution: vec2<f32>,
+    last_camera: mat4x4<f32>,
+    camera: mat4x4<f32>,
+    camera_inverse: mat4x4<f32>,
+    levels: array<vec4<u32>, 2>,
+    offsets: array<vec4<u32>, 2>,
+    time: f32,
+    texture_size: u32,
+    show_ray_steps: u32,
+    accumulation_frames: f32,
+    freeze: u32,
+    misc_bool: u32,
+    misc_float: f32,
 };
 
-struct GH {
-    data: [[stride(4)]] array<u32>;
-};
-
-[[group(2), binding(0)]]
+@group(2) @binding(0)
 var<uniform> u: Uniforms;
-[[group(2), binding(1)]]
+@group(2) @binding(1)
 var screen_texture: texture_storage_2d_array<rgba16float, read_write>;
-[[group(2), binding(2)]]
-var<storage, read_write> gh: GH; // nodes
-[[group(2), binding(3)]]
+@group(2) @binding(2)
+var<storage, read_write> gh: array<u32>; // nodes
+@group(2) @binding(3)
 var texture: texture_storage_3d<r8uint, read_write>;
 
 fn get_value_index(index: u32) -> bool {
-    return ((gh.data[index / 32u] >> (index % 32u)) & 1u) != 0u;
+    return ((gh[(index / 4u) / 32u] >> ((index / 4u) % 32u)) & 1u) != 0u;
 }
 
 struct Voxel {
-    value: u32;
-    pos: vec3<f32>;
-    grid_size: u32;
+    value: u32,
+    pos: vec3<f32>,
+    grid_size: u32,
 };
 
 fn get_value(pos: vec3<f32>) -> Voxel {
     let scaled = pos * 0.5 + 0.5;
 
-    let size0 = u.levels[0];
-    let size1 = u.levels[1];
-    let size2 = u.levels[2];
-    let size3 = u.levels[3];
-    let size4 = u.levels[4];
-    let size5 = u.levels[5];
-    let size6 = u.levels[6];
-    let size7 = u.levels[7];
+    let size0 = u.levels[0][0];
+    let size1 = u.levels[0][1];
+    let size2 = u.levels[0][2];
+    let size3 = u.levels[0][3];
+    let size4 = u.levels[1][0];
+    let size5 = u.levels[1][1];
+    let size6 = u.levels[1][2];
+    let size7 = u.levels[1][3];
 
-    let scaled0 = vec3<u32>(scaled * f32(u.levels[0]));
-    let scaled1 = vec3<u32>(scaled * f32(u.levels[1]));
-    let scaled2 = vec3<u32>(scaled * f32(u.levels[2]));
-    let scaled3 = vec3<u32>(scaled * f32(u.levels[3]));
-    let scaled4 = vec3<u32>(scaled * f32(u.levels[4]));
-    let scaled5 = vec3<u32>(scaled * f32(u.levels[5]));
-    let scaled6 = vec3<u32>(scaled * f32(u.levels[6]));
-    let scaled7 = vec3<u32>(scaled * f32(u.levels[7]));
+    let scaled0 = vec3<u32>(scaled * f32(size0));
+    let scaled1 = vec3<u32>(scaled * f32(size1));
+    let scaled2 = vec3<u32>(scaled * f32(size2));
+    let scaled3 = vec3<u32>(scaled * f32(size3));
+    let scaled4 = vec3<u32>(scaled * f32(size4));
+    let scaled5 = vec3<u32>(scaled * f32(size5));
+    let scaled6 = vec3<u32>(scaled * f32(size6));
+    let scaled7 = vec3<u32>(scaled * f32(size7));
 
-    let index0 = u.offsets[0] + scaled0.x * size0 * size0 + scaled0.y * size0 + scaled0.z;
-    let index1 = u.offsets[1] + scaled1.x * size1 * size1 + scaled1.y * size1 + scaled1.z;
-    let index2 = u.offsets[2] + scaled2.x * size2 * size2 + scaled2.y * size2 + scaled2.z;
-    let index3 = u.offsets[3] + scaled3.x * size3 * size3 + scaled3.y * size3 + scaled3.z;
-    let index4 = u.offsets[4] + scaled4.x * size4 * size4 + scaled4.y * size4 + scaled4.z;
-    let index5 = u.offsets[5] + scaled5.x * size5 * size5 + scaled5.y * size5 + scaled5.z;
-    let index6 = u.offsets[6] + scaled6.x * size6 * size6 + scaled6.y * size6 + scaled6.z;
-    let index7 = u.offsets[7] + scaled7.x * size7 * size7 + scaled7.y * size7 + scaled7.z;
+    let index0 = u.offsets[0][0] + scaled0.x * size0 * size0 + scaled0.y * size0 + scaled0.z;
+    let index1 = u.offsets[0][1] + scaled1.x * size1 * size1 + scaled1.y * size1 + scaled1.z;
+    let index2 = u.offsets[0][2] + scaled2.x * size2 * size2 + scaled2.y * size2 + scaled2.z;
+    let index3 = u.offsets[0][3] + scaled3.x * size3 * size3 + scaled3.y * size3 + scaled3.z;
+    let index4 = u.offsets[1][0] + scaled4.x * size4 * size4 + scaled4.y * size4 + scaled4.z;
+    let index5 = u.offsets[1][1] + scaled5.x * size5 * size5 + scaled5.y * size5 + scaled5.z;
+    let index6 = u.offsets[1][2] + scaled6.x * size6 * size6 + scaled6.y * size6 + scaled6.z;
+    let index7 = u.offsets[1][3] + scaled7.x * size7 * size7 + scaled7.y * size7 + scaled7.z;
 
     let state0 = get_value_index(index0);
     let state1 = get_value_index(index1);
@@ -148,12 +144,12 @@ fn get_value(pos: vec3<f32>) -> Voxel {
 }
 
 struct HitInfo {
-    hit: bool;
-    value: u32;
-    pos: vec3<f32>;
-    reprojection_pos: vec3<f32>;
-    normal: vec3<f32>;
-    steps: u32;
+    hit: bool,
+    value: u32,
+    pos: vec3<f32>,
+    reprojection_pos: vec3<f32>,
+    normal: vec3<f32>,
+    steps: u32,
 };
 
 fn shoot_ray(r: Ray) -> HitInfo {
@@ -239,8 +235,8 @@ fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed
     return lighting * material.rgb;
 }
 
-[[stage(fragment)]]
-fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f32> {
+@fragment
+fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
     // pixel jitter
     let seed = vec3<u32>(frag_pos.xyz + u.time * 240.0);
     let jitter = vec4<f32>(hash(seed).xy - 0.5, 0.0, 0.0);
@@ -299,7 +295,7 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
         }
 
         samples = min(last_frame_col.a + 1.0, u.accumulation_frames);
-        if (!u.freeze) {
+        if (u.freeze == 0u) {
             output_colour = last_frame_col.rgb + (output_colour - last_frame_col.rgb) / samples;
         } else {
             output_colour = last_frame_col.rgb;
@@ -308,14 +304,14 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
         output_colour = vec3<f32>(0.2);
     }
 
-    if (!u.freeze) {
+    if (u.freeze == 0u) {
         // store colour for next frame
         let texture_pos = vec2<i32>(frag_pos.xy);
         textureStore(screen_texture, texture_pos, 0, vec4<f32>(output_colour.rgb, samples));
         textureStore(screen_texture, texture_pos, 1, hit.reprojection_pos.xyzz);
     }
 
-    if (u.show_ray_steps) {
+    if (u.show_ray_steps != 0u) {
         output_colour = vec3<f32>(f32(steps) / 100.0);
     }
 
@@ -324,3 +320,8 @@ fn fragment([[builtin(position)]] frag_pos: vec4<f32>) -> [[location(0)]] vec4<f
     output_colour = clamp(output_colour, vec3<f32>(0.0), vec3<f32>(1.0));
     return vec4<f32>((1.0 - knee) * pow(output_colour, vec3<f32>(power)) + knee * output_colour, 1.0);
 }
+
+// @fragment
+// fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
+//     return frag_pos * 0.5 + 0.5;
+// }

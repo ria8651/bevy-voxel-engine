@@ -1,5 +1,5 @@
 use bevy::{
-    asset::AssetServerSettings, prelude::*, render::view::NoFrustumCulling, window::PresentMode,
+    asset::AssetServerSettings, prelude::*, render::view::NoFrustumCulling,
 };
 use trace::TraceMaterial;
 
@@ -21,18 +21,10 @@ fn main() {
         .insert_resource(WindowDescriptor {
             width: 600.0,
             height: 600.0,
-            present_mode: PresentMode::Mailbox,
             ..default()
         })
         .insert_resource(load::load_vox().unwrap())
         .insert_resource(trace::ShaderTimer(Timer::from_seconds(1000.0, true)))
-        .insert_resource(trace::Settings {
-            show_ray_steps: false,
-            freeze: false,
-            accumulation_frames: 20.0,
-            misc_bool: false,
-            misc_float: 34.0,
-        })
         .insert_resource(trace::LastFrameData {
             last_camera: Mat4::default(),
         })

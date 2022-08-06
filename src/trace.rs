@@ -1,9 +1,12 @@
 use super::load::GH;
 use bevy::{
-    core_pipeline::Transparent3d,
+    core_pipeline::core_3d::Transparent3d,
     ecs::{
         event::Events,
-        system::{lifetimeless::SRes, SystemParamItem},
+        system::{
+            lifetimeless::{Read, SRes},
+            SystemParamItem,
+        },
     },
     pbr::{
         DrawMesh, MeshPipeline, MeshPipelineKey, MeshUniform, SetMeshBindGroup,
@@ -11,6 +14,9 @@ use bevy::{
     },
     prelude::*,
     render::{
+        camera::Projection,
+        extract_component::{ExtractComponent, ExtractComponentPlugin},
+        extract_resource::{ExtractResource, ExtractResourcePlugin},
         mesh::MeshVertexBufferLayout,
         render_asset::RenderAssets,
         render_phase::{
@@ -33,24 +39,11 @@ impl Plugin for Tracer {
         let render_queue = app.world.resource::<RenderQueue>();
 
         // uniforms
-        let uniforms = Uniforms {
-            resolution: Vec4::default(),
-            last_camera: Mat4::default(),
-            camera: Mat4::default(),
-            camera_inverse: Mat4::default(),
-            time: 0.0,
-            levels: [0; 8],
-            offsets: [0; 8],
-            texture_size: 0,
-            pallete: [PalleteEntry::default(); 256],
-            settings: *app.world.resource::<Settings>(),
-            padding: [0; 8],
-        };
-        let uniform = render_device.create_buffer_with_data(&BufferInitDescriptor {
+        let uniform = render_device.create_buffer(&BufferDescriptor {
             label: None,
-            contents: bytemuck::cast_slice(&[uniforms]),
-            // contents: resolution.as_std140().as_bytes(),
+            size: std::mem::size_of::<ExtractedUniforms>() as u64,
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+            mapped_at_creation: false,
         });
 
         // screen texture
@@ -99,7 +92,31 @@ impl Plugin for Tracer {
         );
         let texture_view = texture.create_view(&TextureViewDescriptor::default());
 
+        // uniforms
+        let uniforms_struct = Uniforms {
+            pallete: gh.pallete,
+            resolution: Vec4::default(),
+            last_camera: Mat4::default(),
+            camera: Mat4::default(),
+            camera_inverse: Mat4::default(),
+            levels: gh.levels,
+            offsets: gh.get_offsets(),
+            time: 0.0,
+            texture_size: gh.texture_size,
+            show_ray_steps: false,
+            accumulation_frames: 20.0,
+            freeze: false,
+            misc_bool: false,
+            misc_float: 34.0,
+        };
+
         // println!("{}", render_device.limits().max_storage_buffer_binding_size);
+
+        // As the render world can no longer acces the main world we have to add seperate plugins to the main world
+        app.add_system(update_uniforms)
+            .insert_resource(uniforms_struct)
+            .add_plugin(ExtractComponentPlugin::<TraceMaterial>::default())
+            .add_plugin(ExtractResourcePlugin::<ExtractedUniforms>::default());
 
         app.sub_app_mut(RenderApp)
             .add_render_command::<Transparent3d, DrawCustom>()
@@ -112,15 +129,9 @@ impl Plugin for Tracer {
             })
             .init_resource::<TracePipeline>()
             .init_resource::<SpecializedMeshPipelines<TracePipeline>>()
-            .add_system_to_stage(RenderStage::Extract, extract_uniforms)
-            .add_system_to_stage(RenderStage::Extract, extract_trace_material)
-            .add_system_to_stage(RenderStage::Extract, resize_extract)
-            .add_system_to_stage(RenderStage::Prepare, resize_prepare)
             .add_system_to_stage(RenderStage::Prepare, prepare_uniforms)
             .add_system_to_stage(RenderStage::Queue, queue_custom)
             .add_system_to_stage(RenderStage::Queue, queue_trace_bind_group);
-        // .insert_resource(Buffers { uniform, storage })
-        // .add_plugin(MaterialPlugin::<TraceMaterial>::default());
     }
 }
 
@@ -139,51 +150,82 @@ pub struct LastFrameData {
 }
 
 #[repr(C)]
-#[derive(Default, Debug, Copy, Clone, bytemuck::Zeroable)]
-pub struct Settings {
+#[derive(Default, Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
+pub struct PalleteEntry {
+    pub colour: [f32; 4],
+}
+
+pub struct Uniforms {
+    pub pallete: [PalleteEntry; 256],
+    pub resolution: Vec4,
+    pub last_camera: Mat4,
+    pub camera: Mat4,
+    pub camera_inverse: Mat4,
+    pub levels: [u32; 8],
+    pub offsets: [u32; 8],
+    pub time: f32,
+    pub texture_size: u32,
     pub show_ray_steps: bool,
     pub accumulation_frames: f32,
     pub freeze: bool,
     pub misc_bool: bool,
     pub misc_float: f32,
 }
-unsafe impl bytemuck::Pod for Settings {}
-
-#[repr(C)]
-#[derive(Default, Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
-pub struct PalleteEntry {
-    pub colour: [f32; 4],
-}
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
-struct Uniforms {
+struct ExtractedUniforms {
     pallete: [PalleteEntry; 256],
     resolution: Vec4,
     last_camera: Mat4,
     camera: Mat4,
     camera_inverse: Mat4,
-    time: f32,
     levels: [u32; 8],
     offsets: [u32; 8],
+    time: f32,
     texture_size: u32,
-    settings: Settings,
-    padding: [u8; 8],
+    show_ray_steps: u32,
+    accumulation_frames: f32,
+    freeze: u32,
+    misc_bool: u32,
+    misc_float: f32,
+    padding: [u32; 1],
 }
 
-// extract the passed time into a resource in the render world
-fn extract_uniforms(
-    mut commands: Commands,
+impl ExtractResource for ExtractedUniforms {
+    type Source = Uniforms;
+
+    fn extract_resource(uniforms: &Self::Source) -> Self {
+        ExtractedUniforms {
+            pallete: uniforms.pallete,
+            resolution: uniforms.resolution,
+            last_camera: uniforms.last_camera,
+            camera: uniforms.camera,
+            camera_inverse: uniforms.camera_inverse,
+            levels: uniforms.levels,
+            offsets: uniforms.offsets,
+            time: uniforms.time,
+            texture_size: uniforms.texture_size,
+            show_ray_steps: uniforms.show_ray_steps as u32,
+            accumulation_frames: uniforms.accumulation_frames,
+            freeze: uniforms.freeze as u32,
+            misc_bool: uniforms.misc_bool as u32,
+            misc_float: uniforms.misc_float,
+            padding: [0; 1],
+        }
+    }
+}
+
+fn update_uniforms(
+    mut uniforms: ResMut<Uniforms>,
     windows: Res<Windows>,
-    main_cam: Query<(&Transform, &PerspectiveProjection), With<super::MainCamera>>,
-    gh: Res<GH>,
+    main_cam: Query<(&Transform, &Projection), With<super::MainCamera>>,
     mut shader_timer: ResMut<ShaderTimer>,
     time: Res<Time>,
-    settings: Res<Settings>,
     mut last_frame_data: ResMut<LastFrameData>,
 ) {
     let window = windows.primary();
-    let resolution = Vec4::new(
+    uniforms.resolution = Vec4::new(
         window.physical_width() as f32,
         window.physical_height() as f32,
         0.0,
@@ -192,54 +234,27 @@ fn extract_uniforms(
 
     let (transform, _perspective) = main_cam.single();
 
-    let camera_inverse = transform.compute_matrix();
-    let camera = camera_inverse.inverse();
-    let last_camera = last_frame_data.last_camera;
-    if !settings.freeze {
-        last_frame_data.last_camera = camera;
+    uniforms.camera_inverse = transform.compute_matrix();
+    uniforms.camera = uniforms.camera_inverse.inverse();
+    uniforms.last_camera = last_frame_data.last_camera;
+    if !uniforms.freeze {
+        last_frame_data.last_camera = uniforms.camera;
     }
 
     shader_timer.0.tick(time.delta());
-
-    commands.insert_resource(Uniforms {
-        resolution,
-        last_camera,
-        camera,
-        camera_inverse,
-        time: shader_timer.0.elapsed_secs(),
-        levels: gh.levels,
-        offsets: gh.get_offsets(),
-        texture_size: gh.texture_size,
-        pallete: gh.pallete,
-        settings: *settings,
-        padding: [0; 8],
-    });
-}
-
-// extract the `CustomMaterial` component into the render world
-fn extract_trace_material(
-    mut commands: Commands,
-    mut previous_len: Local<usize>,
-    mut query: Query<Entity, With<TraceMaterial>>,
-) {
-    let mut values = Vec::with_capacity(*previous_len);
-    for entity in query.iter_mut() {
-        values.push((entity, (TraceMaterial,)));
-    }
-    *previous_len = values.len();
-    commands.insert_or_spawn_batch(values);
+    uniforms.time = shader_timer.0.elapsed_secs();
 }
 
 // write the extracted time into the corresponding uniform buffer
 fn prepare_uniforms(
-    uniforms: Res<Uniforms>,
-    time_meta: ResMut<TraceMeta>,
+    extraced_uniforms: Res<ExtractedUniforms>,
+    trace_meta: ResMut<TraceMeta>,
     render_queue: Res<RenderQueue>,
 ) {
     render_queue.write_buffer(
-        &time_meta.uniform,
+        &trace_meta.uniform,
         0,
-        bytemuck::cast_slice(&[*uniforms.as_ref()]),
+        bytemuck::cast_slice(&[*extraced_uniforms.as_ref()]),
     );
 }
 
@@ -335,7 +350,7 @@ impl FromWorld for TracePipeline {
                             ty: BufferBindingType::Uniform,
                             has_dynamic_offset: false,
                             min_binding_size: BufferSize::new(
-                                std::mem::size_of::<Uniforms>() as u64
+                                std::mem::size_of::<ExtractedUniforms>() as u64,
                             ),
                         },
                         count: None,
@@ -407,6 +422,16 @@ impl SpecializedMeshPipeline for TracePipeline {
 #[derive(Component)]
 pub struct TraceMaterial;
 
+impl ExtractComponent for TraceMaterial {
+    type Query = Read<TraceMaterial>;
+
+    type Filter = ();
+
+    fn extract_component(_: bevy::ecs::query::QueryItem<Self::Query>) -> Self {
+        TraceMaterial
+    }
+}
+
 type DrawCustom = (
     SetItemPipeline,
     SetMeshViewBindGroup<0>,
@@ -416,6 +441,7 @@ type DrawCustom = (
 );
 
 struct SetTraceBindGroup<const I: usize>;
+
 impl<const I: usize> EntityRenderCommand for SetTraceBindGroup<I> {
     type Param = SRes<TraceMeta>;
 

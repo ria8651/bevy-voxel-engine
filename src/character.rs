@@ -1,4 +1,4 @@
-use bevy::{input::mouse::MouseMotion, prelude::*};
+use bevy::{input::mouse::MouseMotion, prelude::*, render::camera::Projection};
 
 const SPEED: f32 = 2.0;
 const SENSITIVITY: f32 = 0.004;
@@ -31,14 +31,14 @@ fn setup_character(mut commands: Commands, mut windows: ResMut<Windows>) {
     toggle_grab_cursor(windows.get_primary_mut().unwrap());
 
     commands
-        .spawn_bundle(PerspectiveCameraBundle {
+        .spawn_bundle(Camera3dBundle {
             transform: Transform::from_xyz(-1.5, 1.2, -1.4).looking_at(Vec3::ZERO, Vec3::Y),
-            perspective_projection: PerspectiveProjection {
+            projection: Projection::Perspective(PerspectiveProjection {
                 fov: 1.48353,
                 near: 0.05,
                 far: 10000.0,
                 ..Default::default()
-            },
+            }),
             ..Default::default()
         })
         .insert_bundle((CharacterEntity::default(), super::MainCamera));

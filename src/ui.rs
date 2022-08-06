@@ -11,17 +11,17 @@ impl Plugin for UiPlugin {
     }
 }
 
-fn ui_system(mut egui_context: ResMut<EguiContext>, mut settings: ResMut<trace::Settings>) {
+fn ui_system(mut egui_context: ResMut<EguiContext>, mut uniforms: ResMut<trace::Uniforms>) {
     egui::Window::new("Settings")
         .anchor(egui::Align2::RIGHT_TOP, [-5.0, 5.0])
         .show(egui_context.ctx_mut(), |ui| {
-            ui.checkbox(&mut settings.show_ray_steps, "Show ray steps");
+            ui.checkbox(&mut uniforms.show_ray_steps, "Show ray steps");
             ui.add(
-                Slider::new(&mut settings.accumulation_frames, 1.0..=100.0)
+                Slider::new(&mut uniforms.accumulation_frames, 1.0..=100.0)
                     .text("Accumulation frames"),
             );
-            ui.checkbox(&mut settings.freeze, "Freeze");
-            ui.checkbox(&mut settings.misc_bool, "Misc bool");
-            ui.add(Slider::new(&mut settings.misc_float, 0.0..=1.0).text("Misc float"));
+            ui.checkbox(&mut uniforms.freeze, "Freeze");
+            ui.checkbox(&mut uniforms.misc_bool, "Misc bool");
+            ui.add(Slider::new(&mut uniforms.misc_float, 0.0..=1.0).text("Misc float"));
         });
 }
