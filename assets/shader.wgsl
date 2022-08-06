@@ -57,7 +57,7 @@ var<storage, read_write> gh: array<u32>; // nodes
 var texture: texture_storage_3d<r8uint, read_write>;
 
 fn get_value_index(index: u32) -> bool {
-    return ((gh[(index / 4u) / 32u] >> ((index / 4u) % 32u)) & 1u) != 0u;
+    return ((gh[index / 32u] >> (index % 32u)) & 1u) != 0u;
 }
 
 struct Voxel {
@@ -314,6 +314,18 @@ fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
     if (u.show_ray_steps != 0u) {
         output_colour = vec3<f32>(f32(steps) / 100.0);
     }
+
+    // let pos = vec3<f32>(clip_space, u.misc_float);
+    
+    // let scaled = (pos * 0.5 + 0.5) * f32(u.texture_size);
+    // let value = textureLoad(texture, vec3<i32>(scaled.zyx)).r;
+    
+    // let voxel = get_value(pos);
+    // if (value != 0u) {
+    //     output_colour = u.pallete[value].colour.rgb;
+    // } else {
+    //     output_colour = vec3<f32>(f32(voxel.grid_size) / 256.0);
+    // }
 
     let knee = 0.2;
     let power = 2.2;
