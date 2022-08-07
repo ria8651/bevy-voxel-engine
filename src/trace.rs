@@ -138,11 +138,11 @@ impl Plugin for Tracer {
     }
 }
 
-struct TraceMeta {
-    uniform: Buffer,
-    storage: Buffer,
+pub struct TraceMeta {
+    pub uniform: Buffer,
+    pub storage: Buffer,
     screen_texture_view: TextureView,
-    texture_view: TextureView,
+    pub texture_view: TextureView,
     bind_group: Option<BindGroup>,
 }
 
@@ -177,7 +177,7 @@ pub struct Uniforms {
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
-struct ExtractedUniforms {
+pub struct ExtractedUniforms {
     pallete: [PalleteEntry; 256],
     resolution: Vec4,
     last_camera: Mat4,

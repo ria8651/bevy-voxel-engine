@@ -1,9 +1,8 @@
-use bevy::{
-    asset::AssetServerSettings, prelude::*, render::view::NoFrustumCulling,
-};
+use bevy::{asset::AssetServerSettings, prelude::*, render::view::NoFrustumCulling};
 use trace::TraceMaterial;
 
 mod character;
+mod compute;
 mod fps_counter;
 mod load;
 mod trace;
@@ -33,6 +32,7 @@ fn main() {
         .add_plugin(character::Character)
         .add_plugin(trace::Tracer)
         .add_plugin(ui::UiPlugin)
+        .add_plugin(compute::ComputePlugin)
         .add_startup_system(setup)
         .run();
 }
