@@ -2,14 +2,12 @@ use super::trace;
 use bevy::{
     prelude::*,
     render::{
-        extract_resource::{ExtractResource, ExtractResourcePlugin},
-        render_asset::RenderAssets,
         render_graph::{self, RenderGraph},
         render_resource::*,
+        renderer::RenderQueue,
         renderer::{RenderContext, RenderDevice},
         RenderApp, RenderStage,
     },
-    window::WindowDescriptor,
 };
 use std::borrow::Cow;
 
@@ -62,7 +60,11 @@ impl render_graph::Node for GameOfLifeNode {
                 if let CachedPipelineState::Ok(_) =
                     pipeline_cache.get_compute_pipeline_state(pipeline.update_pipeline)
                 {
-                    self.state = GameOfLifeState::Update;
+                    if let CachedPipelineState::Ok(_) =
+                        pipeline_cache.get_compute_pipeline_state(pipeline.rebuild_pipeline)
+                    {
+                        self.state = GameOfLifeState::Update;
+                    }
                 }
             }
             GameOfLifeState::Update => {}
@@ -78,6 +80,18 @@ impl render_graph::Node for GameOfLifeNode {
         let texture_bind_group = &world.resource::<GameOfLifeImageBindGroup>().0;
         let pipeline_cache = world.resource::<PipelineCache>();
         let pipeline = world.resource::<GameOfLifePipeline>();
+        let render_queue = world.resource::<RenderQueue>();
+        let trace_meta = world.resource::<trace::TraceMeta>();
+
+        let uniforms = world.resource::<trace::ExtractedUniforms>();
+
+        if uniforms.misc_bool != 0 {
+            render_queue.write_buffer(
+                &trace_meta.storage,
+                0,
+                bytemuck::cast_slice(&[0u8; 37440]),
+            );
+        }
 
         let mut pass = render_context
             .command_encoder
@@ -92,7 +106,14 @@ impl render_graph::Node for GameOfLifeNode {
                 let update_pipeline = pipeline_cache
                     .get_compute_pipeline(pipeline.update_pipeline)
                     .unwrap();
+                let rebuild_pipeline = pipeline_cache
+                    .get_compute_pipeline(pipeline.rebuild_pipeline)
+                    .unwrap();
+
                 pass.set_pipeline(update_pipeline);
+                pass.dispatch_workgroups(128, 128, 128);
+
+                pass.set_pipeline(rebuild_pipeline);
                 pass.dispatch_workgroups(128, 128, 128);
             }
         }
@@ -104,6 +125,7 @@ impl render_graph::Node for GameOfLifeNode {
 pub struct GameOfLifePipeline {
     compute_bind_group_layout: BindGroupLayout,
     update_pipeline: CachedComputePipelineId,
+    rebuild_pipeline: CachedComputePipelineId,
 }
 
 impl FromWorld for GameOfLifePipeline {
@@ -119,9 +141,10 @@ impl FromWorld for GameOfLifePipeline {
                         ty: BindingType::Buffer {
                             ty: BufferBindingType::Uniform,
                             has_dynamic_offset: false,
-                            min_binding_size: BufferSize::new(
-                                std::mem::size_of::<trace::ExtractedUniforms>() as u64,
-                            ),
+                            min_binding_size: BufferSize::new(std::mem::size_of::<
+                                trace::ExtractedUniforms,
+                            >()
+                                as u64),
                         },
                         count: None,
                     },
@@ -148,21 +171,29 @@ impl FromWorld for GameOfLifePipeline {
                 ],
             });
 
-        let shader = world.resource::<AssetServer>().load("compute.wgsl");
+        let compute_shader = world.resource::<AssetServer>().load("compute.wgsl");
 
         let mut pipeline_cache = world.resource_mut::<PipelineCache>();
 
         let update_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
             label: None,
             layout: Some(vec![compute_bind_group_layout.clone()]),
-            shader,
+            shader: compute_shader.clone(),
             shader_defs: vec![],
             entry_point: Cow::from("update"),
+        });
+        let rebuild_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
+            label: None,
+            layout: Some(vec![compute_bind_group_layout.clone()]),
+            shader: compute_shader.clone(),
+            shader_defs: vec![],
+            entry_point: Cow::from("rebuild_gh"),
         });
 
         GameOfLifePipeline {
             compute_bind_group_layout,
             update_pipeline,
+            rebuild_pipeline,
         }
     }
 }

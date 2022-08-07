@@ -17,7 +17,7 @@ struct Vertex {
 // };
 
 @vertex
-fn vertex(vertex: Vertex) -> @builtin(position) vec4<f32>{
+fn vertex(vertex: Vertex) -> @builtin(position) vec4<f32> {
     let world_position = mesh.model * vec4<f32>(vertex.position, 1.0);
 
     // var out: VertexOutput;

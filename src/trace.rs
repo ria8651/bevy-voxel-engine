@@ -66,6 +66,8 @@ impl Plugin for Tracer {
         // storage
         let gh = app.world.resource::<GH>();
 
+        println!("{}", gh.data.len());
+
         let storage = render_device.create_buffer_with_data(&BufferInitDescriptor {
             contents: &gh.data,
             label: None,
@@ -178,21 +180,21 @@ pub struct Uniforms {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct ExtractedUniforms {
-    pallete: [PalleteEntry; 256],
-    resolution: Vec4,
-    last_camera: Mat4,
-    camera: Mat4,
-    camera_inverse: Mat4,
-    levels: [u32; 8],
-    offsets: [u32; 8],
-    time: f32,
-    texture_size: u32,
-    show_ray_steps: u32,
-    accumulation_frames: f32,
-    freeze: u32,
-    misc_bool: u32,
-    misc_float: f32,
-    padding: [u32; 1],
+    pub pallete: [PalleteEntry; 256],
+    pub resolution: Vec4,
+    pub last_camera: Mat4,
+    pub camera: Mat4,
+    pub camera_inverse: Mat4,
+    pub levels: [u32; 8],
+    pub offsets: [u32; 8],
+    pub time: f32,
+    pub texture_size: u32,
+    pub show_ray_steps: u32,
+    pub accumulation_frames: f32,
+    pub freeze: u32,
+    pub misc_bool: u32,
+    pub misc_float: f32,
+    pub padding: [u32; 1],
 }
 
 impl ExtractResource for ExtractedUniforms {
