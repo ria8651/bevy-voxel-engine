@@ -314,15 +314,15 @@ fn queue_trace_bind_group(
             },
             BindGroupEntry {
                 binding: 1,
-                resource: BindingResource::TextureView(&trace_meta.screen_texture_view),
-            },
-            BindGroupEntry {
-                binding: 2,
                 resource: trace_meta.storage.as_entire_binding(),
             },
             BindGroupEntry {
-                binding: 3,
+                binding: 2,
                 resource: BindingResource::TextureView(&trace_meta.texture_view),
+            },
+            BindGroupEntry {
+                binding: 3,
+                resource: BindingResource::TextureView(&trace_meta.screen_texture_view),
             },
         ],
     });
@@ -361,16 +361,6 @@ impl FromWorld for TracePipeline {
                     BindGroupLayoutEntry {
                         binding: 1,
                         visibility: ShaderStages::FRAGMENT,
-                        ty: BindingType::StorageTexture {
-                            access: StorageTextureAccess::ReadWrite,
-                            format: TextureFormat::Rgba16Float,
-                            view_dimension: TextureViewDimension::D2Array,
-                        },
-                        count: None,
-                    },
-                    BindGroupLayoutEntry {
-                        binding: 2,
-                        visibility: ShaderStages::FRAGMENT,
                         ty: BindingType::Buffer {
                             ty: BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
@@ -379,12 +369,22 @@ impl FromWorld for TracePipeline {
                         count: None,
                     },
                     BindGroupLayoutEntry {
-                        binding: 3,
+                        binding: 2,
                         visibility: ShaderStages::FRAGMENT,
                         ty: BindingType::StorageTexture {
                             access: StorageTextureAccess::ReadWrite,
                             format: TextureFormat::R8Uint,
                             view_dimension: TextureViewDimension::D3,
+                        },
+                        count: None,
+                    },
+                    BindGroupLayoutEntry {
+                        binding: 3,
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::StorageTexture {
+                            access: StorageTextureAccess::ReadWrite,
+                            format: TextureFormat::Rgba16Float,
+                            view_dimension: TextureViewDimension::D2Array,
                         },
                         count: None,
                     },

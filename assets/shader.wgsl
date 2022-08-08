@@ -26,35 +26,14 @@ fn vertex(vertex: Vertex) -> @builtin(position) vec4<f32> {
     return world_position;
 }
 
-struct PalleteEntry {
-    colour: vec4<f32>,
-};
-
-struct Uniforms {
-    pallete: array<PalleteEntry, 256>,
-    resolution: vec2<f32>,
-    last_camera: mat4x4<f32>,
-    camera: mat4x4<f32>,
-    camera_inverse: mat4x4<f32>,
-    levels: array<vec4<u32>, 2>,
-    offsets: array<vec4<u32>, 2>,
-    time: f32,
-    texture_size: u32,
-    show_ray_steps: u32,
-    accumulation_frames: f32,
-    freeze: u32,
-    misc_bool: u32,
-    misc_float: f32,
-};
-
 @group(2) @binding(0)
 var<uniform> u: Uniforms;
 @group(2) @binding(1)
-var screen_texture: texture_storage_2d_array<rgba16float, read_write>;
+var<storage, read_write> gh: array<u32>;
 @group(2) @binding(2)
-var<storage, read_write> gh: array<u32>; // nodes
-@group(2) @binding(3)
 var texture: texture_storage_3d<r8uint, read_write>;
+@group(2) @binding(3)
+var screen_texture: texture_storage_2d_array<rgba16float, read_write>;
 
 fn get_value_index(index: u32) -> bool {
     return ((gh[index / 32u] >> (index % 32u)) & 1u) != 0u;

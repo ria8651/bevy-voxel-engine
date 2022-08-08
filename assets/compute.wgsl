@@ -1,36 +1,15 @@
 #import "common.wgsl"
 
-struct PalleteEntry {
-    colour: vec4<f32>,
-};
-
-struct Uniforms {
-    pallete: array<PalleteEntry, 256>,
-    resolution: vec2<f32>,
-    last_camera: mat4x4<f32>,
-    camera: mat4x4<f32>,
-    camera_inverse: mat4x4<f32>,
-    levels: array<vec4<u32>, 2>,
-    offsets: array<vec4<u32>, 2>,
-    time: f32,
-    texture_size: u32,
-    show_ray_steps: u32,
-    accumulation_frames: f32,
-    freeze: u32,
-    misc_bool: u32,
-    misc_float: f32,
-};
-
 @group(0) @binding(0)
 var<uniform> u: Uniforms;
 @group(0) @binding(1)
 var<storage, read_write> gh: array<atomic<u32>>; // nodes
 @group(0) @binding(2)
 var texture: texture_storage_3d<r8uint, read_write>;
+@group(0) @binding(3)
+var<storage, read> animation_data: array<u32>; // nodes
 
 fn set_value_index(index: u32) {
-    // return ((gh[index / 32u] >> (index % 32u)) & 1u) != 0u;
-    // gh[index / 32u] = gh[index / 32u] | (1u << (index % 32u));
     atomicOr(&gh[index / 32u], 1u << (index % 32u));
 }
 
@@ -44,6 +23,26 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let material = textureLoad(texture, pos).r;
     if (material == 58u && rand.x < 0.01 && u.misc_bool != 0u) {
         textureStore(texture, pos, vec4(0u));
+    }
+
+    // let data_pos = vec3<i32>(vec3(animation_data[0], animation_data[1], animation_data[2]));
+    // if (all(vec3(1, 1, 1) * i32(u.misc_float * f32(u.texture_size)) == pos)) {
+    //     textureStore(texture, pos, vec4(58u));
+    // }
+
+    let header_len = i32(animation_data[0]);
+    for (var i = 1; i <= header_len; i = i + 1) {
+        let data_index = i32(animation_data[i]);
+
+        let material = animation_data[data_index];        
+        let world_pos = vec3<f32>(
+            bitcast<f32>(animation_data[data_index + 1]),
+            bitcast<f32>(animation_data[data_index + 2]),
+            bitcast<f32>(animation_data[data_index + 3]),
+        );
+
+        let texture_pos = vec3<i32>((world_pos * 0.5 + 0.5) * f32(u.texture_size));
+        textureStore(texture, texture_pos, vec4(material));
     }
 }
 
