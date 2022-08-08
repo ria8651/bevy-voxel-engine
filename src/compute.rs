@@ -58,6 +58,7 @@ pub struct Particle {
 
 #[derive(Clone)]
 struct ExtractedAnimationData {
+    size: u32,
     data: Vec<u32>,
 }
 
@@ -92,7 +93,10 @@ fn extract_animation_data(mut commands: Commands, particle_query: Query<(&Transf
 
     // println!("{:?}", data);
 
-    commands.insert_resource(ExtractedAnimationData { data });
+    commands.insert_resource(ExtractedAnimationData {
+        size: offset as u32 - 1,
+        data,
+    });
 }
 
 struct ComputeMeta {
@@ -196,6 +200,9 @@ impl render_graph::Node for GameOfLifeNode {
                 let update_pipeline = pipeline_cache
                     .get_compute_pipeline(pipeline.update_pipeline)
                     .unwrap();
+                let animation_pipeline = pipeline_cache
+                    .get_compute_pipeline(pipeline.animation_pipeline)
+                    .unwrap();
                 let rebuild_pipeline = pipeline_cache
                     .get_compute_pipeline(pipeline.rebuild_pipeline)
                     .unwrap();
@@ -206,6 +213,9 @@ impl render_graph::Node for GameOfLifeNode {
                     extracted_gh.texture_size,
                     extracted_gh.texture_size,
                 );
+
+                pass.set_pipeline(animation_pipeline);
+                pass.dispatch_workgroups(extracted_animation_data.size, 1, 1);
 
                 pass.set_pipeline(rebuild_pipeline);
                 pass.dispatch_workgroups(
@@ -224,6 +234,7 @@ impl render_graph::Node for GameOfLifeNode {
 struct ComputePipeline {
     compute_bind_group_layout: BindGroupLayout,
     update_pipeline: CachedComputePipelineId,
+    animation_pipeline: CachedComputePipelineId,
     rebuild_pipeline: CachedComputePipelineId,
 }
 
@@ -262,7 +273,7 @@ impl FromWorld for ComputePipeline {
                         visibility: ShaderStages::COMPUTE,
                         ty: BindingType::StorageTexture {
                             access: StorageTextureAccess::ReadWrite,
-                            format: TextureFormat::R8Uint,
+                            format: TextureFormat::R16Uint,
                             view_dimension: TextureViewDimension::D3,
                         },
                         count: None,
@@ -291,6 +302,13 @@ impl FromWorld for ComputePipeline {
             shader_defs: vec![],
             entry_point: Cow::from("update"),
         });
+        let animation_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
+            label: None,
+            layout: Some(vec![compute_bind_group_layout.clone()]),
+            shader: compute_shader.clone(),
+            shader_defs: vec![],
+            entry_point: Cow::from("update_animation"),
+        });
         let rebuild_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
             label: None,
             layout: Some(vec![compute_bind_group_layout.clone()]),
@@ -302,6 +320,7 @@ impl FromWorld for ComputePipeline {
         ComputePipeline {
             compute_bind_group_layout,
             update_pipeline,
+            animation_pipeline,
             rebuild_pipeline,
         }
     }

@@ -31,12 +31,20 @@ var<uniform> u: Uniforms;
 @group(2) @binding(1)
 var<storage, read_write> gh: array<u32>;
 @group(2) @binding(2)
-var texture: texture_storage_3d<r8uint, read_write>;
+var texture: texture_storage_3d<r16uint, read_write>;
 @group(2) @binding(3)
 var screen_texture: texture_storage_2d_array<rgba16float, read_write>;
 
 fn get_value_index(index: u32) -> bool {
     return ((gh[index / 32u] >> (index % 32u)) & 1u) != 0u;
+}
+
+fn get_texture_value(pos: vec3<i32>) -> vec2<u32> {
+    let texture_value = textureLoad(texture, vec3<i32>(pos.zyx)).r;
+    return vec2(
+        texture_value & 0xFFu,
+        texture_value >> 8u,
+    );
 }
 
 struct Voxel {
@@ -118,7 +126,7 @@ fn get_value(pos: vec3<f32>) -> Voxel {
     }
 
     let rounded_pos = (floor(pos * f32(u.texture_size) * 0.5) + 0.5) / (f32(u.texture_size) * 0.5);
-    let value = textureLoad(texture, vec3<i32>(scaled.zyx * f32(u.texture_size))).r;
+    let value = get_texture_value(vec3<i32>(scaled * f32(u.texture_size))).r;
     return Voxel(value, rounded_pos, u.texture_size);
 }
 

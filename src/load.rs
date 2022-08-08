@@ -68,9 +68,8 @@ pub fn load_vox() -> Result<GH, String> {
         }
     }
 
-    for _ in 0..(gh.texture_size * gh.texture_size * gh.texture_size) {
-        gh.texture_data.push(0);
-    }
+    let texture_size = gh.texture_size * gh.texture_size * gh.texture_size * 2;
+    gh.texture_data = vec![0; texture_size as usize];
 
     for voxel in &vox.models[0].voxels {
         let pos = IVec3::new(
@@ -80,7 +79,7 @@ pub fn load_vox() -> Result<GH, String> {
         );
 
         let index = pos.x as usize * size * size + pos.y as usize * size + pos.z as usize;
-        gh.texture_data[index as usize] = voxel.i;
+        gh.texture_data[index as usize * 2] = voxel.i;
     }
 
     Ok(gh)

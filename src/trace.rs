@@ -85,7 +85,7 @@ impl Plugin for Tracer {
                 mip_level_count: 1,
                 sample_count: 1,
                 dimension: TextureDimension::D3,
-                format: TextureFormat::R8Uint,
+                format: TextureFormat::R16Uint,
                 usage: TextureUsages::STORAGE_BINDING | TextureUsages::COPY_DST,
             },
             &gh.texture_data.clone(),
@@ -110,7 +110,7 @@ impl Plugin for Tracer {
             misc_float: 34.0,
         };
 
-        // println!("{}", render_device.limits().max_storage_buffer_binding_size);
+        println!("{:?}", render_device.get_supported_read_only_binding_type(4));
 
         // As the render world can no longer acces the main world we have to add seperate plugins to the main world
         app.add_system(update_uniforms)
@@ -373,7 +373,7 @@ impl FromWorld for TracePipeline {
                         visibility: ShaderStages::FRAGMENT,
                         ty: BindingType::StorageTexture {
                             access: StorageTextureAccess::ReadWrite,
-                            format: TextureFormat::R8Uint,
+                            format: TextureFormat::R16Uint,
                             view_dimension: TextureViewDimension::D3,
                         },
                         count: None,

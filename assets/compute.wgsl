@@ -5,7 +5,7 @@ var<uniform> u: Uniforms;
 @group(0) @binding(1)
 var<storage, read_write> gh: array<atomic<u32>>; // nodes
 @group(0) @binding(2)
-var texture: texture_storage_3d<r8uint, read_write>;
+var texture: texture_storage_3d<r16uint, read_write>;
 @group(0) @binding(3)
 var<storage, read> animation_data: array<u32>; // nodes
 
@@ -13,23 +13,36 @@ fn set_value_index(index: u32) {
     atomicOr(&gh[index / 32u], 1u << (index % 32u));
 }
 
+fn get_texture_value(pos: vec3<i32>) -> vec2<u32> {
+    let texture_value = textureLoad(texture, vec3<i32>(pos.zyx)).r;
+    return vec2(
+        texture_value & 0xFFu,
+        texture_value >> 8u,
+    );
+}
+
 @compute @workgroup_size(1, 1, 1)
 fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let pos = vec3(i32(invocation_id.x), i32(invocation_id.y), i32(invocation_id.z));
     let seed = vec3<u32>(vec3<f32>(pos.xyz) + u.time * 240.0);
-
     let rand = hash(seed);
 
-    let material = textureLoad(texture, pos).r;
-    if (material == 58u && rand.x < 0.01 && u.misc_bool != 0u) {
+    let material = get_texture_value(pos.zyx);
+
+    // just for fun
+    if (material.x == 58u && rand.x < 0.01 && u.misc_bool != 0u) {
         textureStore(texture, pos, vec4(0u));
     }
 
-    // let data_pos = vec3<i32>(vec3(animation_data[0], animation_data[1], animation_data[2]));
-    // if (all(vec3(1, 1, 1) * i32(u.misc_float * f32(u.texture_size)) == pos)) {
-    //     textureStore(texture, pos, vec4(58u));
-    // }
+    // delete old animaiton data
+    if (material.y == 1u) {
+        textureStore(texture, pos, vec4(0u));
+    }
+}
 
+@compute @workgroup_size(1, 1, 1)
+fn update_animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
+    // place animation data into world
     let header_len = i32(animation_data[0]);
     for (var i = 1; i <= header_len; i = i + 1) {
         let data_index = i32(animation_data[i]);
@@ -42,7 +55,7 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
         );
 
         let texture_pos = vec3<i32>((world_pos * 0.5 + 0.5) * f32(u.texture_size));
-        textureStore(texture, texture_pos, vec4(material));
+        textureStore(texture, texture_pos, vec4(material | (1u << 8u)));
     }
 }
 
@@ -50,7 +63,7 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
 fn rebuild_gh(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let pos = vec3(i32(invocation_id.x), i32(invocation_id.y), i32(invocation_id.z));
     
-    let material = textureLoad(texture, pos.zyx).r;
+    let material = get_texture_value(pos).r;
     if (material != 0u) {
         // set bits in grid hierarchy
         let size0 = u.levels[0][0];
