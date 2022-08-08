@@ -1,6 +1,7 @@
 use bevy::{asset::AssetServerSettings, prelude::*, render::view::NoFrustumCulling};
 use compute::Particle;
 use trace::TraceMaterial;
+use rand::Rng;
 
 mod character;
 mod compute;
@@ -51,22 +52,22 @@ fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
         NoFrustumCulling,
     ));
 
-    commands.spawn_bundle((
-        Transform::from_xyz(0.0, 0.0, 0.0),
-        Particle { material: 41 },
-    ));
-    commands.spawn_bundle((
-        Transform::from_xyz(0.1, 0.0, 0.0),
-        Particle { material: 41 },
-    ));
+    for _ in 0..10000 {
+        commands.spawn_bundle((
+            Transform::from_xyz(0.0, 0.0, 0.0),
+            Particle { material: 41 },
+        ));
+    }
 }
 
-fn update_particles(mut particle_query: Query<&mut Transform, With<Particle>>, time: Res<Time>) {
+fn update_particles(mut particle_query: Query<&mut Transform, With<Particle>>) {
+    let mut rng = rand::thread_rng();
+
     for mut particle in particle_query.iter_mut() {
         particle.translation += Vec3::new(
-            time.seconds_since_startup().sin() as f32 / 1000.0,
-            time.seconds_since_startup().cos() as f32 / 1000.0,
-            0.0,
+            rng.gen_range(-1.0..=1.0) * 0.01,
+            rng.gen_range(-1.0..=1.0) * 0.01,
+            rng.gen_range(-1.0..=1.0) * 0.01,
         );
     }
 }

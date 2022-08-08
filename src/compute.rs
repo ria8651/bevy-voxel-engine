@@ -13,7 +13,7 @@ use bevy::{
 };
 use std::borrow::Cow;
 
-const MAX_ANIMATION_DATA: usize = 1024;
+const MAX_ANIMATION_DATA: usize = 1024000;
 
 pub struct ComputePlugin;
 

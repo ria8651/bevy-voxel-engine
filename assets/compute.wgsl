@@ -14,7 +14,7 @@ fn set_value_index(index: u32) {
 }
 
 fn get_texture_value(pos: vec3<i32>) -> vec2<u32> {
-    let texture_value = textureLoad(texture, vec3<i32>(pos.zyx)).r;
+    let texture_value = textureLoad(texture, vec3<i32>(pos)).r;
     return vec2(
         texture_value & 0xFFu,
         texture_value >> 8u,
@@ -31,12 +31,12 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
 
     // just for fun
     if (material.x == 58u && rand.x < 0.01 && u.misc_bool != 0u) {
-        textureStore(texture, pos, vec4(0u));
+        textureStore(texture, pos.zyx, vec4(0u));
     }
 
     // delete old animaiton data
     if (material.y == 1u) {
-        textureStore(texture, pos, vec4(0u));
+        textureStore(texture, pos.zyx, vec4(0u));
     }
 }
 
@@ -55,7 +55,10 @@ fn update_animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
         );
 
         let texture_pos = vec3<i32>((world_pos * 0.5 + 0.5) * f32(u.texture_size));
-        textureStore(texture, texture_pos, vec4(material | (1u << 8u)));
+        let voxel_type = get_texture_value(texture_pos.zyx);
+        if (voxel_type.x == 0u) {
+            textureStore(texture, texture_pos.zyx, vec4(material | (1u << 8u)));
+        }
     }
 }
 
@@ -63,7 +66,7 @@ fn update_animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
 fn rebuild_gh(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let pos = vec3(i32(invocation_id.x), i32(invocation_id.y), i32(invocation_id.z));
     
-    let material = get_texture_value(pos).r;
+    let material = get_texture_value(pos.zyx).r;
     if (material != 0u) {
         // set bits in grid hierarchy
         let size0 = u.levels[0][0];
