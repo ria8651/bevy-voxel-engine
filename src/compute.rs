@@ -1,7 +1,10 @@
-use super::trace;
+use crate::trace::ExtractedUniforms;
+
+use super::{load::GH, trace};
 use bevy::{
     prelude::*,
     render::{
+        extract_resource::{ExtractResource, ExtractResourcePlugin},
         render_graph::{self, RenderGraph},
         render_resource::*,
         renderer::RenderQueue,
@@ -15,6 +18,8 @@ pub struct ComputePlugin;
 
 impl Plugin for ComputePlugin {
     fn build(&self, app: &mut App) {
+        app.add_plugin(ExtractResourcePlugin::<ExtractedGH>::default());
+
         let render_app = app.sub_app_mut(RenderApp);
 
         render_app
@@ -29,6 +34,22 @@ impl Plugin for ComputePlugin {
                 bevy::render::main_graph::node::CAMERA_DRIVER,
             )
             .unwrap();
+    }
+}
+
+struct ExtractedGH {
+    pub buffer_size: usize,
+    pub texture_size: u32,
+}
+
+impl ExtractResource for ExtractedGH {
+    type Source = GH;
+
+    fn extract_resource(gh: &Self::Source) -> Self {
+        ExtractedGH {
+            buffer_size: gh.get_final_length() as usize / 8,
+            texture_size: gh.texture_size,
+        }
     }
 }
 
@@ -82,16 +103,9 @@ impl render_graph::Node for GameOfLifeNode {
         let pipeline = world.resource::<GameOfLifePipeline>();
         let render_queue = world.resource::<RenderQueue>();
         let trace_meta = world.resource::<trace::TraceMeta>();
+        let extracted_gh = world.resource::<ExtractedGH>();
 
-        let uniforms = world.resource::<trace::ExtractedUniforms>();
-
-        if uniforms.misc_bool != 0 {
-            render_queue.write_buffer(
-                &trace_meta.storage,
-                0,
-                bytemuck::cast_slice(&[0u8; 37440]),
-            );
-        }
+        let uniforms = world.resource::<ExtractedUniforms>();
 
         let mut pass = render_context
             .command_encoder
@@ -110,11 +124,27 @@ impl render_graph::Node for GameOfLifeNode {
                     .get_compute_pipeline(pipeline.rebuild_pipeline)
                     .unwrap();
 
-                pass.set_pipeline(update_pipeline);
-                pass.dispatch_workgroups(128, 128, 128);
+                if uniforms.misc_bool != 0 {
+                    render_queue.write_buffer(
+                        &trace_meta.storage,
+                        0,
+                        bytemuck::cast_slice(&vec![0u8; extracted_gh.buffer_size]),
+                    );
 
-                pass.set_pipeline(rebuild_pipeline);
-                pass.dispatch_workgroups(128, 128, 128);
+                    pass.set_pipeline(update_pipeline);
+                    pass.dispatch_workgroups(
+                        extracted_gh.texture_size,
+                        extracted_gh.texture_size,
+                        extracted_gh.texture_size,
+                    );
+                    
+                    pass.set_pipeline(rebuild_pipeline);
+                    pass.dispatch_workgroups(
+                        extracted_gh.texture_size,
+                        extracted_gh.texture_size,
+                        extracted_gh.texture_size,
+                    );
+                }
             }
         }
 

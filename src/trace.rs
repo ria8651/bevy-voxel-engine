@@ -66,10 +66,8 @@ impl Plugin for Tracer {
         // storage
         let gh = app.world.resource::<GH>();
 
-        println!("{}", gh.data.len());
-
         let storage = render_device.create_buffer_with_data(&BufferInitDescriptor {
-            contents: &gh.data,
+            contents: &vec![0; gh.get_final_length() as usize / 8],
             label: None,
             usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
         });
@@ -90,7 +88,7 @@ impl Plugin for Tracer {
                 format: TextureFormat::R8Uint,
                 usage: TextureUsages::STORAGE_BINDING | TextureUsages::COPY_DST,
             },
-            &gh.texture_data,
+            &gh.texture_data.clone(),
         );
         let texture_view = texture.create_view(&TextureViewDescriptor::default());
 
@@ -180,21 +178,21 @@ pub struct Uniforms {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct ExtractedUniforms {
-    pub pallete: [PalleteEntry; 256],
-    pub resolution: Vec4,
-    pub last_camera: Mat4,
-    pub camera: Mat4,
-    pub camera_inverse: Mat4,
-    pub levels: [u32; 8],
-    pub offsets: [u32; 8],
-    pub time: f32,
-    pub texture_size: u32,
-    pub show_ray_steps: u32,
-    pub accumulation_frames: f32,
-    pub freeze: u32,
+    pallete: [PalleteEntry; 256],
+    resolution: Vec4,
+    last_camera: Mat4,
+    camera: Mat4,
+    camera_inverse: Mat4,
+    levels: [u32; 8],
+    offsets: [u32; 8],
+    time: f32,
+    texture_size: u32,
+    show_ray_steps: u32,
+    accumulation_frames: f32,
+    freeze: u32,
     pub misc_bool: u32,
-    pub misc_float: f32,
-    pub padding: [u32; 1],
+    misc_float: f32,
+    padding: [u32; 1],
 }
 
 impl ExtractResource for ExtractedUniforms {

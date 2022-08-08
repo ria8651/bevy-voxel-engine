@@ -3,7 +3,6 @@ use bevy::prelude::*;
 
 pub struct GH {
     pub levels: [u32; 8],
-    pub data: Vec<u8>,
     pub texture_size: u32,
     pub texture_data: Vec<u8>,
     pub pallete: [PalleteEntry; 256],
@@ -13,7 +12,6 @@ impl GH {
     pub fn new(levels: [u32; 8], texture_size: u32) -> Self {
         Self {
             levels,
-            data: Vec::new(),
             texture_size,
             texture_data: Vec::new(),
             pallete: [PalleteEntry::default(); 256],
@@ -37,35 +35,10 @@ impl GH {
         }
         length
     }
-
-    // Assumes data and texture_data are filled to the correct length
-    fn set_bit(&mut self, pos: IVec3, value: u8) {
-        let offsets = self.get_offsets();
-        for i in 0..8 {
-            let size = if self.levels[i] != 0 {
-                self.levels[i]
-            } else {
-                self.texture_size
-            };
-
-            let new_pos = pos * size as i32 / self.texture_size as i32;
-            let index = new_pos.x as u32 * size * size + new_pos.y as u32 * size + new_pos.z as u32;
-
-            if self.levels[i] != 0 {
-                let byte = (index as u32 + offsets[i]) / 8;
-                let bit = (index as u32 + offsets[i]) % 8;
-
-                self.data[byte as usize] |= 1 << bit;
-            } else {
-                self.texture_data[index as usize] = value;
-                return;
-            }
-        }
-    }
 }
 
 pub fn load_vox() -> Result<GH, String> {
-    let vox = dot_vox::load("assets/vox/monu9.vox")?;
+    let vox = dot_vox::load("assets/vox/phantom_mansion.vox")?;
     let size = vox.models[0].size;
     if size.x != size.y || size.x != size.z || size.y != size.z {
         return Err("Voxel model is not a cube!".to_string());
@@ -95,10 +68,6 @@ pub fn load_vox() -> Result<GH, String> {
         }
     }
 
-    for _ in 0..(gh.get_final_length() / 8) {
-        gh.data.push(0);
-    }
-
     for _ in 0..(gh.texture_size * gh.texture_size * gh.texture_size) {
         gh.texture_data.push(0);
     }
@@ -110,7 +79,8 @@ pub fn load_vox() -> Result<GH, String> {
             voxel.y as i32,
         );
 
-        gh.set_bit(pos, voxel.i);
+        let index = pos.x as usize * size * size + pos.y as usize * size + pos.z as usize;
+        gh.texture_data[index as usize] = voxel.i;
     }
 
     Ok(gh)

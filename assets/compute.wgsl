@@ -34,7 +34,7 @@ fn set_value_index(index: u32) {
     atomicOr(&gh[index / 32u], 1u << (index % 32u));
 }
 
-@compute @workgroup_size(8, 8, 8)
+@compute @workgroup_size(1, 1, 1)
 fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let pos = vec3(i32(invocation_id.x), i32(invocation_id.y), i32(invocation_id.z));
     let seed = vec3<u32>(vec3<f32>(pos.xyz) + u.time * 240.0);
@@ -47,12 +47,12 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     }
 }
 
-@compute @workgroup_size(8, 8, 8)
+@compute @workgroup_size(1, 1, 1)
 fn rebuild_gh(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let pos = vec3(i32(invocation_id.x), i32(invocation_id.y), i32(invocation_id.z));
     
     let material = textureLoad(texture, pos.zyx).r;
-    if (material != 0u && u.misc_bool != 0u) {
+    if (material != 0u) {
         // set bits in grid hierarchy
         let size0 = u.levels[0][0];
         let size1 = u.levels[0][1];
