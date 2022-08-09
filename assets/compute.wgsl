@@ -47,9 +47,9 @@ fn update_animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let dispatch_size = i32(ceil(pow(f32(header_len), 1.0 / 3.0)));
 
     let pos = vec3(i32(invocation_id.x), i32(invocation_id.y), i32(invocation_id.z));
-    let index = pos.x * dispatch_size * dispatch_size + pos.y * dispatch_size + pos.z;
+    let index = pos.x * dispatch_size * dispatch_size + pos.y * dispatch_size + pos.z + 1;
 
-    if (index < header_len) {
+    if (index <= header_len) {
         let data_index = i32(animation_data[index]);
 
         let material = animation_data[data_index];
