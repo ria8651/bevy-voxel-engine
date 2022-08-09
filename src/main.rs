@@ -51,23 +51,15 @@ fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
         ComputedVisibility::default(),
         NoFrustumCulling,
     ));
-
-    for _ in 0..10000 {
-        commands.spawn_bundle((
-            Transform::from_xyz(0.0, 0.0, 0.0),
-            Particle { material: 41 },
-        ));
-    }
 }
 
 fn update_particles(mut particle_query: Query<&mut Transform, With<Particle>>) {
-    let mut rng = rand::thread_rng();
-
-    for mut particle in particle_query.iter_mut() {
+    particle_query.par_for_each_mut(32, move |mut particle| {
+        let mut rng = rand::thread_rng();
         particle.translation += Vec3::new(
             rng.gen_range(-1.0..=1.0) * 0.01,
             rng.gen_range(-1.0..=1.0) * 0.01,
             rng.gen_range(-1.0..=1.0) * 0.01,
         );
-    }
+    });
 }

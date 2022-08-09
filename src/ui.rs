@@ -1,4 +1,5 @@
 use super::trace;
+use super::Particle;
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use egui::Slider;
@@ -11,7 +12,12 @@ impl Plugin for UiPlugin {
     }
 }
 
-fn ui_system(mut egui_context: ResMut<EguiContext>, mut uniforms: ResMut<trace::Uniforms>) {
+fn ui_system(
+    mut commands: Commands,
+    mut egui_context: ResMut<EguiContext>,
+    mut uniforms: ResMut<trace::Uniforms>,
+    particle_query: Query<Entity, With<Particle>>,
+) {
     egui::Window::new("Settings")
         .anchor(egui::Align2::RIGHT_TOP, [-5.0, 5.0])
         .show(egui_context.ctx_mut(), |ui| {
@@ -21,7 +27,24 @@ fn ui_system(mut egui_context: ResMut<EguiContext>, mut uniforms: ResMut<trace::
                     .text("Accumulation frames"),
             );
             ui.checkbox(&mut uniforms.freeze, "Freeze");
+
+            if ui.button("spawn particles").clicked() {
+                for _ in 0..10000 {
+                    commands.spawn_bundle((
+                        Transform::from_xyz(0.0, 0.0, 0.0),
+                        Particle { material: 41 },
+                    ));
+                }
+            }
+            if ui.button("destroy particles").clicked() {
+                for particle in particle_query.iter() {
+                    commands.entity(particle).despawn();
+                }
+            }
+
             ui.checkbox(&mut uniforms.misc_bool, "Misc bool");
             ui.add(Slider::new(&mut uniforms.misc_float, 0.0..=1.0).text("Misc float"));
+
+            ui.label(format!("Particle count: {}", particle_query.iter().count()));
         });
 }

@@ -58,7 +58,6 @@ pub struct Particle {
 
 #[derive(Clone)]
 struct ExtractedAnimationData {
-    size: u32,
     data: Vec<u32>,
 }
 
@@ -93,10 +92,7 @@ fn extract_animation_data(mut commands: Commands, particle_query: Query<(&Transf
 
     // println!("{:?}", data);
 
-    commands.insert_resource(ExtractedAnimationData {
-        size: offset as u32 - 1,
-        data,
-    });
+    commands.insert_resource(ExtractedAnimationData { data });
 }
 
 struct ComputeMeta {
@@ -214,8 +210,9 @@ impl render_graph::Node for GameOfLifeNode {
                     extracted_gh.texture_size,
                 );
 
+                let dispatch_size = (extracted_animation_data.data[0] as f32).cbrt().ceil() as u32;
                 pass.set_pipeline(animation_pipeline);
-                pass.dispatch_workgroups(extracted_animation_data.size, 1, 1);
+                pass.dispatch_workgroups(dispatch_size, dispatch_size, dispatch_size);
 
                 pass.set_pipeline(rebuild_pipeline);
                 pass.dispatch_workgroups(

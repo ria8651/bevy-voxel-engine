@@ -44,10 +44,15 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
 fn update_animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     // place animation data into world
     let header_len = i32(animation_data[0]);
-    for (var i = 1; i <= header_len; i = i + 1) {
-        let data_index = i32(animation_data[i]);
+    let dispatch_size = i32(ceil(pow(f32(header_len), 1.0 / 3.0)));
 
-        let material = animation_data[data_index];        
+    let pos = vec3(i32(invocation_id.x), i32(invocation_id.y), i32(invocation_id.z));
+    let index = pos.x * dispatch_size * dispatch_size + pos.y * dispatch_size + pos.z;
+
+    if (index < header_len) {
+        let data_index = i32(animation_data[index]);
+
+        let material = animation_data[data_index];
         let world_pos = vec3<f32>(
             bitcast<f32>(animation_data[data_index + 1]),
             bitcast<f32>(animation_data[data_index + 2]),
