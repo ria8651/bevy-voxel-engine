@@ -11,18 +11,9 @@ struct Vertex {
     @location(2) uv: vec2<f32>,
 };
 
-// struct VertexOutput {
-//     @builtin(position) clip_position: vec4<f32>,
-//     @location(0) uv: vec2<f32>,
-// };
-
 @vertex
 fn vertex(vertex: Vertex) -> @builtin(position) vec4<f32> {
     let world_position = mesh.model * vec4<f32>(vertex.position, 1.0);
-
-    // var out: VertexOutput;
-    // out.clip_position = world_position; //view.view_proj * 
-    // out.uv = vertex.uv;
     return world_position;
 }
 
@@ -210,10 +201,13 @@ fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed
         let diffuse = max(dot(normal, -normalize(light_dir)), 0.0);
 
         // shadow
-        let rand = hash(seed) * 2.0 - 1.0;
-        let shadow_ray = Ray(pos + normal * 0.0000025, -light_dir + rand * 0.1);
-        let shadow_hit = shoot_ray(shadow_ray);
-        let shadow = f32(!shadow_hit.hit);
+        var shadow = 1.0;
+        if (u.shadows != 0u) {
+            let rand = hash(seed) * 2.0 - 1.0;
+            let shadow_ray = Ray(pos + normal * 0.0000025, -light_dir + rand * 0.1);
+            let shadow_hit = shoot_ray(shadow_ray);
+            shadow = f32(!shadow_hit.hit);
+        }
 
         lighting = ambient + diffuse * shadow;
     } else {
@@ -226,7 +220,7 @@ fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed
 fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
     // pixel jitter
     let seed = vec3<u32>(frag_pos.xyz + u.time * 240.0);
-    let jitter = vec4<f32>(hash(seed).xy - 0.5, 0.0, 0.0);
+    let jitter = vec4<f32>(hash(seed).xy - 0.5, 0.0, 0.0) / 1.1;
     var clip_space = get_clip_space(frag_pos, u.resolution);
     let aspect = u.resolution.x / u.resolution.y;
     clip_space.x = clip_space.x * aspect;
@@ -249,14 +243,16 @@ fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
         let direct_lighting = calculate_direct(material, hit.pos, hit.normal, seed + 15u);
 
         // indirect lighting
-        var indirect_lighting: vec3<f32>;
-        let indirect_dir = cosine_hemisphere(hit.normal, seed + 10u);
-        let indirect_hit = shoot_ray(Ray(hit.pos + hit.normal * 0.0000025, indirect_dir));
-        if (indirect_hit.hit) {
-            let indirect_material = u.pallete[indirect_hit.value].colour;
-            indirect_lighting = calculate_direct(indirect_material, indirect_hit.pos, indirect_hit.normal, seed + 15u);
-        } else {
-            indirect_lighting = vec3<f32>(0.2);
+        var indirect_lighting = vec3(0.2);
+        if (u.indirect_lighting != 0u) {
+            let indirect_dir = cosine_hemisphere(hit.normal, seed + 10u);
+            let indirect_hit = shoot_ray(Ray(hit.pos + hit.normal * 0.0000025, indirect_dir));
+            if (indirect_hit.hit) {
+                let indirect_material = u.pallete[indirect_hit.value].colour;
+                indirect_lighting = calculate_direct(indirect_material, indirect_hit.pos, indirect_hit.normal, seed + 15u);
+            } else {
+                indirect_lighting = vec3<f32>(0.2);
+            }
         }
 
         // final blend

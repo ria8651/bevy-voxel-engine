@@ -1,5 +1,4 @@
 use super::{load::GH, trace};
-// use crate::trace::ExtractedUniforms;
 use bevy::{
     prelude::*,
     render::{
@@ -41,7 +40,7 @@ impl Plugin for ComputePlugin {
         // setup render graph
         let render_app = app.sub_app_mut(RenderApp);
         let mut render_graph = render_app.world.resource_mut::<RenderGraph>();
-        render_graph.add_node("game_of_life", GameOfLifeNode::default());
+        render_graph.add_node("game_of_life", ComputeNode::default());
         render_graph
             .add_node_edge(
                 "game_of_life",
@@ -115,42 +114,47 @@ impl ExtractResource for ExtractedGH {
     }
 }
 
-enum GameOfLifeState {
+#[derive(PartialEq, Eq)]
+enum ComputeState {
     Loading,
+    Init,
     Update,
 }
 
-struct GameOfLifeNode {
-    state: GameOfLifeState,
+struct ComputeNode {
+    state: ComputeState,
 }
 
-impl Default for GameOfLifeNode {
+impl Default for ComputeNode {
     fn default() -> Self {
         Self {
-            state: GameOfLifeState::Loading,
+            state: ComputeState::Loading,
         }
     }
 }
 
-impl render_graph::Node for GameOfLifeNode {
+impl render_graph::Node for ComputeNode {
     fn update(&mut self, world: &mut World) {
         let pipeline = world.resource::<ComputePipeline>();
         let pipeline_cache = world.resource::<PipelineCache>();
 
         // if the corresponding pipeline has loaded, transition to the next stage
         match self.state {
-            GameOfLifeState::Loading => {
+            ComputeState::Loading => {
                 if let CachedPipelineState::Ok(_) =
                     pipeline_cache.get_compute_pipeline_state(pipeline.update_pipeline)
                 {
                     if let CachedPipelineState::Ok(_) =
                         pipeline_cache.get_compute_pipeline_state(pipeline.rebuild_pipeline)
                     {
-                        self.state = GameOfLifeState::Update;
+                        self.state = ComputeState::Init;
                     }
                 }
             }
-            GameOfLifeState::Update => {}
+            ComputeState::Init => {
+                self.state = ComputeState::Update;
+            }
+            ComputeState::Update => {}
         }
     }
 
@@ -160,7 +164,7 @@ impl render_graph::Node for GameOfLifeNode {
         render_context: &mut RenderContext,
         world: &World,
     ) -> Result<(), render_graph::NodeRunError> {
-        let texture_bind_group = &world.resource::<GameOfLifeImageBindGroup>().0;
+        let texture_bind_group = &world.resource::<ComputeImageBindGroup>().0;
         let pipeline_cache = world.resource::<PipelineCache>();
         let pipeline = world.resource::<ComputePipeline>();
         let render_queue = world.resource::<RenderQueue>();
@@ -168,8 +172,7 @@ impl render_graph::Node for GameOfLifeNode {
         let compute_meta = world.resource::<ComputeMeta>();
         let extracted_gh = world.resource::<ExtractedGH>();
         let extracted_animation_data = world.resource::<ExtractedAnimationData>();
-
-        // let uniforms = world.resource::<ExtractedUniforms>();
+        let uniforms = world.resource::<trace::ExtractedUniforms>();
 
         let mut pass = render_context
             .command_encoder
@@ -179,48 +182,49 @@ impl render_graph::Node for GameOfLifeNode {
 
         // select the pipeline based on the current state
         match self.state {
-            GameOfLifeState::Loading => {}
-            GameOfLifeState::Update => {
-                // if uniforms.misc_bool != 0 {
-                render_queue.write_buffer(
-                    &compute_meta.animation_data,
-                    0,
-                    bytemuck::cast_slice(&extracted_animation_data.data),
-                );
-                render_queue.write_buffer(
-                    &trace_meta.storage,
-                    0,
-                    bytemuck::cast_slice(&vec![0u8; extracted_gh.buffer_size]),
-                );
+            ComputeState::Loading => {}
+            ComputeState::Init | ComputeState::Update => {
+                if uniforms.enable_compute != 0 || self.state == ComputeState::Init {
+                    render_queue.write_buffer(
+                        &compute_meta.animation_data,
+                        0,
+                        bytemuck::cast_slice(&extracted_animation_data.data),
+                    );
+                    render_queue.write_buffer(
+                        &trace_meta.storage,
+                        0,
+                        bytemuck::cast_slice(&vec![0u8; extracted_gh.buffer_size]),
+                    );
 
-                let update_pipeline = pipeline_cache
-                    .get_compute_pipeline(pipeline.update_pipeline)
-                    .unwrap();
-                let animation_pipeline = pipeline_cache
-                    .get_compute_pipeline(pipeline.animation_pipeline)
-                    .unwrap();
-                let rebuild_pipeline = pipeline_cache
-                    .get_compute_pipeline(pipeline.rebuild_pipeline)
-                    .unwrap();
+                    let update_pipeline = pipeline_cache
+                        .get_compute_pipeline(pipeline.update_pipeline)
+                        .unwrap();
+                    let animation_pipeline = pipeline_cache
+                        .get_compute_pipeline(pipeline.animation_pipeline)
+                        .unwrap();
+                    let rebuild_pipeline = pipeline_cache
+                        .get_compute_pipeline(pipeline.rebuild_pipeline)
+                        .unwrap();
 
-                pass.set_pipeline(update_pipeline);
-                pass.dispatch_workgroups(
-                    extracted_gh.texture_size,
-                    extracted_gh.texture_size,
-                    extracted_gh.texture_size,
-                );
+                    pass.set_pipeline(update_pipeline);
+                    pass.dispatch_workgroups(
+                        extracted_gh.texture_size,
+                        extracted_gh.texture_size,
+                        extracted_gh.texture_size,
+                    );
 
-                let dispatch_size = (extracted_animation_data.data[0] as f32).cbrt().ceil() as u32;
-                pass.set_pipeline(animation_pipeline);
-                pass.dispatch_workgroups(dispatch_size, dispatch_size, dispatch_size);
+                    let dispatch_size =
+                        (extracted_animation_data.data[0] as f32).cbrt().ceil() as u32;
+                    pass.set_pipeline(animation_pipeline);
+                    pass.dispatch_workgroups(dispatch_size, dispatch_size, dispatch_size);
 
-                pass.set_pipeline(rebuild_pipeline);
-                pass.dispatch_workgroups(
-                    extracted_gh.texture_size,
-                    extracted_gh.texture_size,
-                    extracted_gh.texture_size,
-                );
-                // }
+                    pass.set_pipeline(rebuild_pipeline);
+                    pass.dispatch_workgroups(
+                        extracted_gh.texture_size,
+                        extracted_gh.texture_size,
+                        extracted_gh.texture_size,
+                    );
+                }
             }
         }
 
@@ -323,7 +327,7 @@ impl FromWorld for ComputePipeline {
     }
 }
 
-struct GameOfLifeImageBindGroup(BindGroup);
+struct ComputeImageBindGroup(BindGroup);
 
 fn queue_bind_group(
     mut commands: Commands,
@@ -354,5 +358,5 @@ fn queue_bind_group(
             },
         ],
     });
-    commands.insert_resource(GameOfLifeImageBindGroup(bind_group));
+    commands.insert_resource(ComputeImageBindGroup(bind_group));
 }

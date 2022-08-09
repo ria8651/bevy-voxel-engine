@@ -13,8 +13,11 @@ struct Uniforms {
     time: f32,
     texture_size: u32,
     show_ray_steps: u32,
+    indirect_lighting: u32,
+    shadows: u32,
     accumulation_frames: f32,
     freeze: u32,
+    enanble_compute: u32,
     misc_bool: u32,
     misc_float: f32,
 };

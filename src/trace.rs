@@ -104,13 +104,19 @@ impl Plugin for Tracer {
             time: 0.0,
             texture_size: gh.texture_size,
             show_ray_steps: false,
+            indirect_lighting: true,
+            shadows: true,
             accumulation_frames: 20.0,
             freeze: false,
+            enable_compute: true,
             misc_bool: false,
             misc_float: 34.0,
         };
 
-        println!("{:?}", render_device.get_supported_read_only_binding_type(4));
+        // println!(
+        //     "{:?}",
+        //     render_device.get_supported_read_only_binding_type(4)
+        // );
 
         // As the render world can no longer acces the main world we have to add seperate plugins to the main world
         app.add_system(update_uniforms)
@@ -169,8 +175,11 @@ pub struct Uniforms {
     pub time: f32,
     pub texture_size: u32,
     pub show_ray_steps: bool,
+    pub indirect_lighting: bool,
+    pub shadows: bool,
     pub accumulation_frames: f32,
     pub freeze: bool,
+    pub enable_compute: bool,
     pub misc_bool: bool,
     pub misc_float: f32,
 }
@@ -188,11 +197,14 @@ pub struct ExtractedUniforms {
     time: f32,
     texture_size: u32,
     show_ray_steps: u32,
+    indirect_lighting: u32,
+    shadows: u32,
     accumulation_frames: f32,
     freeze: u32,
-    pub misc_bool: u32,
+    pub enable_compute: u32,
+    misc_bool: u32,
     misc_float: f32,
-    padding: [u32; 1],
+    padding: [u32; 2],
 }
 
 impl ExtractResource for ExtractedUniforms {
@@ -210,11 +222,14 @@ impl ExtractResource for ExtractedUniforms {
             time: uniforms.time,
             texture_size: uniforms.texture_size,
             show_ray_steps: uniforms.show_ray_steps as u32,
+            indirect_lighting: uniforms.indirect_lighting as u32,
+            shadows: uniforms.shadows as u32,
             accumulation_frames: uniforms.accumulation_frames,
             freeze: uniforms.freeze as u32,
+            enable_compute: uniforms.enable_compute as u32,
             misc_bool: uniforms.misc_bool as u32,
             misc_float: uniforms.misc_float,
-            padding: [0; 1],
+            padding: [0; 2],
         }
     }
 }
