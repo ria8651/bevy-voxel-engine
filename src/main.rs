@@ -1,6 +1,5 @@
-use bevy::{asset::AssetServerSettings, prelude::*, render::view::NoFrustumCulling};
-use compute::Particle;
-use trace::TraceMaterial;
+use bevy::{asset::AssetServerSettings, prelude::*};
+use compute::{AABox, Particle};
 use rand::Rng;
 
 mod character;
@@ -41,15 +40,13 @@ fn main() {
 }
 
 /// set up a simple 3D scene
-fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
-    commands.spawn().insert_bundle((
-        meshes.add(Mesh::from(shape::Plane { size: 2.0 })),
-        Transform::from_xyz(0.0, 0.0, 0.001).looking_at(Vec3::Y, Vec3::Z),
-        GlobalTransform::default(),
-        TraceMaterial,
-        Visibility::default(),
-        ComputedVisibility::default(),
-        NoFrustumCulling,
+fn setup(mut commands: Commands) {
+    commands.spawn_bundle((
+        AABox {
+            material: 242,
+            half_size: IVec3::new(0, 2, 2),
+        },
+        Transform::from_xyz(0.0, 0.0, 0.0),
     ));
 }
 

@@ -25,7 +25,7 @@ use bevy::{
         },
         render_resource::*,
         renderer::{RenderDevice, RenderQueue},
-        view::{ExtractedView, Msaa},
+        view::{ExtractedView, Msaa, NoFrustumCulling},
         RenderApp, RenderStage,
     },
     window::WindowResized,
@@ -119,7 +119,8 @@ impl Plugin for Tracer {
         // );
 
         // As the render world can no longer acces the main world we have to add seperate plugins to the main world
-        app.add_system(update_uniforms)
+        app.add_startup_system(setup)
+            .add_system(update_uniforms)
             .add_system(resize_system)
             .insert_resource(uniforms_struct)
             .add_plugin(ExtractComponentPlugin::<TraceMaterial>::default())
@@ -142,6 +143,18 @@ impl Plugin for Tracer {
             .add_system_to_stage(RenderStage::Queue, queue_custom)
             .add_system_to_stage(RenderStage::Queue, queue_trace_bind_group);
     }
+}
+
+fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
+    commands.spawn().insert_bundle((
+        meshes.add(Mesh::from(shape::Plane { size: 2.0 })),
+        Transform::from_xyz(0.0, 0.0, 0.001).looking_at(Vec3::Y, Vec3::Z),
+        GlobalTransform::default(),
+        TraceMaterial,
+        Visibility::default(),
+        ComputedVisibility::default(),
+        NoFrustumCulling,
+    ));
 }
 
 pub struct TraceMeta {

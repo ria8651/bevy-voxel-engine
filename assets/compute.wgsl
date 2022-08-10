@@ -40,6 +40,14 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     }
 }
 
+fn write_world_pos(world_pos: vec3<f32>, material: u32) {
+    let texture_pos = vec3<i32>((world_pos * 0.5 + 0.5) * f32(u.texture_size));
+    let voxel_type = get_texture_value(texture_pos.zyx);
+    if (voxel_type.x == 0u) {
+        textureStore(texture, texture_pos.zyx, vec4(material | (1u << 8u)));
+    }
+}
+
 @compute @workgroup_size(1, 1, 1)
 fn update_animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     // place animation data into world
@@ -50,19 +58,33 @@ fn update_animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let index = pos.x * dispatch_size * dispatch_size + pos.y * dispatch_size + pos.z + 1;
 
     if (index <= header_len) {
-        let data_index = i32(animation_data[index]);
+        let data_index = i32(u32(animation_data[index]) & 0x00FFFFFFu);
+        let data_type = i32(u32(animation_data[index]) >> 24u);
 
         let material = animation_data[data_index];
-        let world_pos = vec3<f32>(
+        let world_pos = vec3(
             bitcast<f32>(animation_data[data_index + 1]),
             bitcast<f32>(animation_data[data_index + 2]),
             bitcast<f32>(animation_data[data_index + 3]),
         );
-
-        let texture_pos = vec3<i32>((world_pos * 0.5 + 0.5) * f32(u.texture_size));
-        let voxel_type = get_texture_value(texture_pos.zyx);
-        if (voxel_type.x == 0u) {
-            textureStore(texture, texture_pos.zyx, vec4(material | (1u << 8u)));
+        if (data_type == 0) {
+            write_world_pos(world_pos, material);
+        } else if (data_type == 1) {
+            let half_size = vec3(
+                bitcast<i32>(animation_data[data_index + 4]),
+                bitcast<i32>(animation_data[data_index + 5]),
+                bitcast<i32>(animation_data[data_index + 6]),
+            );
+            for (var x = -half_size.x; x <= half_size.x; x++) {
+                for (var y = -half_size.y; y <= half_size.y; y++) {
+                    for (var z = -half_size.z; z <= half_size.z; z++) {
+                        let world_pos = world_pos + 2.0 * vec3<f32>(vec3(x, y, z)) / f32(u.texture_size);
+                        write_world_pos(world_pos, material);
+                    }
+                }
+            }
+            // write_world_pos(world_pos, material);
+            // write_world_pos(world_pos + 2.0 * vec3<f32>(half_size) / f32(u.texture_size), material);
         }
     }
 }

@@ -55,6 +55,12 @@ pub struct Particle {
     pub material: u8,
 }
 
+#[derive(Component)]
+pub struct AABox {
+    pub material: u8,
+    pub half_size: IVec3,
+}
+
 #[derive(Clone)]
 struct ExtractedAnimationData {
     data: Vec<u32>,
@@ -68,16 +74,35 @@ impl ExtractResource for ExtractedAnimationData {
     }
 }
 
-fn extract_animation_data(mut commands: Commands, particle_query: Query<(&Transform, &Particle)>) {
+fn extract_animation_data(
+    mut commands: Commands,
+    particle_query: Query<(&Transform, &Particle)>,
+    aabox_query: Query<(&Transform, &AABox)>,
+) {
     let mut header = Vec::new();
     let mut animation_data = Vec::new();
+
+    // add particles
     for (transform, particle) in particle_query.iter() {
-        header.push(animation_data.len() as u32);
+        header.push(animation_data.len() as u32 | (0 << 24));
         let pos = transform.translation;
         animation_data.push(particle.material as u32);
         animation_data.push(bytemuck::cast(pos.x));
         animation_data.push(bytemuck::cast(pos.y));
         animation_data.push(bytemuck::cast(pos.z));
+    }
+
+    // add aaboxes
+    for (transform, aabox) in aabox_query.iter() {
+        header.push(animation_data.len() as u32 | (1 << 24));
+        let pos = transform.translation;
+        animation_data.push(aabox.material as u32);
+        animation_data.push(bytemuck::cast(pos.x));
+        animation_data.push(bytemuck::cast(pos.y));
+        animation_data.push(bytemuck::cast(pos.z));
+        animation_data.push(bytemuck::cast(aabox.half_size.x));
+        animation_data.push(bytemuck::cast(aabox.half_size.y));
+        animation_data.push(bytemuck::cast(aabox.half_size.z));
     }
 
     let offset = header.len() + 1;
