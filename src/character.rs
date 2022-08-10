@@ -1,6 +1,6 @@
 use bevy::{input::mouse::MouseMotion, prelude::*, render::camera::Projection};
 
-const SPEED: f32 = 2.0;
+const SPEED: f32 = 0.5;
 const SENSITIVITY: f32 = 0.004;
 
 #[derive(Component)]
@@ -32,7 +32,8 @@ fn setup_character(mut commands: Commands, mut windows: ResMut<Windows>) {
 
     commands
         .spawn_bundle(Camera3dBundle {
-            transform: Transform::from_xyz(-1.5, 1.2, -1.4).looking_at(Vec3::ZERO, Vec3::Y),
+            transform: Transform::from_xyz(0.75, -0.2, 0.0)
+                .looking_at(Vec3::new(0.0, -0.5, 0.0), Vec3::Y),
             projection: Projection::Perspective(PerspectiveProjection {
                 fov: 1.48353,
                 near: 0.05,
@@ -42,11 +43,6 @@ fn setup_character(mut commands: Commands, mut windows: ResMut<Windows>) {
             ..Default::default()
         })
         .insert_bundle((CharacterEntity::default(), super::MainCamera));
-
-    // commands.spawn_bundle((
-    //     Transform::from_xyz(0.0, 1.0, -1.0).looking_at(Vec3::ZERO, Vec3::Y),
-    //     CharacterEntity::default(),
-    // ));
 }
 
 /// Grabs/ungrabs mouse cursor

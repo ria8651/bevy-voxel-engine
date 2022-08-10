@@ -38,7 +38,7 @@ impl GH {
 }
 
 pub fn load_vox() -> Result<GH, String> {
-    let vox = dot_vox::load("assets/vox/monu9.vox")?;
+    let vox = dot_vox::load("assets/vox/map1.vox")?;
     let size = vox.models[0].size;
     if size.x != size.y || size.x != size.z || size.y != size.z {
         return Err("Voxel model is not a cube!".to_string());
@@ -60,6 +60,10 @@ pub fn load_vox() -> Result<GH, String> {
         // println!("{:?}", vox_material);
         if vox_material["_type"] == "_emit" {
             material *= 1.0 + vox_material["_emit"].parse::<f32>().unwrap();
+            if vox_material.contains_key("_flux") {
+                material = material.powf(vox_material["_flux"].parse::<f32>().unwrap());
+            }
+            println!("{:?}", vox_material);
             material.w = 1.0;
         }
 

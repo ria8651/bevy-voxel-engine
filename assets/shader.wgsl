@@ -123,12 +123,47 @@ fn get_value(pos: vec3<f32>) -> Voxel {
 
 struct HitInfo {
     hit: bool,
-    value: u32,
+    material: vec4<f32>,
     pos: vec3<f32>,
     reprojection_pos: vec3<f32>,
     normal: vec3<f32>,
     steps: u32,
 };
+
+fn intersect_scene(r: Ray, steps: u32) -> HitInfo {
+    // plane
+    // let normal = vec3(0.0, 1.0, 0.0);
+    // let denom = dot(normal, r.dir);
+    // if (abs(denom) > 0.00001) {
+    //     let t = dot(normal, -normal - r.pos) / denom;
+    //     if (t >= 0.0) {
+    //         let pos = r.pos + r.dir * t;
+    //         return HitInfo(true, vec4(vec3(0.2), 0.0), pos, pos, normal, steps);
+    //     }
+    // }
+    let t = ray_box_dist(r, vec3(-1.0), vec3(1.0, -10000.0, 1.0)).x;
+    if (t != 0.0) {
+        let pos = r.pos + r.dir * t;
+        let normal = trunc(pos * vec3(1.00001, 0.0, 1.00001));
+        return HitInfo(true, vec4(vec3(0.2), 0.0), pos, pos, normal, steps);
+    }
+
+    let t = ray_box_dist(r, vec3(3.0), vec3(-3.0, -10000.0, -3.0)).y;
+    if (t != 0.0) {
+        let pos = r.pos + r.dir * t;
+        if (pos.y > -1.0) {
+            let normal = -trunc(pos / vec3(2.99999));
+            let col = skybox(normalize(pos - vec3(0.0, -1.0, 0.0)), u.time);
+            // let col = vec3(0.3, 0.3, 0.8);
+            return HitInfo(true, vec4(col, 1.0), pos, pos, normal, steps);
+        } else {
+            let normal = -trunc(pos / vec3(2.99999, 10000.0, 2.99999));
+            return HitInfo(true, vec4(vec3(0.2), 0.0), pos, pos, normal, steps);
+        }
+    }
+
+    return HitInfo(false, vec4(0.0), vec3(0.0), vec3(0.0), vec3(0.0), steps);
+}
 
 fn shoot_ray(r: Ray) -> HitInfo {
     var pos = r.pos;
@@ -137,12 +172,12 @@ fn shoot_ray(r: Ray) -> HitInfo {
 
     if (!in_bounds(r.pos)) {
         // Get position on surface of the octree
-        let dist = ray_box_dist(r, vec3<f32>(-1.0), vec3<f32>(1.0));
+        let dist = ray_box_dist(r, vec3(-1.0), vec3(1.0)).x;
         if (dist == 0.0) {
-            return HitInfo(false, 0u, vec3<f32>(0.0), vec3<f32>(0.0), vec3<f32>(0.0), 0u);
+            return intersect_scene(r, 0u);
         }
 
-        pos = r.pos + dir * (dist + 0.00001);
+        pos = r.pos + dir * dist;
     }
 
     let r_sign = sign(dir);
@@ -150,13 +185,13 @@ fn shoot_ray(r: Ray) -> HitInfo {
     var voxel_pos = pos;
     var steps = 0u;
     var normal = trunc(pos * 1.00001);
-    var voxel = Voxel(0u, vec3<f32>(0.0), 0u);
-    var reprojection_pos = vec3<f32>(0.0);
+    var voxel = Voxel(0u, vec3(0.0), 0u);
+    var reprojection_pos = vec3(0.0);
     loop {
         voxel = get_value(voxel_pos);
         let voxel_size = 2.0 / f32(voxel.grid_size);
         if (voxel.value == 111u) {
-            let portal_offset = vec3<f32>(-34.0, 0.0, 0.0) * voxel_size * -normal;
+            let portal_offset = vec3(-34.0, 0.0, 0.0) * voxel_size * -normal;
             pos = pos + portal_offset;
             voxel_pos = voxel_pos + portal_offset;
             reprojection_pos = reprojection_pos + portal_offset;
@@ -164,7 +199,7 @@ fn shoot_ray(r: Ray) -> HitInfo {
         }
 
         if (voxel.value != 0u) {
-            return HitInfo(true, voxel.value, voxel_pos, voxel_pos - reprojection_pos, normal, steps);
+            return HitInfo(true, u.pallete[voxel.value].material, voxel_pos, voxel_pos - reprojection_pos, normal, steps);
         }
 
         let t_max = (voxel.pos - pos + r_sign * voxel_size / 2.0) / dir;
@@ -177,16 +212,16 @@ fn shoot_ray(r: Ray) -> HitInfo {
         voxel_pos = pos + dir * t_current - normal * 0.000002;
 
         if (!in_bounds(voxel_pos)) {
-            return HitInfo(false, 0u, vec3<f32>(0.0), vec3<f32>(0.0), vec3<f32>(0.0), steps);
+            return intersect_scene(Ray(voxel_pos, r.dir), steps);
         }
 
         steps = steps + 1u;
         if (steps > 1000u) {
-            return HitInfo(true, voxel.value, voxel_pos, voxel_pos - reprojection_pos, normal, steps);
+            return HitInfo(true, u.pallete[voxel.value].material, voxel_pos, voxel_pos - reprojection_pos, normal, steps);
         }
     }
 
-    return HitInfo(true, voxel.value, voxel_pos, voxel_pos - reprojection_pos, normal, steps);
+    return HitInfo(true, u.pallete[voxel.value].material, voxel_pos, voxel_pos - reprojection_pos, normal, steps);
 }
 
 let light_dir = vec3<f32>(-1.3, -1.0, 0.8);
@@ -195,7 +230,7 @@ fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed
     var lighting = 0.0;
     if (material.a == 0.0) {
         // ambient
-        let ambient = 0.0;
+        let ambient = 0.2;
 
         // diffuse
         let diffuse = max(dot(normal, -normalize(light_dir)), 0.0);
@@ -206,7 +241,7 @@ fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed
             let rand = hash(seed) * 2.0 - 1.0;
             let shadow_ray = Ray(pos + normal * 0.0000025, -light_dir + rand * 0.1);
             let shadow_hit = shoot_ray(shadow_ray);
-            shadow = f32(!shadow_hit.hit);
+            shadow = f32(!(shadow_hit.hit && any(shadow_hit.material == vec4(0.0))));
         }
 
         lighting = ambient + diffuse * shadow;
@@ -220,14 +255,14 @@ fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed
 fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
     // pixel jitter
     let seed = vec3<u32>(frag_pos.xyz + u.time * 240.0);
-    let jitter = vec4<f32>(hash(seed).xy - 0.5, 0.0, 0.0) / 1.1;
+    let jitter = vec4(hash(seed).xy - 0.5, 0.0, 0.0) / 1.1;
     var clip_space = get_clip_space(frag_pos, u.resolution);
     let aspect = u.resolution.x / u.resolution.y;
     clip_space.x = clip_space.x * aspect;
-    var output_colour = vec3<f32>(0.0, 0.0, 0.0);
+    var output_colour = vec3(0.0, 0.0, 0.0);
 
-    let pos = u.camera_inverse * vec4<f32>(0.0, 0.0, 0.0, 1.0);
-    let dir = u.camera_inverse * vec4<f32>(clip_space.x, clip_space.y, -1.0, 1.0);
+    let pos = u.camera_inverse * vec4(0.0, 0.0, 0.0, 1.0);
+    let dir = u.camera_inverse * vec4(clip_space.x, clip_space.y, -1.0, 1.0);
     let pos = pos.xyz;
     let dir = normalize(dir.xyz - pos);
     var ray = Ray(pos.xyz, dir.xyz);
@@ -236,11 +271,9 @@ fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
     var steps = hit.steps;
 
     var samples = 0.0;
-    if (hit.hit) {
-        let material = u.pallete[hit.value].colour;
-            
+    if (hit.hit || any(hit.material != vec4(0.0))) {
         // direct lighting
-        let direct_lighting = calculate_direct(material, hit.pos, hit.normal, seed + 15u);
+        let direct_lighting = calculate_direct(hit.material, hit.pos, hit.normal, seed + 15u);
 
         // indirect lighting
         var indirect_lighting = vec3(0.2);
@@ -248,15 +281,14 @@ fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
             let indirect_dir = cosine_hemisphere(hit.normal, seed + 10u);
             let indirect_hit = shoot_ray(Ray(hit.pos + hit.normal * 0.0000025, indirect_dir));
             if (indirect_hit.hit) {
-                let indirect_material = u.pallete[indirect_hit.value].colour;
-                indirect_lighting = calculate_direct(indirect_material, indirect_hit.pos, indirect_hit.normal, seed + 15u);
+                indirect_lighting = calculate_direct(indirect_hit.material, indirect_hit.pos, indirect_hit.normal, seed + 15u);
             } else {
                 indirect_lighting = vec3<f32>(0.2);
             }
         }
 
         // final blend
-        output_colour = (direct_lighting + indirect_lighting) * material.rgb * 1.5;
+        output_colour = (direct_lighting + indirect_lighting) * hit.material.rgb * 1.5;
 
         // reprojection
         let last_frame_clip_space = u.last_camera * vec4<f32>(hit.reprojection_pos, 1.0);
@@ -298,25 +330,8 @@ fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
         output_colour = vec3<f32>(f32(steps) / 100.0);
     }
 
-    // let pos = vec3<f32>(clip_space, u.misc_float);
-    
-    // let scaled = (pos * 0.5 + 0.5) * f32(u.texture_size);
-    // let value = textureLoad(texture, vec3<i32>(scaled.zyx)).r;
-    
-    // let voxel = get_value(pos);
-    // if (value != 0u) {
-    //     output_colour = u.pallete[value].colour.rgb;
-    // } else {
-    //     output_colour = vec3<f32>(f32(voxel.grid_size) / 256.0);
-    // }
-
     let knee = 0.2;
     let power = 2.2;
     output_colour = clamp(output_colour, vec3<f32>(0.0), vec3<f32>(1.0));
     return vec4<f32>((1.0 - knee) * pow(output_colour, vec3<f32>(power)) + knee * output_colour, 1.0);
 }
-
-// @fragment
-// fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
-//     return frag_pos * 0.5 + 0.5;
-// }

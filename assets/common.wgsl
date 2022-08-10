@@ -1,5 +1,5 @@
 struct PalleteEntry {
-    colour: vec4<f32>,
+    material: vec4<f32>,
 };
 
 struct Uniforms {
@@ -58,7 +58,8 @@ struct Ray {
     dir: vec3<f32>,
 };
 
-fn ray_box_dist(r: Ray, vmin: vec3<f32>, vmax: vec3<f32>) -> f32 {
+// returns the closest intersection and the furthest intersection
+fn ray_box_dist(r: Ray, vmin: vec3<f32>, vmax: vec3<f32>) -> vec2<f32> {
     let v1 = (vmin.x - r.pos.x) / r.dir.x;
     let v2 = (vmax.x - r.pos.x) / r.dir.x;
     let v3 = (vmin.y - r.pos.y) / r.dir.y;
@@ -68,10 +69,10 @@ fn ray_box_dist(r: Ray, vmin: vec3<f32>, vmax: vec3<f32>) -> f32 {
     let v7 = max(max(min(v1, v2), min(v3, v4)), min(v5, v6));
     let v8 = min(min(max(v1, v2), max(v3, v4)), max(v5, v6));
     if (v8 < 0.0 || v7 > v8) {
-        return 0.0;
+        return vec2(0.0);
     }
 
-    return v7;
+    return vec2(v7, v8);
 }
 
 fn in_bounds(v: vec3<f32>) -> bool {
@@ -202,3 +203,103 @@ fn skybox(dir: vec3<f32>, time_of_day: f32) -> vec3<f32> {
     let e438: vec3<f32> = col;
     return e438;
 }
+
+// let DEPOLARIZATION_FACTOR: f32 = 0.035;
+// let MIE_COEFFICIENT: f32 = 0.005;
+// let MIE_DIRECTIONAL_G: f32 = 0.8;
+// let MIE_K_COEFFICIENT: vec3<f32> = vec3<f32>(0.686, 0.678, 0.666);
+// let MIE_V: f32 = 4.0;
+// let MIE_ZENITH_LENGTH: f32 = 1.25e3;
+// let NUM_MOLECULES: f32 = 2.542e25;
+// let PRIMARIES: vec3<f32> = vec3<f32>(6.8e-7, 5.5e-7, 4.5e-7);
+// let RAYLEIGH: f32 = 1.0;
+// let RAYLEIGH_ZENITH_LENGTH: f32 = 8.4e3;
+// let REFRACTIVE_INDEX: f32 = 1.0003;
+// let SUN_ANGULAR_DIAMETER_DEGREES: f32 = 0.0093333;
+// let SUN_INTENSITY_FACTOR: f32 = 1000.0;
+// let SUN_INTENSITY_FALLOFF_STEEPNESS: f32 = 1.5;
+// let TURBIDITY: f32 = 2.0;
+// let PI: f32 = 3.141592653589793;
+
+// fn total_rayleigh(lambda: vec3<f32>) -> vec3<f32> {
+//     return (8.0 * pow(PI, 3.0)
+//         * pow(pow(REFRACTIVE_INDEX, 2.0) - 1.0, 2.0)
+//         * (6.0 + 3.0 * DEPOLARIZATION_FACTOR))
+//         / (3.0 * NUM_MOLECULES * pow(lambda, vec3(4.0)) * (6.0 - 7.0 * DEPOLARIZATION_FACTOR));
+// }
+
+// fn total_mie(lambda: vec3<f32>, k: vec3<f32>, t: f32) -> vec3<f32> {
+//     let c = 0.2 * t * 10e-18;
+//     return vec3(0.434 * c * PI * pow((2.0 * PI) / lambda, vec3(MIE_V - 2.0)) * k);
+// }
+
+// fn rayleigh_phase(cos_theta: f32) -> f32 {
+//     return (3.0 / (16.0 * PI)) * (1.0 + pow(cos_theta, 2.0));
+// }
+
+// fn henyey_greenstein_phase(cos_theta: f32, g: f32) -> f32 {
+//     return (1.0 / (4.0 * PI)) * ((1.0 - pow(g, 2.0))) / pow(1.0 - 2.0 * g * cos_theta + pow(g, 2.0), 1.5);
+// }
+
+// fn sun_intensity(zenith_angle_cos: f32) -> f32 {
+//     let cutoff_angle = PI / 1.95; // Earth shadow hack
+//     return SUN_INTENSITY_FACTOR
+//         * max(0.0,
+//             1.0 - exp(-((cutoff_angle - acos(zenith_angle_cos))
+//                 / SUN_INTENSITY_FALLOFF_STEEPNESS))
+//         );
+// }
+
+// fn saturate(x: f32) -> f32 {
+//     return clamp(x, 0.0, 1.0);
+// }
+
+// fn sky(dir: vec3<f32>, sun_position: vec3<f32>) -> vec3<f32> {
+//     let up = vec3(0.0, 1.0, 0.0);
+//     let sunfade = 1.0 - exp(1.0 - saturate(sun_position.y / 450000.0));
+//     let rayleigh_coefficient = RAYLEIGH - (1.0 * (1.0 - sunfade));
+//     let beta_r = total_rayleigh(PRIMARIES) * rayleigh_coefficient;
+
+//     // Mie coefficient
+//     let beta_m = total_mie(PRIMARIES, MIE_K_COEFFICIENT, TURBIDITY) * MIE_COEFFICIENT;
+
+//     // Optical length, cutoff angle at 90 to avoid singularity
+//     let zenith_angle = acos(max(dot(up, dir), 0.0));
+//     let denom = cos(zenith_angle) + 0.15 * pow(93.885 - ((zenith_angle * 180.0) / PI), -1.253);
+
+//     let s_r = RAYLEIGH_ZENITH_LENGTH / denom;
+//     let s_m = MIE_ZENITH_LENGTH / denom;
+
+//     // Combined extinction factor
+//     let fex = exp(-(beta_r * s_r + beta_m * s_m));
+
+//     // In-scattering
+//     let sun_direction = normalize(sun_position);
+//     let cos_theta = dot(dir, sun_direction);
+//     let beta_r_theta = beta_r * rayleigh_phase(cos_theta * 0.5 + 0.5);
+
+//     let beta_m_theta = beta_m * henyey_greenstein_phase(cos_theta, MIE_DIRECTIONAL_G);
+//     let sun_e = sun_intensity(dot(sun_direction, up));
+//     var lin = pow(
+//         sun_e * ((beta_r_theta + beta_m_theta) / (beta_r + beta_m)) * (vec3(1.0) - fex),
+//         vec3(1.5)
+//     );
+
+//     let t = saturate(pow(1.0 - dot(up, sun_direction), 5.0));
+//     lin *= vec3(1.0) * (vec3(1.0) - t) + pow(
+//             sun_e * ((beta_r_theta + beta_m_theta) / (beta_r + beta_m)) * fex,
+//             vec3(0.5),
+//         ) * t;
+
+//     // Composition + solar disc
+//     let sun_angular_diameter_cos = cos(SUN_ANGULAR_DIAMETER_DEGREES);
+//     let sundisk = smoothstep(
+//         sun_angular_diameter_cos,
+//         sun_angular_diameter_cos + 0.00002,
+//         cos_theta,
+//     );
+//     var l0 = 0.1 * fex;
+//     l0 = l0 + sun_e * 19000.0 * fex * sundisk;
+
+//     return lin + l0;
+// }
