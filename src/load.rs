@@ -38,7 +38,8 @@ impl GH {
 }
 
 pub fn load_vox() -> Result<GH, String> {
-    let vox = dot_vox::load("assets/vox/map1.vox")?;
+    let vox = dot_vox::load("assets/vox/portals.vox")?;
+    // let vox = dot_vox::load("/Users/brian/Documents/Code/Rust/vox/monument/monu7.vox")?;
     let size = vox.models[0].size;
     if size.x != size.y || size.x != size.z || size.y != size.z {
         return Err("Voxel model is not a cube!".to_string());
@@ -46,7 +47,7 @@ pub fn load_vox() -> Result<GH, String> {
 
     let size = size.x as usize;
 
-    let mut gh = GH::new([8, 16, 32, 64, 128, 0, 0, 0], size as u32);
+    let mut gh = GH::new([8, 16, 32, 64, 0, 0, 0, 0], size as u32);
     for i in 0..256 {
         let value = vox.palette[i].to_le_bytes();
         let mut material = Vec4::new(

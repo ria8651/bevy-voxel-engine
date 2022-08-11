@@ -39,14 +39,20 @@ fn main() {
         .run();
 }
 
-/// set up a simple 3D scene
 fn setup(mut commands: Commands) {
     commands.spawn_bundle((
         AABox {
             material: 242,
-            half_size: IVec3::new(0, 2, 2),
+            half_size: IVec3::new(0, 4, 4),
         },
-        Transform::from_xyz(0.0, 0.0, 0.0),
+        Transform::from_xyz(-0.5, -0.1, 0.0),
+    ));
+    commands.spawn_bundle((
+        AABox {
+            material: 242,
+            half_size: IVec3::new(0, 4, 4),
+        },
+        Transform::from_xyz(0.5, -0.1, 0.0),
     ));
 }
 

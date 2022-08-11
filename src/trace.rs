@@ -95,6 +95,7 @@ impl Plugin for Tracer {
         // uniforms
         let uniforms_struct = Uniforms {
             pallete: gh.pallete,
+            portals: [Portal::default(); 32],
             resolution: Vec4::default(),
             last_camera: Mat4::default(),
             camera: Mat4::default(),
@@ -104,11 +105,12 @@ impl Plugin for Tracer {
             time: 0.0,
             texture_size: gh.texture_size,
             show_ray_steps: false,
-            indirect_lighting: true,
+            indirect_lighting: false,
             shadows: true,
             accumulation_frames: 20.0,
             freeze: false,
             enable_compute: true,
+            skybox: false,
             misc_bool: false,
             misc_float: 34.0,
         };
@@ -177,8 +179,15 @@ pub struct PalleteEntry {
     pub colour: [f32; 4],
 }
 
+#[repr(C)]
+#[derive(Default, Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
+pub struct Portal {
+    pub offset: [i32; 4],
+}
+
 pub struct Uniforms {
     pub pallete: [PalleteEntry; 256],
+    pub portals: [Portal; 32],
     pub resolution: Vec4,
     pub last_camera: Mat4,
     pub camera: Mat4,
@@ -193,6 +202,7 @@ pub struct Uniforms {
     pub accumulation_frames: f32,
     pub freeze: bool,
     pub enable_compute: bool,
+    pub skybox: bool,
     pub misc_bool: bool,
     pub misc_float: f32,
 }
@@ -201,6 +211,7 @@ pub struct Uniforms {
 #[derive(Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct ExtractedUniforms {
     pallete: [PalleteEntry; 256],
+    portals: [Portal; 32],
     resolution: Vec4,
     last_camera: Mat4,
     camera: Mat4,
@@ -215,9 +226,10 @@ pub struct ExtractedUniforms {
     accumulation_frames: f32,
     freeze: u32,
     pub enable_compute: u32,
+    skybox: u32,
     misc_bool: u32,
     misc_float: f32,
-    padding: [u32; 2],
+    padding: [u32; 1],
 }
 
 impl ExtractResource for ExtractedUniforms {
@@ -226,6 +238,7 @@ impl ExtractResource for ExtractedUniforms {
     fn extract_resource(uniforms: &Self::Source) -> Self {
         ExtractedUniforms {
             pallete: uniforms.pallete,
+            portals: uniforms.portals,
             resolution: uniforms.resolution,
             last_camera: uniforms.last_camera,
             camera: uniforms.camera,
@@ -240,9 +253,10 @@ impl ExtractResource for ExtractedUniforms {
             accumulation_frames: uniforms.accumulation_frames,
             freeze: uniforms.freeze as u32,
             enable_compute: uniforms.enable_compute as u32,
+            skybox: uniforms.skybox as u32,
             misc_bool: uniforms.misc_bool as u32,
             misc_float: uniforms.misc_float,
-            padding: [0; 2],
+            padding: [0; 1],
         }
     }
 }

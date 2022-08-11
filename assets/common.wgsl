@@ -1,9 +1,6 @@
-struct PalleteEntry {
-    material: vec4<f32>,
-};
-
 struct Uniforms {
-    pallete: array<PalleteEntry, 256>,
+    materials: array<vec4<f32>, 256>,
+    portals: array<vec4<i32>, 32>,
     resolution: vec2<f32>,
     last_camera: mat4x4<f32>,
     camera: mat4x4<f32>,
@@ -18,6 +15,7 @@ struct Uniforms {
     accumulation_frames: f32,
     freeze: u32,
     enanble_compute: u32,
+    skybox: u32,
     misc_bool: u32,
     misc_float: f32,
 };

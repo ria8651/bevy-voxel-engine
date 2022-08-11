@@ -1,4 +1,4 @@
-use super::{load::GH, trace};
+use super::{load::GH, trace, trace::Portal};
 use bevy::{
     prelude::*,
     render::{
@@ -78,6 +78,7 @@ fn extract_animation_data(
     mut commands: Commands,
     particle_query: Query<(&Transform, &Particle)>,
     aabox_query: Query<(&Transform, &AABox)>,
+    mut uniforms: ResMut<trace::Uniforms>,
 ) {
     let mut header = Vec::new();
     let mut animation_data = Vec::new();
@@ -93,6 +94,7 @@ fn extract_animation_data(
     }
 
     // add aaboxes
+    let mut i = 0;
     for (transform, aabox) in aabox_query.iter() {
         header.push(animation_data.len() as u32 | (1 << 24));
         let pos = transform.translation;
@@ -100,9 +102,12 @@ fn extract_animation_data(
         animation_data.push(bytemuck::cast(pos.x));
         animation_data.push(bytemuck::cast(pos.y));
         animation_data.push(bytemuck::cast(pos.z));
+        animation_data.push(i);
         animation_data.push(bytemuck::cast(aabox.half_size.x));
         animation_data.push(bytemuck::cast(aabox.half_size.y));
         animation_data.push(bytemuck::cast(aabox.half_size.z));
+
+        i += 1;
     }
 
     let offset = header.len() + 1;
@@ -114,7 +119,13 @@ fn extract_animation_data(
     data.extend(header);
     data.extend(animation_data);
 
-    // println!("{:?}", data);
+    uniforms.portals = [Portal::default(); 32];
+    uniforms.portals[0] = Portal {
+        offset: [32, 0, 0, 0],
+    };
+    uniforms.portals[1] = Portal {
+        offset: [-32, 0, 0, 0],
+    };
 
     commands.insert_resource(ExtractedAnimationData { data });
 }
