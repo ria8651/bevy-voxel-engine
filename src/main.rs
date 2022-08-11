@@ -39,20 +39,22 @@ fn main() {
         .run();
 }
 
+// world space cordinates are in terms of 4 voxels per meter with 0, 0 
+// in the world lining up with the center of the voxel world (ie 0, 0, 0 in the render world)
 fn setup(mut commands: Commands) {
     commands.spawn_bundle((
         AABox {
             material: 242,
             half_size: IVec3::new(0, 4, 4),
         },
-        Transform::from_xyz(-0.5, -0.1, 0.0),
+        Transform::from_xyz(10.0, 5.0, 0.0),
     ));
     commands.spawn_bundle((
         AABox {
             material: 242,
             half_size: IVec3::new(0, 4, 4),
         },
-        Transform::from_xyz(0.5, -0.1, 0.0),
+        Transform::from_xyz(-10.0, 5.0, 0.0),
     ));
 }
 
@@ -60,9 +62,9 @@ fn update_particles(mut particle_query: Query<&mut Transform, With<Particle>>) {
     particle_query.par_for_each_mut(32, move |mut particle| {
         let mut rng = rand::thread_rng();
         particle.translation += Vec3::new(
-            rng.gen_range(-1.0..=1.0) * 0.01,
-            rng.gen_range(-1.0..=1.0) * 0.01,
-            rng.gen_range(-1.0..=1.0) * 0.01,
+            rng.gen_range(-1.0..=1.0) * 0.25,
+            rng.gen_range(-1.0..=1.0) * 0.25,
+            rng.gen_range(-1.0..=1.0) * 0.25,
         );
     });
 }

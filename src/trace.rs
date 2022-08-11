@@ -1,4 +1,4 @@
-use super::load::GH;
+use super::{compute, load::GH};
 use bevy::{
     core_pipeline::core_3d::Transparent3d,
     ecs::{
@@ -279,6 +279,11 @@ fn update_uniforms(
 
     let (transform, _perspective) = main_cam.single();
 
+    let transform = Transform {
+        translation: compute::world_to_render(transform.translation, uniforms.texture_size),
+        ..*transform
+    };
+
     uniforms.camera_inverse = transform.compute_matrix();
     uniforms.camera = uniforms.camera_inverse.inverse();
     uniforms.last_camera = last_frame_data.last_camera;
@@ -551,13 +556,5 @@ fn resize_prepare(
     println!("resized window to ({}, {})", resize_event.0, resize_event.1);
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, ExtractResource)]
 struct ResizeEvent(f32, f32);
-
-impl ExtractResource for ResizeEvent {
-    type Source = ResizeEvent;
-
-    fn extract_resource(source: &Self::Source) -> Self {
-        *source
-    }
-}

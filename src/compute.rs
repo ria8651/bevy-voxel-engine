@@ -61,17 +61,20 @@ pub struct AABox {
     pub half_size: IVec3,
 }
 
-#[derive(Clone)]
+#[derive(Clone, ExtractResource)]
 struct ExtractedAnimationData {
     data: Vec<u32>,
 }
 
-impl ExtractResource for ExtractedAnimationData {
-    type Source = ExtractedAnimationData;
+const VOXELS_PER_METER: u32 = 4;
 
-    fn extract_resource(source: &Self::Source) -> Self {
-        (*source).clone()
-    }
+pub fn world_to_voxel(world_pos: Vec3, voxel_world_size: u32) -> IVec3 {
+    let world_pos = world_pos * VOXELS_PER_METER as f32;
+    world_pos.as_ivec3() + IVec3::splat(voxel_world_size as i32 / 2)
+}
+
+pub fn world_to_render(world_pos: Vec3, voxel_world_size: u32) -> Vec3 {
+    world_pos * VOXELS_PER_METER as f32 / voxel_world_size as f32
 }
 
 fn extract_animation_data(
@@ -83,10 +86,12 @@ fn extract_animation_data(
     let mut header = Vec::new();
     let mut animation_data = Vec::new();
 
+    let voxel_world_size = uniforms.texture_size;
+
     // add particles
     for (transform, particle) in particle_query.iter() {
+        let pos = world_to_voxel(transform.translation, voxel_world_size);
         header.push(animation_data.len() as u32 | (0 << 24));
-        let pos = transform.translation;
         animation_data.push(particle.material as u32);
         animation_data.push(bytemuck::cast(pos.x));
         animation_data.push(bytemuck::cast(pos.y));
@@ -96,8 +101,8 @@ fn extract_animation_data(
     // add aaboxes
     let mut i = 0;
     for (transform, aabox) in aabox_query.iter() {
+        let pos = world_to_voxel(transform.translation, voxel_world_size);
         header.push(animation_data.len() as u32 | (1 << 24));
-        let pos = transform.translation;
         animation_data.push(aabox.material as u32);
         animation_data.push(bytemuck::cast(pos.x));
         animation_data.push(bytemuck::cast(pos.y));
@@ -121,10 +126,10 @@ fn extract_animation_data(
 
     uniforms.portals = [Portal::default(); 32];
     uniforms.portals[0] = Portal {
-        offset: [32, 0, 0, 0],
+        offset: [-80, 0, 0, 0],
     };
     uniforms.portals[1] = Portal {
-        offset: [-32, 0, 0, 0],
+        offset: [80, 0, 0, 0],
     };
 
     commands.insert_resource(ExtractedAnimationData { data });
