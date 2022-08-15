@@ -35,7 +35,7 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     }
 
     // delete old animaiton data
-    if (material.y == 1u) {
+    if (material.y == 1u || material.y >> 7u == 1u) {
         textureStore(texture, pos.zyx, vec4(0u));
     }
 }
@@ -67,8 +67,10 @@ fn update_animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
             bitcast<i32>(animation_data[data_index + 3]),
         );
         if (data_type == 0) {
+            // particle
             write_pos(world_pos, material, 1u); // 0b00000001u
         } else if (data_type == 1) {
+            // portal
             let portal_index = animation_data[data_index + 4];
             let half_size = vec3(
                 bitcast<i32>(animation_data[data_index + 5]),
@@ -83,8 +85,27 @@ fn update_animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                     }
                 }
             }
-            // write_pos(world_pos, material);
-            // write_pos(world_pos + 2.0 * vec3<f32>(half_size) / f32(u.texture_size), material);
+        } else if (data_type == 2) {
+            // portal frame
+            let half_size = vec3(
+                bitcast<i32>(animation_data[data_index + 4]),
+                bitcast<i32>(animation_data[data_index + 5]),
+                bitcast<i32>(animation_data[data_index + 6]),
+            );
+            for (var x = -half_size.x; x <= half_size.x; x++) {
+                for (var y = -half_size.y; y <= half_size.y; y++) {
+                    for (var z = -half_size.z; z <= half_size.z; z++) {
+                        let pos = vec3(x, y, z);
+                        if (abs(pos.x) == half_size.x || abs(pos.y) == half_size.y) {
+                            if (abs(pos.x) == half_size.x || abs(pos.z) == half_size.z) {
+                                if (abs(pos.y) == half_size.y || abs(pos.z) == half_size.z) {
+                                    write_pos(world_pos + pos, material, 1u); // 0b00000001u
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -93,7 +114,7 @@ fn update_animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
 fn rebuild_gh(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let pos = vec3(i32(invocation_id.x), i32(invocation_id.y), i32(invocation_id.z));
     
-    let material = get_texture_value(pos.zyx).r;
+    let material = get_texture_value(pos.zyx).x;
     if (material != 0u) {
         // set bits in grid hierarchy
         let size0 = u.levels[0][0];

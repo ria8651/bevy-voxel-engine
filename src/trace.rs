@@ -95,7 +95,7 @@ impl Plugin for Tracer {
         // uniforms
         let uniforms_struct = Uniforms {
             pallete: gh.pallete,
-            portals: [Portal::default(); 32],
+            portals: [ExtractedPortal::default(); 32],
             resolution: Vec4::default(),
             last_camera: Mat4::default(),
             camera: Mat4::default(),
@@ -181,13 +181,16 @@ pub struct PalleteEntry {
 
 #[repr(C)]
 #[derive(Default, Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
-pub struct Portal {
-    pub offset: [i32; 4],
+pub struct ExtractedPortal {
+    pub pos: [i32; 4],
+    pub other_pos: [i32; 4],
+    pub normal: [f32; 4],
+    pub other_normal: [f32; 4],
 }
 
 pub struct Uniforms {
     pub pallete: [PalleteEntry; 256],
-    pub portals: [Portal; 32],
+    pub portals: [ExtractedPortal; 32],
     pub resolution: Vec4,
     pub last_camera: Mat4,
     pub camera: Mat4,
@@ -211,7 +214,7 @@ pub struct Uniforms {
 #[derive(Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct ExtractedUniforms {
     pallete: [PalleteEntry; 256],
-    portals: [Portal; 32],
+    portals: [ExtractedPortal; 32],
     resolution: Vec4,
     last_camera: Mat4,
     camera: Mat4,

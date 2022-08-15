@@ -1,4 +1,4 @@
-use super::{load::GH, trace, trace::Portal};
+use super::{load::GH, trace, trace::ExtractedPortal};
 use bevy::{
     prelude::*,
     render::{
@@ -55,8 +55,16 @@ pub struct Particle {
     pub material: u8,
 }
 
+/// normal must be a normalized voxel normal
 #[derive(Component)]
-pub struct AABox {
+pub struct Portal {
+    pub material: u8,
+    pub half_size: IVec3,
+    pub normal: Vec3,
+}
+
+#[derive(Component)]
+pub struct Edges {
     pub material: u8,
     pub half_size: IVec3,
 }
@@ -80,7 +88,8 @@ pub fn world_to_render(world_pos: Vec3, voxel_world_size: u32) -> Vec3 {
 fn extract_animation_data(
     mut commands: Commands,
     particle_query: Query<(&Transform, &Particle)>,
-    aabox_query: Query<(&Transform, &AABox)>,
+    portal_query: Query<(&Transform, &Portal)>,
+    edges_query: Query<(&Transform, &Edges)>,
     mut uniforms: ResMut<trace::Uniforms>,
 ) {
     let mut header = Vec::new();
@@ -98,39 +107,76 @@ fn extract_animation_data(
         animation_data.push(bytemuck::cast(pos.z));
     }
 
-    // add aaboxes
+    // add portals
     let mut i = 0;
-    for (transform, aabox) in aabox_query.iter() {
+    for (transform, portal) in portal_query.iter() {
         let pos = world_to_voxel(transform.translation, voxel_world_size);
         header.push(animation_data.len() as u32 | (1 << 24));
-        animation_data.push(aabox.material as u32);
+        animation_data.push(portal.material as u32);
         animation_data.push(bytemuck::cast(pos.x));
         animation_data.push(bytemuck::cast(pos.y));
         animation_data.push(bytemuck::cast(pos.z));
         animation_data.push(i);
-        animation_data.push(bytemuck::cast(aabox.half_size.x));
-        animation_data.push(bytemuck::cast(aabox.half_size.y));
-        animation_data.push(bytemuck::cast(aabox.half_size.z));
+        animation_data.push(bytemuck::cast(portal.half_size.x));
+        animation_data.push(bytemuck::cast(portal.half_size.y));
+        animation_data.push(bytemuck::cast(portal.half_size.z));
 
         i += 1;
     }
 
+    // add edges
+    for (transform, edges) in edges_query.iter() {
+        let pos = world_to_voxel(transform.translation, voxel_world_size);
+        header.push(animation_data.len() as u32 | (2 << 24));
+        animation_data.push(edges.material as u32);
+        animation_data.push(bytemuck::cast(pos.x));
+        animation_data.push(bytemuck::cast(pos.y));
+        animation_data.push(bytemuck::cast(pos.z));
+        animation_data.push(bytemuck::cast(edges.half_size.x));
+        animation_data.push(bytemuck::cast(edges.half_size.y));
+        animation_data.push(bytemuck::cast(edges.half_size.z));
+    }
+
+    // move all the pointers based on the header length
     let offset = header.len() + 1;
     for i in 0..header.len() {
         header[i] += offset as u32;
     }
 
+    // combine the header and animation data
     let mut data = vec![header.len() as u32];
     data.extend(header);
     data.extend(animation_data);
 
-    uniforms.portals = [Portal::default(); 32];
-    uniforms.portals[0] = Portal {
-        offset: [-80, 0, 0, 0],
-    };
-    uniforms.portals[1] = Portal {
-        offset: [80, 0, 0, 0],
-    };
+    // grab all the poratls in pairs
+    uniforms.portals = [ExtractedPortal::default(); 32];
+    let mut i = 0;
+    let mut first: Option<(&Transform, &Portal)> = None;
+    for (transform, portal) in portal_query.iter() {
+        if i % 2 == 1 {
+            let second = (transform, portal);
+
+            let first_pos = world_to_voxel(first.unwrap().0.translation, uniforms.texture_size);
+            let second_pos = world_to_voxel(second.0.translation, uniforms.texture_size);
+
+            let first_normal = first.unwrap().1.normal;
+            let second_normal = second.1.normal;
+            uniforms.portals[i - 1] = ExtractedPortal {
+                pos: [first_pos.x, first_pos.y, first_pos.z, 0],
+                other_pos: [second_pos.x, second_pos.y, second_pos.z, 0],
+                normal: [first_normal.x, first_normal.y, first_normal.z, 0.0],
+                other_normal: [second_normal.x, second_normal.y, second_normal.z, 0.0],
+            };
+            uniforms.portals[i] = ExtractedPortal {
+                pos: [second_pos.x, second_pos.y, second_pos.z, 0],
+                other_pos: [first_pos.x, first_pos.y, first_pos.z, 0],
+                normal: [second_normal.x, second_normal.y, second_normal.z, 0.0],
+                other_normal: [first_normal.x, first_normal.y, first_normal.z, 0.0],
+            };
+        }
+        first = Some((transform, portal));
+        i += 1;
+    }
 
     commands.insert_resource(ExtractedAnimationData { data });
 }

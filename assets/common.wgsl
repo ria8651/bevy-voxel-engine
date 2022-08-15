@@ -1,6 +1,13 @@
+struct Portal {
+    pos: vec4<i32>,
+    other_pos: vec4<i32>,
+    normal: vec4<f32>,
+    other_normal: vec4<f32>,
+}
+
 struct Uniforms {
     materials: array<vec4<f32>, 256>,
-    portals: array<vec4<i32>, 32>,
+    portals: array<Portal, 32>,
     resolution: vec2<f32>,
     last_camera: mat4x4<f32>,
     camera: mat4x4<f32>,
@@ -200,6 +207,72 @@ fn skybox(dir: vec3<f32>, time_of_day: f32) -> vec3<f32> {
     col = max((e431 + (0.5 * e433)), e436);
     let e438: vec3<f32> = col;
     return e438;
+}
+
+fn rotate_axis(p: vec3<f32>, axis: vec3<f32>, angle: f32) -> vec3<f32> {
+    return mix(dot(axis, p) * axis, p, cos(angle)) + cross(axis, p) * sin(angle);
+}
+
+fn create_rot_mat(axis: vec3<f32>, angle: f32) -> mat3x3<f32> {
+    var axis1: vec3<f32>;
+    var angle1: f32;
+    var s: f32;
+    var c: f32;
+    var oc: f32;
+
+    axis1 = axis;
+    angle1 = angle;
+    let e5: vec3<f32> = axis1;
+    axis1 = normalize(e5);
+    let e8: f32 = angle1;
+    s = sin(e8);
+    let e12: f32 = angle1;
+    c = cos(e12);
+    let e16: f32 = c;
+    oc = (1.0 - e16);
+    let e19: f32 = oc;
+    let e20: vec3<f32> = axis1;
+    let e23: vec3<f32> = axis1;
+    let e26: f32 = c;
+    let e28: f32 = oc;
+    let e29: vec3<f32> = axis1;
+    let e32: vec3<f32> = axis1;
+    let e35: vec3<f32> = axis1;
+    let e37: f32 = s;
+    let e40: f32 = oc;
+    let e41: vec3<f32> = axis1;
+    let e44: vec3<f32> = axis1;
+    let e47: vec3<f32> = axis1;
+    let e49: f32 = s;
+    let e52: f32 = oc;
+    let e53: vec3<f32> = axis1;
+    let e56: vec3<f32> = axis1;
+    let e59: vec3<f32> = axis1;
+    let e61: f32 = s;
+    let e64: f32 = oc;
+    let e65: vec3<f32> = axis1;
+    let e68: vec3<f32> = axis1;
+    let e71: f32 = c;
+    let e73: f32 = oc;
+    let e74: vec3<f32> = axis1;
+    let e77: vec3<f32> = axis1;
+    let e80: vec3<f32> = axis1;
+    let e82: f32 = s;
+    let e85: f32 = oc;
+    let e86: vec3<f32> = axis1;
+    let e89: vec3<f32> = axis1;
+    let e92: vec3<f32> = axis1;
+    let e94: f32 = s;
+    let e97: f32 = oc;
+    let e98: vec3<f32> = axis1;
+    let e101: vec3<f32> = axis1;
+    let e104: vec3<f32> = axis1;
+    let e106: f32 = s;
+    let e109: f32 = oc;
+    let e110: vec3<f32> = axis1;
+    let e113: vec3<f32> = axis1;
+    let e116: f32 = c;
+    return mat3x3<f32>(vec3<f32>((((e19 * e20.x) * e23.x) + e26), (((e28 * e29.x) * e32.y) - (e35.z * e37)), (((e40 * e41.z) * e44.x) + (e47.y * e49))), vec3<f32>((((e52 * e53.x) * e56.y) + (e59.z * e61)), (((e64 * e65.y) * e68.y) + e71), (((e73 * e74.y) * e77.z) - (e80.x * e82))), vec3<f32>((((e85 * e86.z) * e89.x) - (e92.y * e94)), (((e97 * e98.y) * e101.z) + (e104.x * e106)), (((e109 * e110.z) * e113.z) + e116)));
 }
 
 // let DEPOLARIZATION_FACTOR: f32 = 0.035;

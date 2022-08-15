@@ -30,16 +30,16 @@ fn get_value_index(index: u32) -> bool {
     return ((gh[index / 32u] >> (index % 32u)) & 1u) != 0u;
 }
 
-fn get_texture_value(pos: vec3<i32>) -> vec2<u32> {
-    let texture_value = textureLoad(texture, vec3<i32>(pos.zyx)).r;
-    return vec2(
-        texture_value & 0xFFu,
-        texture_value >> 8u,
-    );
+// return vec2(
+//     texture_value & 0xFFu,
+//     texture_value >> 8u,
+// );
+
+fn get_texture_value(pos: vec3<i32>) -> u32 {
+    return textureLoad(texture, vec3<i32>(pos.zyx)).r;
 }
 
 struct Voxel {
-    value: u32,
     data: u32,
     pos: vec3<f32>,
     grid_size: u32,
@@ -86,44 +86,45 @@ fn get_value(pos: vec3<f32>) -> Voxel {
 
     if (!state0 && size0 != 0u) {
         let rounded_pos = ((vec3<f32>(scaled0) + 0.5) / f32(size0)) * 2.0 - 1.0;
-        return Voxel(0u, 0u, rounded_pos, size0);
+        return Voxel(0u, rounded_pos, size0);
     }
     if (!state1 && size1 != 0u) {
         let rounded_pos = ((vec3<f32>(scaled1) + 0.5) / f32(size1)) * 2.0 - 1.0;
-        return Voxel(0u, 0u, rounded_pos, size1);
+        return Voxel(0u, rounded_pos, size1);
     }
     if (!state2 && size2 != 0u) {
         let rounded_pos = ((vec3<f32>(scaled2) + 0.5) / f32(size2)) * 2.0 - 1.0;
-        return Voxel(0u, 0u, rounded_pos, size2);
+        return Voxel(0u, rounded_pos, size2);
     }
     if (!state3 && size3 != 0u) {
         let rounded_pos = ((vec3<f32>(scaled3) + 0.5) / f32(size3)) * 2.0 - 1.0;
-        return Voxel(0u, 0u, rounded_pos, size3);
+        return Voxel(0u, rounded_pos, size3);
     }
     if (!state4 && size4 != 0u) {
         let rounded_pos = ((vec3<f32>(scaled4) + 0.5) / f32(size4)) * 2.0 - 1.0;
-        return Voxel(0u, 0u, rounded_pos, size4);
+        return Voxel(0u, rounded_pos, size4);
     }
     if (!state5 && size5 != 0u) {
         let rounded_pos = ((vec3<f32>(scaled5) + 0.5) / f32(size5)) * 2.0 - 1.0;
-        return Voxel(0u, 0u, rounded_pos, size5);
+        return Voxel(0u, rounded_pos, size5);
     }
     if (!state6 && size6 != 0u) {
         let rounded_pos = ((vec3<f32>(scaled6) + 0.5) / f32(size6)) * 2.0 - 1.0;
-        return Voxel(0u, 0u, rounded_pos, size6);
+        return Voxel(0u, rounded_pos, size6);
     }
     if (!state7 && size7 != 0u) {
         let rounded_pos = ((vec3<f32>(scaled7) + 0.5) / f32(size7)) * 2.0 - 1.0;
-        return Voxel(0u, 0u, rounded_pos, size7);
+        return Voxel(0u, rounded_pos, size7);
     }
 
     let rounded_pos = (floor(pos * f32(u.texture_size) * 0.5) + 0.5) / (f32(u.texture_size) * 0.5);
-    let value = get_texture_value(vec3<i32>(scaled * f32(u.texture_size)));
-    return Voxel(value.x, value.y, rounded_pos, u.texture_size);
+    let data = get_texture_value(vec3<i32>(scaled * f32(u.texture_size)));
+    return Voxel(data, rounded_pos, u.texture_size);
 }
 
 struct HitInfo {
     hit: bool,
+    data: u32,
     material: vec4<f32>,
     pos: vec3<f32>,
     reprojection_pos: vec3<f32>,
@@ -148,7 +149,7 @@ fn intersect_scene(r: Ray, steps: u32) -> HitInfo {
         if (t != 0.0) {
             let pos = r.pos + r.dir * t;
             let normal = trunc(pos * vec3(1.00001, 0.0, 1.00001));
-            return HitInfo(true, vec4(vec3(0.2), 0.0), pos, pos, normal, steps);
+            return HitInfo(true, 0u, vec4(vec3(0.2), 0.0), pos, pos, normal, steps);
         }
 
         let t = ray_box_dist(r, vec3(3.0), vec3(-3.0, -10000.0, -3.0)).y;
@@ -158,44 +159,73 @@ fn intersect_scene(r: Ray, steps: u32) -> HitInfo {
                 let normal = -trunc(pos / vec3(2.99999));
                 let col = skybox(normalize(pos - vec3(0.0, -1.0, 0.0)), u.time);
                 // let col = vec3(0.3, 0.3, 0.8);
-                return HitInfo(true, vec4(col, 1.0), pos, pos, normal, steps);
+                return HitInfo(true, 0u, vec4(col, 1.0), pos, pos, normal, steps);
             } else {
                 let normal = -trunc(pos / vec3(2.99999, 10000.0, 2.99999));
-                return HitInfo(true, vec4(vec3(0.2), 0.0), pos, pos, normal, steps);
+                return HitInfo(true, 0u, vec4(vec3(0.2), 0.0), pos, pos, normal, steps);
             }
         }
     }
 
-    return HitInfo(false, vec4(0.0), vec3(0.0), vec3(0.0), vec3(0.0), steps);
+    return HitInfo(false, 0u, vec4(0.0), vec3(0.0), vec3(0.0), vec3(0.0), steps);
 }
 
 fn shoot_ray(r: Ray) -> HitInfo {
     var pos = r.pos;
-    let dir_mask = vec3<f32>(r.dir == vec3<f32>(0.0));
+    let dir_mask = vec3<f32>(r.dir == vec3(0.0));
     var dir = r.dir + dir_mask * 0.000001;
 
     if (!in_bounds(r.pos)) {
         // Get position on surface of the octree
         let dist = ray_box_dist(r, vec3(-1.0), vec3(1.0)).x;
         if (dist == 0.0) {
-            return intersect_scene(r, 0u);
+            return intersect_scene(r, 1u);
         }
 
         pos = r.pos + dir * dist;
     }
 
-    let r_sign = sign(dir);
-
+    var r_sign = sign(dir);
     var voxel_pos = pos;
     var steps = 0u;
     var normal = trunc(pos * 1.00001);
-    var voxel = Voxel(0u, 0u, vec3(0.0), 0u);
+    var voxel = Voxel(0u, vec3(0.0), 0u);
     var reprojection_pos = vec3(0.0);
-    loop {
+    var jumped = false;
+    while (steps < 1000u) {
         voxel = get_value(voxel_pos);
-        let should_portal_skip = voxel.data >> 7u == 1u;
-        if (voxel.value != 0u && !should_portal_skip) {
-            return HitInfo(true, u.materials[voxel.value], voxel_pos, voxel_pos - reprojection_pos, normal, steps);
+
+        // portals
+        let should_portal_skip = voxel.data >> 15u == 1u;
+        if (should_portal_skip && !jumped) {
+            let portal = u.portals[i32((voxel.data >> 8u) & 127u)]; // 0b01111111u retreive the portal index before overwiting the voxel
+
+            let voxel_size = 2.0 / f32(u.texture_size);
+            let portal_pos_1 = vec3<f32>(portal.pos.xyz - vec3(i32(u.texture_size / 2u))) * voxel_size;
+            let portal_pos_2 = vec3<f32>(portal.other_pos.xyz - vec3(i32(u.texture_size / 2u))) * voxel_size;
+
+            let ray_rot_angle = acos(dot(portal.normal.xyz, portal.other_normal.xyz));
+            let ray_rot_axis = cross(portal.normal.xyz, portal.other_normal.xyz);
+            let ray_rot_mat = create_rot_mat(ray_rot_axis, ray_rot_angle);
+
+            let new_pos = (ray_rot_mat * (voxel_pos - portal_pos_1)) + portal_pos_2;
+            let new_dir = ray_rot_mat * -dir;
+
+            // let new_pos = voxel_pos + (portal_pos_2 - portal_pos_1); //  + portal.normal.xyz * voxel_size
+
+            pos = new_pos;
+            // dir = new_dir;
+            // r_sign = sign(dir);
+
+            jumped = true;
+            voxel = get_value(pos);
+
+            // return HitInfo(true, voxel.data, vec4(portal_pos_2, 0.0), voxel_pos, voxel_pos - reprojection_pos, normal, steps);
+        }
+
+        // exit if solid
+        if ((voxel.data & 0xFFu) != 0u) {
+            break;
         }
 
         let voxel_size = 2.0 / f32(voxel.grid_size);
@@ -208,32 +238,57 @@ fn shoot_ray(r: Ray) -> HitInfo {
         let t_current = min(min(t_max.x, t_max.y), t_max.z);
         voxel_pos = pos + dir * t_current - normal * 0.000002;
 
-        if (should_portal_skip) {
-            let portal_index = i32(voxel.data & 127u); // 0b01111111u retreive the portal index before overwiting the voxel
-            voxel = get_value(voxel_pos);
-            // reached back face of portal, proceed through the fourth dimension / wormhole or whatever
-            if (voxel.data >> 7u != 1u) {
-                let portal_offset = vec3<f32>(u.portals[portal_index].xyz) * voxel_size;
-                pos = pos + portal_offset;
-                voxel_pos = voxel_pos + portal_offset;
-                reprojection_pos = reprojection_pos + portal_offset;
-            }
-        }
 
         if (!in_bounds(voxel_pos)) {
-            return intersect_scene(Ray(voxel_pos, r.dir), steps);
+            return intersect_scene(Ray(pos, dir), steps);
         }
 
         steps = steps + 1u;
-        if (steps > 1000u) {
-            return HitInfo(true, u.materials[voxel.value], voxel_pos, voxel_pos - reprojection_pos, normal, steps);
-        }
     }
 
-    return HitInfo(true, u.materials[voxel.value], voxel_pos, voxel_pos - reprojection_pos, normal, steps);
+    return HitInfo(true, voxel.data, u.materials[voxel.data & 0xFFu], voxel_pos, voxel_pos - reprojection_pos, normal, steps);
 }
 
-let light_dir = vec3<f32>(-1.3, -1.0, 0.8);
+        // // if (u.misc_bool != 0u && all(abs(cs) <= vec2(0.01))) {
+        // //     let texture_pos = vec3<i32>((voxel_pos * 0.5 + 0.5) * f32(u.texture_size));
+        // //     textureStore(texture, texture_pos.zyx, vec4(46u));
+        // // }
+
+        // let should_portal_skip = voxel.data >> 7u == 1u;
+        // if (should_portal_skip && !jumped) {
+        //     let portal = u.portals[i32(voxel.data & 127u)]; // 0b01111111u retreive the portal index before overwiting the voxel
+        //     // voxel = get_value(voxel_pos);
+        //     // // reached back face of portal, proceed through the fourth dimension / wormhole or whatever
+        //     // if (voxel.data >> 7u != 1u) {
+        //         // let ray_rot_angle = acos(dot(portal.normal.xyz, portal.other_normal.xyz));
+        //         // let ray_rot_axis = cross(portal.normal.xyz, portal.other_normal.xyz);
+        //         // let ray_rot_mat = create_rot_mat(ray_rot_axis, -ray_rot_angle);
+                
+        //         // let ray_offset = voxel_pos - vec3<f32>(portal.pos.xyz - vec3(i32(u.texture_size / 2u))) * voxel_size;
+        //         // let ray_offset_rot = ray_rot_mat * ray_offset;
+        //         // let new_voxel_pos = ray_offset_rot + vec3<f32>(portal.other_pos.xyz - vec3(i32(u.texture_size / 2u))) * voxel_size;
+        //         // let portal_offset = new_voxel_pos - pos;
+
+        //         // return HitInfo(true, vec4(pos, 1.0), voxel_pos, voxel_pos - reprojection_pos, normal, steps);
+        //         // dir = ray_rot_mat * -dir;
+        //         // dir = portal.normal.xyz;
+        //         // voxel_pos = new_voxel_pos;
+        //         // pos = voxel_pos;
+        //         // dir = normalize(-voxel_pos);
+        //         // r_sign = sign(dir);
+        //         // pos = pos + 10.0 * portal.normal.xyz * voxel_size;
+        //         let portal_pos_1 = vec3<f32>(portal.pos.xyz - vec3(i32(u.texture_size / 2u))) * voxel_size;
+        //         let portal_pos_2 = vec3<f32>(portal.other_pos.xyz - vec3(i32(u.texture_size / 2u))) * voxel_size;
+        //         // pos = voxel_pos + (portal_pos_2 - portal_pos_1);
+        //         pos = voxel_pos + vec3(1.0, 0.0, 0.0) * u.misc_float * voxel_size * 10.0 + portal.normal.xyz * voxel_size;
+        //         jumped = true;
+        //         // return HitInfo(true, vec4(pos * 10.0, 1.0), voxel_pos, voxel_pos - reprojection_pos, normal, steps);
+        //     // }
+
+        //     voxel = get_value(pos);
+        // }
+
+let light_dir = vec3<f32>(1.3, -1.0, 0.8);
 
 fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed: vec3<u32>) -> vec3<f32> {
     var lighting = 0.0;
@@ -290,14 +345,14 @@ fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
             let indirect_dir = cosine_hemisphere(hit.normal, seed + 10u);
             let indirect_hit = shoot_ray(Ray(hit.pos + hit.normal * 0.0000025, indirect_dir));
             if (indirect_hit.hit) {
-                indirect_lighting = calculate_direct(indirect_hit.material, indirect_hit.pos, indirect_hit.normal, seed + 15u);
+                indirect_lighting = calculate_direct(indirect_hit.material, indirect_hit.pos, indirect_hit.normal, seed + 20u);
             } else {
                 indirect_lighting = vec3<f32>(0.2);
             }
         }
 
         // final blend
-        output_colour = (direct_lighting + indirect_lighting) * hit.material.rgb * 1.5;
+        output_colour = direct_lighting + indirect_lighting;
 
         // reprojection
         let last_frame_clip_space = u.last_camera * vec4<f32>(hit.reprojection_pos, 1.0);
@@ -338,6 +393,9 @@ fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
     if (u.show_ray_steps != 0u) {
         output_colour = vec3<f32>(f32(steps) / 100.0);
     }
+
+    // output_colour = hit.pos;
+    // output_colour = vec3<f32>(f32(all(abs(clip_space) <= vec2(0.01))));
 
     let knee = 0.2;
     let power = 2.2;
