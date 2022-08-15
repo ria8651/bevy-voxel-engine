@@ -201,30 +201,29 @@ fn shoot_ray(r: Ray) -> HitInfo {
             let portal = u.portals[i32((voxel.data >> 8u) & 127u)]; // 0b01111111u retreive the portal index before overwiting the voxel
 
             let voxel_size = 2.0 / f32(u.texture_size);
-            let portal_pos_1 = vec3<f32>(portal.pos.xyz - vec3(i32(u.texture_size / 2u))) * voxel_size;
-            let portal_pos_2 = vec3<f32>(portal.other_pos.xyz - vec3(i32(u.texture_size / 2u))) * voxel_size;
+            let portal_pos_1 = vec3<f32>(portal.pos.xyz - vec3(i32(u.texture_size / 2u))) * voxel_size + (portal.normal.xyz * 0.5 + 0.5) * voxel_size;
+            let portal_pos_2 = vec3<f32>(portal.other_pos.xyz - vec3(i32(u.texture_size / 2u))) * voxel_size + (portal.other_normal.xyz * 0.5 + 0.5) * voxel_size;
 
             let ray_rot_angle = acos(dot(portal.normal.xyz, portal.other_normal.xyz));
             let ray_rot_axis = cross(portal.normal.xyz, portal.other_normal.xyz);
             let ray_rot_mat = create_rot_mat(ray_rot_axis, ray_rot_angle);
 
             let new_pos = (ray_rot_mat * (voxel_pos - portal_pos_1)) + portal_pos_2;
-            let new_dir = ray_rot_mat * -dir;
-
-            // let new_pos = voxel_pos + (portal_pos_2 - portal_pos_1); //  + portal.normal.xyz * voxel_size
+            let new_dir = ray_rot_mat * reflect(dir, portal.normal.xyz);
 
             pos = new_pos;
-            // dir = new_dir;
-            // r_sign = sign(dir);
+            dir = new_dir;
+            r_sign = sign(dir);
 
             jumped = true;
             voxel = get_value(pos);
 
-            // return HitInfo(true, voxel.data, vec4(portal_pos_2, 0.0), voxel_pos, voxel_pos - reprojection_pos, normal, steps);
+            // return HitInfo(true, voxel.data, vec4(pos * 10.0, 0.0), voxel_pos, voxel_pos - reprojection_pos, normal, steps);
+            // return HitInfo(true, voxel.data, vec4(voxel_pos * 10.0, 0.0), voxel_pos, voxel_pos - reprojection_pos, normal, steps);
         }
 
         // exit if solid
-        if ((voxel.data & 0xFFu) != 0u) {
+        if ((voxel.data & 0xFFu) != 0u && !should_portal_skip) {
             break;
         }
 
