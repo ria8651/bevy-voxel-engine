@@ -1,8 +1,8 @@
 struct Portal {
-    pos: vec4<i32>,
-    other_pos: vec4<i32>,
-    normal: vec4<f32>,
-    other_normal: vec4<f32>,
+    pos: vec3<f32>,
+    other_pos: vec3<f32>,
+    normal: vec3<f32>,
+    other_normal: vec3<f32>,
 }
 
 struct Uniforms {

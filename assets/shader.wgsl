@@ -222,22 +222,20 @@ fn shoot_ray(r: Ray) -> HitInfo {
                 }
 
                 let voxel_size = 2.0 / f32(u.texture_size);
-                let portal_pos_1 = vec3<f32>(portal.pos.xyz - vec3(i32(u.texture_size / 2u))) * voxel_size + (portal.normal.xyz * 0.5 + 0.5) * voxel_size / 2.0;
-                let portal_pos_2 = vec3<f32>(portal.other_pos.xyz - vec3(i32(u.texture_size / 2u))) * voxel_size + (portal.other_normal.xyz * 0.5 + 0.5) * voxel_size / 2.0;
 
-                let ray_rot_angle = acos(dot(portal.normal.xyz, portal.other_normal.xyz));
+                let ray_rot_angle = acos(dot(portal.normal, portal.other_normal));
                 var ray_rot_axis: vec3<f32>;
-                if (any(abs(portal.normal.xyz) != abs(portal.other_normal.xyz))) {
-                    ray_rot_axis = cross(portal.normal.xyz, portal.other_normal.xyz);
+                if (any(abs(portal.normal) != abs(portal.other_normal))) {
+                    ray_rot_axis = cross(portal.normal, portal.other_normal);
                 } else {
                     ray_rot_axis = vec3(0.0, 1.0, 0.0);
                 }
                 let ray_rot_mat = create_rot_mat(ray_rot_axis, PI - ray_rot_angle);
 
-                let new_pos = (ray_rot_mat * (voxel_pos - portal_pos_1)) + portal_pos_2;
+                let new_pos = (ray_rot_mat * (voxel_pos - portal.pos)) + portal.other_pos;
                 let new_dir = ray_rot_mat * dir;
 
-                // return HitInfo(true, voxel.data, vec4(new_pos * 10.0, 0.0), voxel_pos, voxel_pos - reprojection_pos, normal, steps);
+                // return HitInfo(true, voxel.data, vec4(portal.pos * 10.0, 0.0), voxel_pos, voxel_pos - reprojection_pos, normal, steps);
                 // return HitInfo(true, voxel.data, vec4(vec3(ray_rot_angle / u.misc_float / PI), 1.0), voxel_pos, voxel_pos - reprojection_pos, normal, steps);
 
                 reprojection_pos += new_pos - voxel_pos;

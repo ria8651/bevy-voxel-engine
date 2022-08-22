@@ -82,7 +82,7 @@ pub fn world_to_voxel(world_pos: Vec3, voxel_world_size: u32) -> IVec3 {
 }
 
 pub fn world_to_render(world_pos: Vec3, voxel_world_size: u32) -> Vec3 {
-    world_pos * VOXELS_PER_METER as f32 / voxel_world_size as f32
+    2.0 * world_pos * VOXELS_PER_METER as f32 / voxel_world_size as f32
 }
 
 fn extract_animation_data(
@@ -156,20 +156,20 @@ fn extract_animation_data(
         if i % 2 == 1 {
             let second = (transform, portal);
 
-            let first_pos = world_to_voxel(first.unwrap().0.translation, uniforms.texture_size);
-            let second_pos = world_to_voxel(second.0.translation, uniforms.texture_size);
+            let first_pos = world_to_render(first.unwrap().0.translation, uniforms.texture_size);
+            let second_pos = world_to_render(second.0.translation, uniforms.texture_size);
 
             let first_normal = first.unwrap().1.normal;
             let second_normal = second.1.normal;
             uniforms.portals[i - 1] = ExtractedPortal {
-                pos: [first_pos.x, first_pos.y, first_pos.z, 0],
-                other_pos: [second_pos.x, second_pos.y, second_pos.z, 0],
+                pos: [first_pos.x, first_pos.y, first_pos.z, 0.0],
+                other_pos: [second_pos.x, second_pos.y, second_pos.z, 0.0],
                 normal: [first_normal.x, first_normal.y, first_normal.z, 0.0],
                 other_normal: [second_normal.x, second_normal.y, second_normal.z, 0.0],
             };
             uniforms.portals[i] = ExtractedPortal {
-                pos: [second_pos.x, second_pos.y, second_pos.z, 0],
-                other_pos: [first_pos.x, first_pos.y, first_pos.z, 0],
+                pos: [second_pos.x, second_pos.y, second_pos.z, 0.0],
+                other_pos: [first_pos.x, first_pos.y, first_pos.z, 0.0],
                 normal: [second_normal.x, second_normal.y, second_normal.z, 0.0],
                 other_normal: [first_normal.x, first_normal.y, first_normal.z, 0.0],
             };

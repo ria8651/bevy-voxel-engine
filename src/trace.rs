@@ -182,8 +182,8 @@ pub struct PalleteEntry {
 #[repr(C)]
 #[derive(Default, Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct ExtractedPortal {
-    pub pos: [i32; 4],
-    pub other_pos: [i32; 4],
+    pub pos: [f32; 4],
+    pub other_pos: [f32; 4],
     pub normal: [f32; 4],
     pub other_normal: [f32; 4],
 }
