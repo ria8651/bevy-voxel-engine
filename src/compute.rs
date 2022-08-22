@@ -161,10 +161,10 @@ fn extract_animation_data(
             let first_normal = first.unwrap().1.normal;
             let second_normal = second.1.normal;
 
-            let first_pos = world_to_render(first.unwrap().0.translation, uniforms.texture_size)
-                + voxel_size * first_normal / 2.0;
-            let second_pos = world_to_render(second.0.translation, uniforms.texture_size)
-                + voxel_size * second_normal / 2.0;
+            let first_pos = world_to_render(first.unwrap().0.translation, uniforms.texture_size);
+                // + voxel_size * first_normal / 2.0;
+            let second_pos = world_to_render(second.0.translation, uniforms.texture_size);
+                // + voxel_size * second_normal / 2.0;
 
             uniforms.portals[i - 1] = ExtractedPortal {
                 pos: [first_pos.x, first_pos.y, first_pos.z, 0.0],

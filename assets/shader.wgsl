@@ -196,17 +196,31 @@ fn shoot_ray(r: Ray) -> HitInfo {
     var jumped = false;
     while (steps < 1000u) {
         voxel = get_value(voxel_pos);
+        let should_portal_skip = voxel.data >> 15u == 1u;
+        if ((voxel.data & 0xFFu) != 0u && !should_portal_skip) {
+            break;
+        }
+
+        let voxel_size = 2.0 / f32(voxel.grid_size);
+        let t_max = (voxel.pos - pos + r_sign * voxel_size / 2.0) / dir;
+
+        // https://www.shadertoy.com/view/4dX3zl (good old shader toy)
+        let mask = vec3<f32>(t_max.xyz <= min(t_max.yzx, t_max.zxy));
+        normal = mask * -r_sign;
+
+        let t_current = min(min(t_max.x, t_max.y), t_max.z);
+        voxel_pos = pos + dir * t_current - normal * 0.000002;
 
         // portals
-        let should_portal_skip = voxel.data >> 15u == 1u;
         if (should_portal_skip && !jumped) {
             let portal = u.portals[i32((voxel.data >> 8u) & 127u)]; // 0b01111111u retreive the portal index before overwiting the voxel
             let voxel_size = 2.0 / f32(u.texture_size);
 
-            // let thing = portal.normal;
+            // voxel = get_value(voxel_pos);
+
+            let thing = (voxel_pos - portal.pos) * r_sign;
             let intersection = ray_plane(Ray(pos, dir), portal.pos, portal.normal);
-            let meh = abs(intersection - portal.pos);
-            if (max(meh.x, max(meh.y, meh.z)) < 4.0 * u.misc_float * voxel_size) {
+            if (any(thing * abs(portal.normal) > vec3(0.0)) && all(intersection != vec3(0.0))) {
                 voxel_pos = intersection;
 
                 let ray_rot_angle = acos(dot(portal.normal, portal.other_normal));
@@ -231,25 +245,9 @@ fn shoot_ray(r: Ray) -> HitInfo {
 
                 jumped = true;
                 voxel_pos = pos;
-
-                voxel = get_value(voxel_pos);
             }
 
         }
-
-        if ((voxel.data & 0xFFu) != 0u && !should_portal_skip) {
-            break;
-        }
-
-        let voxel_size = 2.0 / f32(voxel.grid_size);
-        let t_max = (voxel.pos - pos + r_sign * voxel_size / 2.0) / dir;
-
-        // https://www.shadertoy.com/view/4dX3zl (good old shader toy)
-        let mask = vec3<f32>(t_max.xyz <= min(t_max.yzx, t_max.zxy));
-        normal = mask * -r_sign;
-
-        let t_current = min(min(t_max.x, t_max.y), t_max.z);
-        voxel_pos = pos + dir * t_current - normal * 0.000002;
 
         if (!in_bounds(voxel_pos)) {
             return intersect_scene(Ray(pos, dir), steps);
