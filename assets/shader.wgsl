@@ -320,6 +320,7 @@ fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
                 indirect_lighting = calculate_direct(indirect_hit.material, indirect_hit.pos, indirect_hit.normal, seed + 20u);
             } else {
                 indirect_lighting = vec3<f32>(0.2);
+                // indirect_lighting = skybox(ray.dir, 10.0);
             }
         }
 
@@ -352,7 +353,8 @@ fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
             output_colour = last_frame_col.rgb;
         }
     } else {
-        output_colour = vec3<f32>(0.2);
+        // output_colour = vec3<f32>(0.2);
+        output_colour = skybox(ray.dir, 10.0);
     }
 
     if (u.freeze == 0u) {
