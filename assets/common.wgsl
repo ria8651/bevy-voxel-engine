@@ -80,6 +80,18 @@ fn ray_box_dist(r: Ray, vmin: vec3<f32>, vmax: vec3<f32>) -> vec2<f32> {
     return vec2(v7, v8);
 }
 
+fn ray_plane(r: Ray, pos: vec3<f32>, normal: vec3<f32>) -> vec3<f32> {
+    let denom = dot(normal, r.dir);
+    if (abs(denom) > 0.00001) {
+        let t = dot(normal, pos - r.pos) / denom;
+        if (t >= 0.0) {
+            let pos = r.pos + r.dir * t;
+            return pos;
+        }
+    }
+    return vec3(0.0);
+}
+
 fn in_bounds(v: vec3<f32>) -> bool {
     let s = step(vec3<f32>(-1.0), v) - step(vec3<f32>(1.0), v);
     return (s.x * s.y * s.z) > 0.5;

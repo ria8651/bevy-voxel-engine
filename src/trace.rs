@@ -107,12 +107,12 @@ impl Plugin for Tracer {
             show_ray_steps: false,
             indirect_lighting: false,
             shadows: true,
-            accumulation_frames: 20.0,
+            accumulation_frames: 1.0,
             freeze: false,
             enable_compute: true,
             skybox: false,
             misc_bool: false,
-            misc_float: 34.0,
+            misc_float: 1.0,
         };
 
         // println!(

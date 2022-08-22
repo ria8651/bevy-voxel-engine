@@ -196,32 +196,18 @@ fn shoot_ray(r: Ray) -> HitInfo {
     var jumped = false;
     while (steps < 1000u) {
         voxel = get_value(voxel_pos);
-        let should_portal_skip = voxel.data >> 15u == 1u;
-        if ((voxel.data & 0xFFu) != 0u && !should_portal_skip) {
-            break;
-        }
-
-        let voxel_size = 2.0 / f32(voxel.grid_size);
-        let t_max = (voxel.pos - pos + r_sign * voxel_size / 2.0) / dir;
-
-        // https://www.shadertoy.com/view/4dX3zl (good old shader toy)
-        let mask = vec3<f32>(t_max.xyz <= min(t_max.yzx, t_max.zxy));
-        normal = mask * -r_sign;
-
-        let t_current = min(min(t_max.x, t_max.y), t_max.z);
-        voxel_pos = pos + dir * t_current - normal * 0.000002;
 
         // portals
+        let should_portal_skip = voxel.data >> 15u == 1u;
         if (should_portal_skip && !jumped) {
             let portal = u.portals[i32((voxel.data >> 8u) & 127u)]; // 0b01111111u retreive the portal index before overwiting the voxel
-            voxel = get_value(voxel_pos);
-            if (voxel.data >> 15u != 1u) {
-                // for sides of portal
-                if ((voxel.data & 0xFFu) != 0u) {
-                    break;
-                }
+            let voxel_size = 2.0 / f32(u.texture_size);
 
-                let voxel_size = 2.0 / f32(u.texture_size);
+            // let thing = portal.normal;
+            let intersection = ray_plane(Ray(pos, dir), portal.pos, portal.normal);
+            let meh = abs(intersection - portal.pos);
+            if (max(meh.x, max(meh.y, meh.z)) < 4.0 * u.misc_float * voxel_size) {
+                voxel_pos = intersection;
 
                 let ray_rot_angle = acos(dot(portal.normal, portal.other_normal));
                 var ray_rot_axis: vec3<f32>;
@@ -235,7 +221,7 @@ fn shoot_ray(r: Ray) -> HitInfo {
                 let new_pos = (ray_rot_mat * (voxel_pos - portal.pos)) + portal.other_pos;
                 let new_dir = ray_rot_mat * dir;
 
-                // return HitInfo(true, voxel.data, vec4(portal.pos * 10.0, 0.0), voxel_pos, voxel_pos - reprojection_pos, normal, steps);
+                // return HitInfo(true, voxel.data, vec4(voxel_pos * 10.0, 0.0), voxel_pos, voxel_pos - reprojection_pos, normal, steps);
                 // return HitInfo(true, voxel.data, vec4(vec3(ray_rot_angle / u.misc_float / PI), 1.0), voxel_pos, voxel_pos - reprojection_pos, normal, steps);
 
                 reprojection_pos += new_pos - voxel_pos;
@@ -243,10 +229,27 @@ fn shoot_ray(r: Ray) -> HitInfo {
                 dir = new_dir;
                 r_sign = sign(dir);
 
-                // jumped = true;
+                jumped = true;
                 voxel_pos = pos;
+
+                voxel = get_value(voxel_pos);
             }
+
         }
+
+        if ((voxel.data & 0xFFu) != 0u && !should_portal_skip) {
+            break;
+        }
+
+        let voxel_size = 2.0 / f32(voxel.grid_size);
+        let t_max = (voxel.pos - pos + r_sign * voxel_size / 2.0) / dir;
+
+        // https://www.shadertoy.com/view/4dX3zl (good old shader toy)
+        let mask = vec3<f32>(t_max.xyz <= min(t_max.yzx, t_max.zxy));
+        normal = mask * -r_sign;
+
+        let t_current = min(min(t_max.x, t_max.y), t_max.z);
+        voxel_pos = pos + dir * t_current - normal * 0.000002;
 
         if (!in_bounds(voxel_pos)) {
             return intersect_scene(Ray(pos, dir), steps);
