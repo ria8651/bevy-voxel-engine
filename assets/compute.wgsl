@@ -3,11 +3,13 @@
 @group(0) @binding(0)
 var<uniform> u: Uniforms;
 @group(0) @binding(1)
-var<storage, read_write> gh: array<atomic<u32>>; // nodes
+var<storage, read_write> gh: array<atomic<u32>>;
 @group(0) @binding(2)
 var texture: texture_storage_3d<r16uint, read_write>;
 @group(0) @binding(3)
-var<storage, read> animation_data: array<u32>; // nodes
+var<storage, read_write> physics_data: array<u32>;
+@group(0) @binding(4)
+var<storage, read> animation_data: array<u32>;
 
 fn set_value_index(index: u32) {
     atomicOr(&gh[index / 32u], 1u << (index % 32u));
@@ -40,6 +42,38 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     }
 }
 
+@compute @workgroup_size(1, 1, 1)
+fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
+    let header_len = i32(physics_data[0]);
+    let dispatch_size = i32(ceil(pow(f32(header_len), 1.0 / 3.0)));
+
+    let pos = vec3(i32(invocation_id.x), i32(invocation_id.y), i32(invocation_id.z));
+    let index = pos.x * dispatch_size * dispatch_size + pos.y * dispatch_size + pos.z + 1;
+
+    if (index <= header_len) {
+        let data_index = i32(u32(physics_data[index]) & 0x00FFFFFFu);
+        let data_type = i32(u32(physics_data[index]) >> 24u);
+
+        var world_pos = vec3(
+            bitcast<f32>(physics_data[data_index + 0]),
+            bitcast<f32>(physics_data[data_index + 1]),
+            bitcast<f32>(physics_data[data_index + 2]),
+        );
+        if (data_type == 0) {
+            // bullet
+            let velocity = vec3(
+                bitcast<f32>(physics_data[data_index + 3]),
+                bitcast<f32>(physics_data[data_index + 4]),
+                bitcast<f32>(physics_data[data_index + 5]),
+            );
+            world_pos += velocity;
+        }
+        physics_data[data_index + 0] += bitcast<u32>(world_pos.x);
+        physics_data[data_index + 1] += bitcast<u32>(world_pos.y);
+        physics_data[data_index + 2] += bitcast<u32>(world_pos.z);
+    }
+}
+
 fn write_pos(pos: vec3<i32>, material: u32, data: u32) {
     let voxel_type = get_texture_value(pos.zyx);
     if (voxel_type.x == 0u) {
@@ -61,14 +95,14 @@ fn update_animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
         let data_type = i32(u32(animation_data[index]) >> 24u);
 
         let material = animation_data[data_index];
-        let world_pos = vec3(
+        let texture_pos = vec3(
             bitcast<i32>(animation_data[data_index + 1]),
             bitcast<i32>(animation_data[data_index + 2]),
             bitcast<i32>(animation_data[data_index + 3]),
         );
         if (data_type == 0) {
             // particle
-            write_pos(world_pos, material, 1u); // 0b00000001u
+            write_pos(texture_pos, material, 1u); // 0b00000001u
         } else if (data_type == 1) {
             // portal
             let portal_index = animation_data[data_index + 4];
@@ -80,8 +114,8 @@ fn update_animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
             for (var x = -half_size.x; x <= half_size.x; x++) {
                 for (var y = -half_size.y; y <= half_size.y; y++) {
                     for (var z = -half_size.z; z <= half_size.z; z++) {
-                        let world_pos = world_pos + vec3(x, y, z);
-                        write_pos(world_pos, material, 128u + portal_index); // 0b10000000u
+                        let texture_pos = texture_pos + vec3(x, y, z);
+                        write_pos(texture_pos, material, 128u + portal_index); // 0b10000000u
                     }
                 }
             }
@@ -99,7 +133,7 @@ fn update_animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                         if (abs(pos.x) == half_size.x || abs(pos.y) == half_size.y) {
                             if (abs(pos.x) == half_size.x || abs(pos.z) == half_size.z) {
                                 if (abs(pos.y) == half_size.y || abs(pos.z) == half_size.z) {
-                                    write_pos(world_pos + pos, material, 1u); // 0b00000001u
+                                    write_pos(texture_pos + pos, material, 1u); // 0b00000001u
                                 }
                             }
                         }

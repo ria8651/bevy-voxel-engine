@@ -1,5 +1,6 @@
 use bevy::{asset::AssetServerSettings, prelude::*};
-use compute::{Edges, Particle, Portal};
+use character::CharacterEntity;
+use compute::{Edges, Particle, Portal, Bullet};
 use rand::Rng;
 
 mod character;
@@ -35,25 +36,42 @@ fn main() {
         .add_plugin(ui::UiPlugin)
         .add_plugin(compute::ComputePlugin)
         .add_startup_system(setup)
-        .add_system(update_particles)
+        .add_system(shoot)
+        // .add_system(update_particles)
         .run();
+}
+
+fn shoot(
+    mut commands: Commands,
+    input: Res<Input<MouseButton>>,
+    character: Query<&Transform, With<CharacterEntity>>,
+) {
+    let character = character.single();
+
+    if input.just_pressed(MouseButton::Left) {
+        commands.spawn_bundle((
+            Transform::from_translation(character.translation).with_rotation(character.rotation),
+            Particle { material: 41 },
+            Bullet { velocity: character.local_z() * 0.1 },
+        ));
+    }
 }
 
 // world space cordinates are in terms of 4 voxels per meter with 0, 0
 // in the world lining up with the center of the voxel world (ie 0, 0, 0 in the render world)
 fn setup(mut commands: Commands) {
-    commands.spawn_bundle((
-        Portal {
-            material: 1,
-            half_size: IVec3::new(4, 4, 0),
-            normal: Vec3::new(0.0, 0.0, 1.0),
-        },
-        Edges {
-            material: 23,
-            half_size: IVec3::new(5, 5, 0),
-        },
-        Transform::from_xyz(3.0, 5.0, 0.0),
-    ));
+    // commands.spawn_bundle((
+    //     Portal {
+    //         material: 1,
+    //         half_size: IVec3::new(4, 4, 0),
+    //         normal: Vec3::new(0.0, 0.0, 1.0),
+    //     },
+    //     Edges {
+    //         material: 23,
+    //         half_size: IVec3::new(5, 5, 0),
+    //     },
+    //     Transform::from_xyz(3.0, 5.0, 0.0),
+    // ));
     // commands.spawn_bundle((
     //     Portal {
     //         material: 1,
@@ -66,7 +84,7 @@ fn setup(mut commands: Commands) {
     //     },
     //     Transform::from_xyz(-3.0, 5.0, 0.0),
     // ));
-    
+
     // commands.spawn_bundle((
     //     Portal {
     //         material: 1,
@@ -91,7 +109,7 @@ fn setup(mut commands: Commands) {
     //     },
     //     Transform::from_xyz(0.0, 2.0, -3.0),
     // ));
-    
+
     // commands.spawn_bundle((
     //     Portal {
     //         material: 1,
@@ -116,7 +134,7 @@ fn setup(mut commands: Commands) {
     //     },
     //     Transform::from_xyz(0.0, 8.0, -3.0),
     // ));
-    
+
     // commands.spawn_bundle((
     //     Portal {
     //         material: 1,
@@ -143,13 +161,13 @@ fn setup(mut commands: Commands) {
     // ));
 }
 
-fn update_particles(mut particle_query: Query<&mut Transform, With<Particle>>) {
-    particle_query.par_for_each_mut(32, |mut particle| {
-        let mut rng = rand::thread_rng();
-        particle.translation += Vec3::new(
-            rng.gen_range(-1.0..=1.0) * 0.25,
-            rng.gen_range(-1.0..=1.0) * 0.25,
-            rng.gen_range(-1.0..=1.0) * 0.25,
-        );
-    });
-}
+// fn update_particles(mut particle_query: Query<&mut Transform, With<Particle>>) {
+//     particle_query.par_for_each_mut(32, |mut particle| {
+//         let mut rng = rand::thread_rng();
+//         particle.translation += Vec3::new(
+//             rng.gen_range(-1.0..=1.0) * 0.25,
+//             rng.gen_range(-1.0..=1.0) * 0.25,
+//             rng.gen_range(-1.0..=1.0) * 0.25,
+//         );
+//     });
+// }

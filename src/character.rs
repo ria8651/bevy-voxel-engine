@@ -4,7 +4,7 @@ const SPEED: f32 = 10.0;
 const SENSITIVITY: f32 = 0.004;
 
 #[derive(Component)]
-struct CharacterEntity {
+pub struct CharacterEntity {
     velocity: Vec3,
     rotation: Vec2,
 }

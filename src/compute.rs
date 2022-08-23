@@ -21,6 +21,13 @@ impl Plugin for ComputePlugin {
         let render_device = app.world.resource::<RenderDevice>();
 
         // compute data buffer
+        let physics_data = render_device.create_buffer_with_data(&BufferInitDescriptor {
+            contents: bytemuck::cast_slice(&vec![0u32; MAX_ANIMATION_DATA]),
+            label: None,
+            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
+        });
+
+        // compute data buffer
         let animation_data = render_device.create_buffer_with_data(&BufferInitDescriptor {
             contents: bytemuck::cast_slice(&vec![0u32; MAX_ANIMATION_DATA]),
             label: None,
@@ -29,23 +36,22 @@ impl Plugin for ComputePlugin {
 
         // setup render world
         app.add_system(extract_animation_data)
+            .add_system(extract_physics_data)
             .add_plugin(ExtractResourcePlugin::<ExtractedGH>::default())
-            .add_plugin(ExtractResourcePlugin::<ExtractedAnimationData>::default());
+            .add_plugin(ExtractResourcePlugin::<ExtractedAnimationData>::default())
+            .add_plugin(ExtractResourcePlugin::<ExtractedPhysicsData>::default());
 
         app.sub_app_mut(RenderApp)
             .init_resource::<ComputePipeline>()
-            .insert_resource(ComputeMeta { animation_data })
+            .insert_resource(ComputeMeta { physics_data, animation_data })
             .add_system_to_stage(RenderStage::Queue, queue_bind_group);
 
         // setup render graph
         let render_app = app.sub_app_mut(RenderApp);
         let mut render_graph = render_app.world.resource_mut::<RenderGraph>();
-        render_graph.add_node("game_of_life", ComputeNode::default());
+        render_graph.add_node("compute", ComputeNode::default());
         render_graph
-            .add_node_edge(
-                "game_of_life",
-                bevy::render::main_graph::node::CAMERA_DRIVER,
-            )
+            .add_node_edge("compute", bevy::render::main_graph::node::CAMERA_DRIVER)
             .unwrap();
     }
 }
@@ -69,8 +75,18 @@ pub struct Edges {
     pub half_size: IVec3,
 }
 
+#[derive(Component)]
+pub struct Bullet {
+    pub velocity: Vec3,
+}
+
 #[derive(Clone, ExtractResource)]
 struct ExtractedAnimationData {
+    data: Vec<u32>,
+}
+
+#[derive(Clone, ExtractResource)]
+struct ExtractedPhysicsData {
     data: Vec<u32>,
 }
 
@@ -156,15 +172,15 @@ fn extract_animation_data(
         if i % 2 == 1 {
             let second = (transform, portal);
 
-            let voxel_size = 2.0 / uniforms.texture_size as f32;
+            // let voxel_size = 2.0 / uniforms.texture_size as f32;
 
             let first_normal = first.unwrap().1.normal;
             let second_normal = second.1.normal;
 
             let first_pos = world_to_render(first.unwrap().0.translation, uniforms.texture_size);
-                // + voxel_size * first_normal / 2.0;
+            // + voxel_size * first_normal / 2.0;
             let second_pos = world_to_render(second.0.translation, uniforms.texture_size);
-                // + voxel_size * second_normal / 2.0;
+            // + voxel_size * second_normal / 2.0;
 
             uniforms.portals[i - 1] = ExtractedPortal {
                 pos: [first_pos.x, first_pos.y, first_pos.z, 0.0],
@@ -186,7 +202,41 @@ fn extract_animation_data(
     commands.insert_resource(ExtractedAnimationData { data });
 }
 
+fn extract_physics_data(
+    mut commands: Commands,
+    bullet_query: Query<(&Transform, &Bullet)>,
+) {
+    let mut header = Vec::new();
+    let mut physics_data: Vec<u32> = Vec::new();
+
+    // add bullets
+    for (transform, bullet) in bullet_query.iter() {
+        header.push(physics_data.len() as u32 | (0 << 24));
+        // physics_data.push(particle.material as u32);
+        physics_data.push(bytemuck::cast(transform.translation.x));
+        physics_data.push(bytemuck::cast(transform.translation.y));
+        physics_data.push(bytemuck::cast(transform.translation.z));
+        physics_data.push(bytemuck::cast(bullet.velocity.x));
+        physics_data.push(bytemuck::cast(bullet.velocity.y));
+        physics_data.push(bytemuck::cast(bullet.velocity.z));
+    }
+
+    // move all the pointers based on the header length
+    let offset = header.len() + 1;
+    for i in 0..header.len() {
+        header[i] += offset as u32;
+    }
+
+    // combine the header and animation data
+    let mut data = vec![header.len() as u32];
+    data.extend(header);
+    data.extend(physics_data);
+
+    commands.insert_resource(ExtractedPhysicsData { data });
+}
+
 struct ComputeMeta {
+    physics_data: Buffer,
     animation_data: Buffer,
 }
 
@@ -264,6 +314,7 @@ impl render_graph::Node for ComputeNode {
         let compute_meta = world.resource::<ComputeMeta>();
         let extracted_gh = world.resource::<ExtractedGH>();
         let extracted_animation_data = world.resource::<ExtractedAnimationData>();
+        let extracted_physics_data = world.resource::<ExtractedPhysicsData>();
         let uniforms = world.resource::<trace::ExtractedUniforms>();
 
         let mut pass = render_context
@@ -278,6 +329,11 @@ impl render_graph::Node for ComputeNode {
             ComputeState::Init | ComputeState::Update => {
                 if uniforms.enable_compute != 0 || self.state == ComputeState::Init {
                     render_queue.write_buffer(
+                        &compute_meta.physics_data,
+                        0,
+                        bytemuck::cast_slice(&extracted_physics_data.data),
+                    );
+                    render_queue.write_buffer(
                         &compute_meta.animation_data,
                         0,
                         bytemuck::cast_slice(&extracted_animation_data.data),
@@ -290,6 +346,9 @@ impl render_graph::Node for ComputeNode {
 
                     let update_pipeline = pipeline_cache
                         .get_compute_pipeline(pipeline.update_pipeline)
+                        .unwrap();
+                    let physics_pipeline = pipeline_cache
+                        .get_compute_pipeline(pipeline.physics_pipeline)
                         .unwrap();
                     let animation_pipeline = pipeline_cache
                         .get_compute_pipeline(pipeline.animation_pipeline)
@@ -306,9 +365,18 @@ impl render_graph::Node for ComputeNode {
                     );
 
                     let dispatch_size =
+                        (extracted_physics_data.data[0] as f32).cbrt().ceil() as u32;
+                    if dispatch_size > 0 {
+                        pass.set_pipeline(physics_pipeline);
+                        pass.dispatch_workgroups(dispatch_size, dispatch_size, dispatch_size);
+                    }
+
+                    let dispatch_size =
                         (extracted_animation_data.data[0] as f32).cbrt().ceil() as u32;
-                    pass.set_pipeline(animation_pipeline);
-                    pass.dispatch_workgroups(dispatch_size, dispatch_size, dispatch_size);
+                    if dispatch_size > 0 {
+                        pass.set_pipeline(animation_pipeline);
+                        pass.dispatch_workgroups(dispatch_size, dispatch_size, dispatch_size);
+                    }
 
                     pass.set_pipeline(rebuild_pipeline);
                     pass.dispatch_workgroups(
@@ -327,6 +395,7 @@ impl render_graph::Node for ComputeNode {
 struct ComputePipeline {
     compute_bind_group_layout: BindGroupLayout,
     update_pipeline: CachedComputePipelineId,
+    physics_pipeline: CachedComputePipelineId,
     animation_pipeline: CachedComputePipelineId,
     rebuild_pipeline: CachedComputePipelineId,
 }
@@ -375,6 +444,16 @@ impl FromWorld for ComputePipeline {
                         binding: 3,
                         visibility: ShaderStages::COMPUTE,
                         ty: BindingType::Buffer {
+                            ty: BufferBindingType::Storage { read_only: false },
+                            has_dynamic_offset: false,
+                            min_binding_size: BufferSize::new(4),
+                        },
+                        count: None,
+                    },
+                    BindGroupLayoutEntry {
+                        binding: 4,
+                        visibility: ShaderStages::COMPUTE,
+                        ty: BindingType::Buffer {
                             ty: BufferBindingType::Storage { read_only: true },
                             has_dynamic_offset: false,
                             min_binding_size: BufferSize::new(4),
@@ -395,6 +474,13 @@ impl FromWorld for ComputePipeline {
             shader_defs: vec![],
             entry_point: Cow::from("update"),
         });
+        let physics_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
+            label: None,
+            layout: Some(vec![compute_bind_group_layout.clone()]),
+            shader: compute_shader.clone(),
+            shader_defs: vec![],
+            entry_point: Cow::from("update_physics"),
+        });
         let animation_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
             label: None,
             layout: Some(vec![compute_bind_group_layout.clone()]),
@@ -413,6 +499,7 @@ impl FromWorld for ComputePipeline {
         ComputePipeline {
             compute_bind_group_layout,
             update_pipeline,
+            physics_pipeline,
             animation_pipeline,
             rebuild_pipeline,
         }
@@ -446,6 +533,10 @@ fn queue_bind_group(
             },
             BindGroupEntry {
                 binding: 3,
+                resource: compute_meta.physics_data.as_entire_binding(),
+            },
+            BindGroupEntry {
+                binding: 4,
                 resource: compute_meta.animation_data.as_entire_binding(),
             },
         ],
