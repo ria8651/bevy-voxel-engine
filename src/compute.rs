@@ -10,7 +10,7 @@ use bevy::{
         RenderApp, RenderStage,
     },
 };
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::HashMap};
 
 const MAX_ANIMATION_DATA: usize = 1024000;
 
@@ -24,7 +24,7 @@ impl Plugin for ComputePlugin {
         let physics_data = render_device.create_buffer_with_data(&BufferInitDescriptor {
             contents: bytemuck::cast_slice(&vec![0u32; MAX_ANIMATION_DATA]),
             label: None,
-            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
+            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST | BufferUsages::MAP_READ,
         });
 
         // compute data buffer
@@ -34,16 +34,22 @@ impl Plugin for ComputePlugin {
             usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
         });
 
-        // setup render world
+        // setup world
         app.add_system(extract_animation_data)
             .add_system(extract_physics_data)
+            .insert_resource(ComputeMeta {
+                physics_data,
+                animation_data,
+            })
+            .insert_resource(ExtractedPhysicsData { data: Vec::new(), entities: HashMap::new() })
             .add_plugin(ExtractResourcePlugin::<ExtractedGH>::default())
             .add_plugin(ExtractResourcePlugin::<ExtractedAnimationData>::default())
-            .add_plugin(ExtractResourcePlugin::<ExtractedPhysicsData>::default());
+            .add_plugin(ExtractResourcePlugin::<ExtractedPhysicsData>::default())
+            .add_plugin(ExtractResourcePlugin::<ComputeMeta>::default());
 
+        // setup render world
         app.sub_app_mut(RenderApp)
             .init_resource::<ComputePipeline>()
-            .insert_resource(ComputeMeta { physics_data, animation_data })
             .add_system_to_stage(RenderStage::Queue, queue_bind_group);
 
         // setup render graph
@@ -88,6 +94,7 @@ struct ExtractedAnimationData {
 #[derive(Clone, ExtractResource)]
 struct ExtractedPhysicsData {
     data: Vec<u32>,
+    entities: HashMap<Entity, usize>,
 }
 
 const VOXELS_PER_METER: u32 = 4;
@@ -203,16 +210,58 @@ fn extract_animation_data(
 }
 
 fn extract_physics_data(
-    mut commands: Commands,
-    bullet_query: Query<(&Transform, &Bullet)>,
+    mut bullet_query: Query<(&mut Transform, &mut Bullet, Entity)>,
+    mut extracted_physics_data: ResMut<ExtractedPhysicsData>,
+    compute_meta: Res<ComputeMeta>,
+    render_device: Res<RenderDevice>,
 ) {
+    // process last frames physics data
+    if extracted_physics_data.data.len() > 1 {
+        let buffer_slice = compute_meta
+            .physics_data
+            .slice(..extracted_physics_data.data.len() as u64 * 4);
+
+        buffer_slice.map_async(wgpu::MapMode::Read, |_| {});
+
+        render_device.poll(wgpu::Maintain::Wait);
+
+        let data = buffer_slice.get_mapped_range();
+        let result: Vec<u32> = bytemuck::cast_slice(&data).to_vec();
+
+        drop(data);
+        compute_meta.physics_data.unmap();
+
+        println!("{:?}", extracted_physics_data.data);
+        println!("{:?}", result);
+
+        for (mut transform, mut bullet, entity) in bullet_query.iter_mut() {
+            if let Some(index) = extracted_physics_data.entities.get(&entity) {
+                let data_index = result[index + 1] as usize;
+                transform.translation = Vec3::new(
+                    bytemuck::cast(result[data_index + 0]),
+                    bytemuck::cast(result[data_index + 1]),
+                    bytemuck::cast(result[data_index + 2]),
+                );
+                bullet.velocity = Vec3::new(
+                    bytemuck::cast(result[data_index + 3]),
+                    bytemuck::cast(result[data_index + 4]),
+                    bytemuck::cast(result[data_index + 5]),
+                );
+            }
+        }
+    }
+
+
+    // setup next frames physics data
     let mut header = Vec::new();
     let mut physics_data: Vec<u32> = Vec::new();
+    let mut entities = HashMap::new();
 
     // add bullets
-    for (transform, bullet) in bullet_query.iter() {
+    for (transform, bullet, entity) in bullet_query.iter() {
+        entities.insert(entity, header.len());
+
         header.push(physics_data.len() as u32 | (0 << 24));
-        // physics_data.push(particle.material as u32);
         physics_data.push(bytemuck::cast(transform.translation.x));
         physics_data.push(bytemuck::cast(transform.translation.y));
         physics_data.push(bytemuck::cast(transform.translation.z));
@@ -232,9 +281,11 @@ fn extract_physics_data(
     data.extend(header);
     data.extend(physics_data);
 
-    commands.insert_resource(ExtractedPhysicsData { data });
+    extracted_physics_data.data = data;
+    extracted_physics_data.entities = entities;
 }
 
+#[derive(Clone, ExtractResource)]
 struct ComputeMeta {
     physics_data: Buffer,
     animation_data: Buffer,
@@ -310,6 +361,7 @@ impl render_graph::Node for ComputeNode {
         let pipeline_cache = world.resource::<PipelineCache>();
         let pipeline = world.resource::<ComputePipeline>();
         let render_queue = world.resource::<RenderQueue>();
+        // let render_device = world.resource::<RenderDevice>();
         let trace_meta = world.resource::<trace::TraceMeta>();
         let compute_meta = world.resource::<ComputeMeta>();
         let extracted_gh = world.resource::<ExtractedGH>();

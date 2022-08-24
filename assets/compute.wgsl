@@ -68,9 +68,9 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
             );
             world_pos += velocity;
         }
-        physics_data[data_index + 0] += bitcast<u32>(world_pos.x);
-        physics_data[data_index + 1] += bitcast<u32>(world_pos.y);
-        physics_data[data_index + 2] += bitcast<u32>(world_pos.z);
+        physics_data[data_index + 0] = bitcast<u32>(world_pos.x);
+        physics_data[data_index + 1] = bitcast<u32>(world_pos.y);
+        physics_data[data_index + 2] = bitcast<u32>(world_pos.z);
     }
 }
 
