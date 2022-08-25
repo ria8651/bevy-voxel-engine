@@ -134,7 +134,8 @@ impl TypeBuffer {
         // The closure takes an `i32` and returns an `i32`.
         F: Fn(&mut Self),
     {
-        self.header.push(self.data.len() as u32 | (object_type << 24));
+        self.header
+            .push(self.data.len() as u32 | (object_type << 24));
         function(self);
     }
 
@@ -147,7 +148,7 @@ impl TypeBuffer {
         self.data.push(bytemuck::cast(value.y));
         self.data.push(bytemuck::cast(value.z));
     }
-    
+
     fn push_ivec3(&mut self, value: IVec3) {
         self.data.push(bytemuck::cast(value.x));
         self.data.push(bytemuck::cast(value.y));
@@ -215,36 +216,50 @@ fn extract_animation_data(
     let mut first: Option<(&Transform, &Portal)> = None;
     for (transform, portal) in portal_query.iter() {
         if i % 2 == 1 {
+            let first = first.unwrap();
             let second = (transform, portal);
 
-            // let voxel_size = 2.0 / uniforms.texture_size as f32;
-
-            let first_normal = first.unwrap().1.normal;
+            let first_normal = first.1.normal;
             let second_normal = second.1.normal;
 
-            let first_pos = world_to_render(first.unwrap().0.translation, uniforms.texture_size);
-            // + voxel_size * first_normal / 2.0;
-            let second_pos = world_to_render(second.0.translation, uniforms.texture_size);
-            // + voxel_size * second_normal / 2.0;
+            let voxel_size = 2.0 / uniforms.texture_size as f32;
+            let first_pos =
+                world_to_render(first.0.translation, uniforms.texture_size) + voxel_size / 2.0;
+            let second_pos =
+                world_to_render(second.0.translation, uniforms.texture_size) + voxel_size / 2.0;
 
             uniforms.portals[i - 1] = ExtractedPortal {
                 pos: [first_pos.x, first_pos.y, first_pos.z, 0.0],
                 other_pos: [second_pos.x, second_pos.y, second_pos.z, 0.0],
                 normal: [first_normal.x, first_normal.y, first_normal.z, 0.0],
                 other_normal: [second_normal.x, second_normal.y, second_normal.z, 0.0],
+                half_size: [
+                    first.1.half_size.x,
+                    first.1.half_size.y,
+                    first.1.half_size.z,
+                    0,
+                ],
             };
             uniforms.portals[i] = ExtractedPortal {
                 pos: [second_pos.x, second_pos.y, second_pos.z, 0.0],
                 other_pos: [first_pos.x, first_pos.y, first_pos.z, 0.0],
                 normal: [second_normal.x, second_normal.y, second_normal.z, 0.0],
                 other_normal: [first_normal.x, first_normal.y, first_normal.z, 0.0],
+                half_size: [
+                    second.1.half_size.x,
+                    second.1.half_size.y,
+                    second.1.half_size.z,
+                    0,
+                ],
             };
         }
         first = Some((transform, portal));
         i += 1;
     }
 
-    commands.insert_resource(ExtractedAnimationData { data: type_buffer.finish() });
+    commands.insert_resource(ExtractedAnimationData {
+        data: type_buffer.finish(),
+    });
 }
 
 fn extract_physics_data(

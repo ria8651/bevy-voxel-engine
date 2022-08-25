@@ -187,6 +187,7 @@ pub struct ExtractedPortal {
     pub other_pos: [f32; 4],
     pub normal: [f32; 4],
     pub other_normal: [f32; 4],
+    pub half_size: [i32; 4],
 }
 
 pub struct Uniforms {

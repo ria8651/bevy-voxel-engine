@@ -35,7 +35,7 @@ fn main() {
         .add_plugin(trace::Tracer)
         .add_plugin(ui::UiPlugin)
         .add_plugin(compute::ComputePlugin)
-        // .add_startup_system(setup)
+        .add_startup_system(setup)
         .add_system(shoot)
         // .add_system(update_particles)
         .run();
@@ -59,107 +59,57 @@ fn shoot(
 
 // world space cordinates are in terms of 4 voxels per meter with 0, 0
 // in the world lining up with the center of the voxel world (ie 0, 0, 0 in the render world)
-// fn setup(mut commands: Commands) {
-//     commands.spawn_bundle((
-//         Portal {
-//             material: 1,
-//             half_size: IVec3::new(4, 4, 0),
-//             normal: Vec3::new(0.0, 0.0, 1.0),
-//         },
-//         Edges {
-//             material: 23,
-//             half_size: IVec3::new(5, 5, 0),
-//         },
-//         Transform::from_xyz(3.0, 5.0, 0.0),
-//     ));
-//     commands.spawn_bundle((
-//         Portal {
-//             material: 1,
-//             half_size: IVec3::new(4, 4, 0),
-//             normal: Vec3::new(0.0, 0.0, 1.0),
-//         },
-//         Edges {
-//             material: 22,
-//             half_size: IVec3::new(5, 5, 0),
-//         },
-//         Transform::from_xyz(-3.0, 5.0, 0.0),
-//     ));
-
-//     commands.spawn_bundle((
-//         Portal {
-//             material: 1,
-//             half_size: IVec3::new(0, 4, 4),
-//             normal: Vec3::new(1.0, 0.0, 0.0),
-//         },
-//         Edges {
-//             material: 23,
-//             half_size: IVec3::new(0, 5, 5),
-//         },
-//         Transform::from_xyz(-3.0, 2.0, 0.0),
-//     ));
-//     commands.spawn_bundle((
-//         Portal {
-//             material: 1,
-//             half_size: IVec3::new(4, 4, 0),
-//             normal: Vec3::new(0.0, 0.0, 1.0),
-//         },
-//         Edges {
-//             material: 22,
-//             half_size: IVec3::new(5, 5, 0),
-//         },
-//         Transform::from_xyz(0.0, 2.0, -3.0),
-//     ));
-
-//     commands.spawn_bundle((
-//         Portal {
-//             material: 1,
-//             half_size: IVec3::new(4, 4, 0),
-//             normal: Vec3::new(0.0, 0.0, -1.0),
-//         },
-//         Edges {
-//             material: 23,
-//             half_size: IVec3::new(5, 5, 0),
-//         },
-//         Transform::from_xyz(0.0, 8.0, 3.0),
-//     ));
-//     commands.spawn_bundle((
-//         Portal {
-//             material: 1,
-//             half_size: IVec3::new(4, 4, 0),
-//             normal: Vec3::new(0.0, 0.0, 1.0),
-//         },
-//         Edges {
-//             material: 22,
-//             half_size: IVec3::new(5, 5, 0),
-//         },
-//         Transform::from_xyz(0.0, 8.0, -3.0),
-//     ));
-
-//     commands.spawn_bundle((
-//         Portal {
-//             material: 1,
-//             half_size: IVec3::new(0, 4, 4),
-//             normal: Vec3::new(-1.0, 0.0, 0.0),
-//         },
-//         Edges {
-//             material: 23,
-//             half_size: IVec3::new(0, 5, 5),
-//         },
-//         Transform::from_xyz(3.0, 8.0, 0.0),
-//     ));
-//     commands.spawn_bundle((
-//         Portal {
-//             material: 1,
-//             half_size: IVec3::new(0, 4, 4),
-//             normal: Vec3::new(1.0, 0.0, 0.0),
-//         },
-//         Edges {
-//             material: 22,
-//             half_size: IVec3::new(0, 5, 5),
-//         },
-//         Transform::from_xyz(-3.0, 8.0, 0.0),
-//     ));
-// }
+fn setup(mut commands: Commands) {
+    commands.spawn_bundle((
+        Portal {
+            material: 1,
+            half_size: IVec3::new(0, 4, 3),
+            normal: Vec3::new(1.0, 0.0, 0.0),
+        },
+        Edges {
+            material: 23,
+            half_size: IVec3::new(0, 5, 4),
+        },
+        Transform::from_xyz(3.0, 2.0, 0.0),
+    ));
+    commands.spawn_bundle((
+        Portal {
+            material: 1,
+            half_size: IVec3::new(3, 4, 0),
+            normal: Vec3::new(0.0, 0.0, 1.0),
+        },
+        Edges {
+            material: 22,
+            half_size: IVec3::new(4, 5, 0),
+        },
+        Transform::from_xyz(0.0, 2.0, 3.0),
+    ));
+    
+    commands.spawn_bundle((
+        Portal {
+            material: 1,
+            half_size: IVec3::new(0, 1, 1),
+            normal: Vec3::new(1.0, 0.0, 0.0),
+        },
+        Edges {
+            material: 23,
+            half_size: IVec3::new(0, 2, 2),
+        },
+        Transform::from_xyz(3.0, 5.0, 0.0),
+    ));
+    commands.spawn_bundle((
+        Portal {
+            material: 1,
+            half_size: IVec3::new(1, 1, 0),
+            normal: Vec3::new(0.0, 0.0, 1.0),
+        },
+        Edges {
+            material: 22,
+            half_size: IVec3::new(2, 2, 0),
+        },
+        Transform::from_xyz(0.0, 5.0, 3.0),
+    ));
+}
 
 // fn update_particles(mut particle_query: Query<&mut Transform, With<Particle>>) {
 //     particle_query.par_for_each_mut(32, |mut particle| {

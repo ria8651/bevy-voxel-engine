@@ -3,6 +3,7 @@ struct Portal {
     other_pos: vec3<f32>,
     normal: vec3<f32>,
     other_normal: vec3<f32>,
+    half_size: vec3<i32>,
 }
 
 struct Uniforms {

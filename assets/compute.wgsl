@@ -67,7 +67,7 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                 bitcast<f32>(physics_data[data_index + 5]),
             );
 
-            velocity += vec3(0.0, -20.0, 0.0) * u.delta_time;
+            velocity += vec3(0.0, -9.81, 0.0) * u.delta_time;
             world_pos += velocity * u.delta_time;
             
             physics_data[data_index + 3] = bitcast<u32>(velocity.x);
