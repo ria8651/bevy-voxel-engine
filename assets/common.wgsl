@@ -15,6 +15,7 @@ struct Uniforms {
     levels: array<vec4<u32>, 2>,
     offsets: array<vec4<u32>, 2>,
     time: f32,
+    delta_time: f32,
     texture_size: u32,
     show_ray_steps: u32,
     indirect_lighting: u32,

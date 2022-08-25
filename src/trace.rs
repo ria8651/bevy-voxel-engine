@@ -103,6 +103,7 @@ impl Plugin for Tracer {
             levels: gh.levels,
             offsets: gh.get_offsets(),
             time: 0.0,
+            delta_time: 0.0,
             texture_size: gh.texture_size,
             show_ray_steps: false,
             indirect_lighting: false,
@@ -198,6 +199,7 @@ pub struct Uniforms {
     pub levels: [u32; 8],
     pub offsets: [u32; 8],
     pub time: f32,
+    pub delta_time: f32,
     pub texture_size: u32,
     pub show_ray_steps: bool,
     pub indirect_lighting: bool,
@@ -222,6 +224,7 @@ pub struct ExtractedUniforms {
     levels: [u32; 8],
     offsets: [u32; 8],
     time: f32,
+    delta_time: f32,
     texture_size: u32,
     show_ray_steps: u32,
     indirect_lighting: u32,
@@ -232,7 +235,7 @@ pub struct ExtractedUniforms {
     skybox: u32,
     misc_bool: u32,
     misc_float: f32,
-    padding: [u32; 1],
+    // padding: [u32; 1],
 }
 
 impl ExtractResource for ExtractedUniforms {
@@ -249,6 +252,7 @@ impl ExtractResource for ExtractedUniforms {
             levels: uniforms.levels,
             offsets: uniforms.offsets,
             time: uniforms.time,
+            delta_time: uniforms.delta_time,
             texture_size: uniforms.texture_size,
             show_ray_steps: uniforms.show_ray_steps as u32,
             indirect_lighting: uniforms.indirect_lighting as u32,
@@ -259,7 +263,7 @@ impl ExtractResource for ExtractedUniforms {
             skybox: uniforms.skybox as u32,
             misc_bool: uniforms.misc_bool as u32,
             misc_float: uniforms.misc_float,
-            padding: [0; 1],
+            // padding: [0; 1],
         }
     }
 }
@@ -296,6 +300,7 @@ fn update_uniforms(
 
     shader_timer.0.tick(time.delta());
     uniforms.time = shader_timer.0.elapsed_secs();
+    uniforms.delta_time = time.delta_seconds();
 }
 
 // write the extracted time into the corresponding uniform buffer

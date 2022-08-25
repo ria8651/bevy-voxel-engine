@@ -61,12 +61,18 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
         );
         if (data_type == 0) {
             // bullet
-            let velocity = vec3(
+            var velocity = vec3(
                 bitcast<f32>(physics_data[data_index + 3]),
                 bitcast<f32>(physics_data[data_index + 4]),
                 bitcast<f32>(physics_data[data_index + 5]),
             );
-            world_pos += velocity;
+
+            velocity += vec3(0.0, -20.0, 0.0) * u.delta_time;
+            world_pos += velocity * u.delta_time;
+            
+            physics_data[data_index + 3] = bitcast<u32>(velocity.x);
+            physics_data[data_index + 4] = bitcast<u32>(velocity.y);
+            physics_data[data_index + 5] = bitcast<u32>(velocity.z);
         }
         physics_data[data_index + 0] = bitcast<u32>(world_pos.x);
         physics_data[data_index + 1] = bitcast<u32>(world_pos.y);

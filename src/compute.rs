@@ -41,7 +41,10 @@ impl Plugin for ComputePlugin {
                 physics_data,
                 animation_data,
             })
-            .insert_resource(ExtractedPhysicsData { data: Vec::new(), entities: HashMap::new() })
+            .insert_resource(ExtractedPhysicsData {
+                data: Vec::new(),
+                entities: HashMap::new(),
+            })
             .add_plugin(ExtractResourcePlugin::<ExtractedGH>::default())
             .add_plugin(ExtractResourcePlugin::<ExtractedAnimationData>::default())
             .add_plugin(ExtractResourcePlugin::<ExtractedPhysicsData>::default())
@@ -97,6 +100,61 @@ struct ExtractedPhysicsData {
     entities: HashMap<Entity, usize>,
 }
 
+#[derive(Clone)]
+struct TypeBuffer {
+    header: Vec<u32>,
+    data: Vec<u32>,
+}
+
+impl TypeBuffer {
+    fn new() -> Self {
+        Self {
+            data: Vec::new(),
+            header: Vec::new(),
+        }
+    }
+
+    fn finish(mut self) -> Vec<u32> {
+        // move all the pointers based on the header length
+        let offset = self.header.len() + 1;
+        for i in 0..self.header.len() {
+            self.header[i] += offset as u32;
+        }
+
+        // combine the header and animation data
+        let mut data = vec![self.header.len() as u32];
+        data.extend(self.header);
+        data.extend(self.data);
+
+        return data;
+    }
+
+    fn push_object<F>(&mut self, object_type: u32, function: F)
+    where
+        // The closure takes an `i32` and returns an `i32`.
+        F: Fn(&mut Self),
+    {
+        self.header.push(self.data.len() as u32 | (object_type << 24));
+        function(self);
+    }
+
+    fn push_u32(&mut self, value: u32) {
+        self.data.push(bytemuck::cast(value));
+    }
+
+    fn push_vec3(&mut self, value: Vec3) {
+        self.data.push(bytemuck::cast(value.x));
+        self.data.push(bytemuck::cast(value.y));
+        self.data.push(bytemuck::cast(value.z));
+    }
+    
+    fn push_ivec3(&mut self, value: IVec3) {
+        self.data.push(bytemuck::cast(value.x));
+        self.data.push(bytemuck::cast(value.y));
+        self.data.push(bytemuck::cast(value.z));
+    }
+}
+
 const VOXELS_PER_METER: u32 = 4;
 
 pub fn world_to_voxel(world_pos: Vec3, voxel_world_size: u32) -> IVec3 {
@@ -115,61 +173,41 @@ fn extract_animation_data(
     edges_query: Query<(&Transform, &Edges)>,
     mut uniforms: ResMut<trace::Uniforms>,
 ) {
-    let mut header = Vec::new();
-    let mut animation_data = Vec::new();
+    let mut type_buffer = TypeBuffer::new();
 
     let voxel_world_size = uniforms.texture_size;
 
     // add particles
     for (transform, particle) in particle_query.iter() {
         let pos = world_to_voxel(transform.translation, voxel_world_size);
-        header.push(animation_data.len() as u32 | (0 << 24));
-        animation_data.push(particle.material as u32);
-        animation_data.push(bytemuck::cast(pos.x));
-        animation_data.push(bytemuck::cast(pos.y));
-        animation_data.push(bytemuck::cast(pos.z));
+        type_buffer.push_object(0, |type_buffer| {
+            type_buffer.push_u32(particle.material as u32);
+            type_buffer.push_ivec3(pos);
+        });
     }
 
     // add portals
     let mut i = 0;
     for (transform, portal) in portal_query.iter() {
         let pos = world_to_voxel(transform.translation, voxel_world_size);
-        header.push(animation_data.len() as u32 | (1 << 24));
-        animation_data.push(portal.material as u32);
-        animation_data.push(bytemuck::cast(pos.x));
-        animation_data.push(bytemuck::cast(pos.y));
-        animation_data.push(bytemuck::cast(pos.z));
-        animation_data.push(i);
-        animation_data.push(bytemuck::cast(portal.half_size.x));
-        animation_data.push(bytemuck::cast(portal.half_size.y));
-        animation_data.push(bytemuck::cast(portal.half_size.z));
-
+        type_buffer.push_object(1, |type_buffer| {
+            type_buffer.push_u32(portal.material as u32);
+            type_buffer.push_ivec3(pos);
+            type_buffer.push_u32(i);
+            type_buffer.push_ivec3(portal.half_size);
+        });
         i += 1;
     }
 
     // add edges
     for (transform, edges) in edges_query.iter() {
         let pos = world_to_voxel(transform.translation, voxel_world_size);
-        header.push(animation_data.len() as u32 | (2 << 24));
-        animation_data.push(edges.material as u32);
-        animation_data.push(bytemuck::cast(pos.x));
-        animation_data.push(bytemuck::cast(pos.y));
-        animation_data.push(bytemuck::cast(pos.z));
-        animation_data.push(bytemuck::cast(edges.half_size.x));
-        animation_data.push(bytemuck::cast(edges.half_size.y));
-        animation_data.push(bytemuck::cast(edges.half_size.z));
+        type_buffer.push_object(2, |type_buffer| {
+            type_buffer.push_u32(edges.material as u32);
+            type_buffer.push_ivec3(pos);
+            type_buffer.push_ivec3(edges.half_size);
+        });
     }
-
-    // move all the pointers based on the header length
-    let offset = header.len() + 1;
-    for i in 0..header.len() {
-        header[i] += offset as u32;
-    }
-
-    // combine the header and animation data
-    let mut data = vec![header.len() as u32];
-    data.extend(header);
-    data.extend(animation_data);
 
     // grab all the poratls in pairs
     uniforms.portals = [ExtractedPortal::default(); 32];
@@ -206,7 +244,7 @@ fn extract_animation_data(
         i += 1;
     }
 
-    commands.insert_resource(ExtractedAnimationData { data });
+    commands.insert_resource(ExtractedAnimationData { data: type_buffer.finish() });
 }
 
 fn extract_physics_data(
@@ -231,9 +269,6 @@ fn extract_physics_data(
         drop(data);
         compute_meta.physics_data.unmap();
 
-        println!("{:?}", extracted_physics_data.data);
-        println!("{:?}", result);
-
         for (mut transform, mut bullet, entity) in bullet_query.iter_mut() {
             if let Some(index) = extracted_physics_data.entities.get(&entity) {
                 let data_index = result[index + 1] as usize;
@@ -251,37 +286,20 @@ fn extract_physics_data(
         }
     }
 
-
-    // setup next frames physics data
-    let mut header = Vec::new();
-    let mut physics_data: Vec<u32> = Vec::new();
+    let mut type_buffer = TypeBuffer::new();
     let mut entities = HashMap::new();
 
     // add bullets
     for (transform, bullet, entity) in bullet_query.iter() {
-        entities.insert(entity, header.len());
+        entities.insert(entity, type_buffer.header.len());
 
-        header.push(physics_data.len() as u32 | (0 << 24));
-        physics_data.push(bytemuck::cast(transform.translation.x));
-        physics_data.push(bytemuck::cast(transform.translation.y));
-        physics_data.push(bytemuck::cast(transform.translation.z));
-        physics_data.push(bytemuck::cast(bullet.velocity.x));
-        physics_data.push(bytemuck::cast(bullet.velocity.y));
-        physics_data.push(bytemuck::cast(bullet.velocity.z));
+        type_buffer.push_object(0, |type_buffer| {
+            type_buffer.push_vec3(transform.translation);
+            type_buffer.push_vec3(bullet.velocity);
+        });
     }
 
-    // move all the pointers based on the header length
-    let offset = header.len() + 1;
-    for i in 0..header.len() {
-        header[i] += offset as u32;
-    }
-
-    // combine the header and animation data
-    let mut data = vec![header.len() as u32];
-    data.extend(header);
-    data.extend(physics_data);
-
-    extracted_physics_data.data = data;
+    extracted_physics_data.data = type_buffer.finish();
     extracted_physics_data.entities = entities;
 }
 

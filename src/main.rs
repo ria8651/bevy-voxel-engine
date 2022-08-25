@@ -52,7 +52,7 @@ fn shoot(
         commands.spawn_bundle((
             Transform::from_translation(character.translation).with_rotation(character.rotation),
             Particle { material: 41 },
-            Bullet { velocity: -character.local_z() * 0.1 },
+            Bullet { velocity: -character.local_z() * 10.0 },
         ));
     }
 }
