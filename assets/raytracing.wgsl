@@ -1,5 +1,3 @@
-
-
 fn get_value_index(index: u32) -> bool {
     return ((gh[index / 32u] >> (index % 32u)) & 1u) != 0u;
 }
@@ -142,11 +140,13 @@ fn intersect_scene(r: Ray, steps: u32) -> HitInfo {
 
 let PI: f32 = 3.14159265358979323846264338327950288;
 
-fn shoot_ray(r: Ray) -> HitInfo {
+// max_distance is in terms of t so make sure to normalize your ray direction
+fn shoot_ray(r: Ray, max_distance: f32) -> HitInfo {
     var pos = r.pos;
     let dir_mask = vec3<f32>(r.dir == vec3(0.0));
     var dir = r.dir + dir_mask * 0.000001;
 
+    var distance = 0.0;
     if (!in_bounds(r.pos)) {
         // Get position on surface of the octree
         let dist = ray_box_dist(r, vec3(-1.0), vec3(1.0)).x;
@@ -155,6 +155,7 @@ fn shoot_ray(r: Ray) -> HitInfo {
         }
 
         pos = r.pos + dir * dist;
+        distance += dist;
     }
 
     var r_sign = sign(dir);
@@ -166,32 +167,17 @@ fn shoot_ray(r: Ray) -> HitInfo {
     var jumped = false;
     while (steps < 1000u) {
         voxel = get_value(voxel_pos);
-        let should_portal_skip = voxel.data >> 15u == 1u;
-        if ((voxel.data & 0xFFu) != 0u && !should_portal_skip) {
-            break;
-        }
-
-        let voxel_size = 2.0 / f32(voxel.grid_size);
-        let t_max = (voxel.pos - pos + r_sign * voxel_size / 2.0) / dir;
-
-        // https://www.shadertoy.com/view/4dX3zl (good old shader toy)
-        let mask = vec3<f32>(t_max.xyz <= min(t_max.yzx, t_max.zxy));
-        normal = mask * -r_sign;
-
-        let t_current = min(min(t_max.x, t_max.y), t_max.z);
-        voxel_pos = pos + dir * t_current - normal * 0.000002;
 
         // portals
+        let should_portal_skip = voxel.data >> 15u == 1u;
         if (should_portal_skip && !jumped) {
             let portal = u.portals[i32((voxel.data >> 8u) & 127u)]; // 0b01111111u retreive the portal index before overwiting the voxel
             let voxel_size = 2.0 / f32(u.texture_size);
 
-            // voxel = get_value(voxel_pos);
-
             let thing = (voxel_pos - portal.pos) * r_sign;
             let intersection = ray_plane(Ray(pos, dir), portal.pos, portal.normal);
-            if (any(thing * abs(portal.normal) > vec3(0.0)) && all(intersection != vec3(0.0))) {
-                voxel_pos = intersection;
+            if (all(abs(intersection - portal.pos) < vec3(voxel_size) * (vec3<f32>(portal.half_size) + 0.5)) && all(intersection != vec3(0.0))) {
+                voxel_pos = intersection + r_sign * abs(portal.normal) * 0.000001;
 
                 let ray_rot_angle = acos(dot(portal.normal, portal.other_normal));
                 var ray_rot_axis: vec3<f32>;
@@ -209,14 +195,35 @@ fn shoot_ray(r: Ray) -> HitInfo {
                 // return HitInfo(true, voxel.data, vec4(vec3(ray_rot_angle / u.misc_float / PI), 1.0), voxel_pos, voxel_pos - reprojection_pos, normal, steps);
 
                 reprojection_pos += new_pos - voxel_pos;
+                distance += length(new_pos - pos);
+
                 pos = new_pos;
                 dir = new_dir;
                 r_sign = sign(dir);
-
-                jumped = true;
                 voxel_pos = pos;
-            }
 
+                // jumped = true;
+
+                voxel = get_value(voxel_pos);
+            }
+        }
+
+        if ((voxel.data & 0xFFu) != 0u && !should_portal_skip) {
+            break;
+        }
+
+        let voxel_size = 2.0 / f32(voxel.grid_size);
+        let t_max = (voxel.pos - pos + r_sign * voxel_size / 2.0) / dir;
+
+        // https://www.shadertoy.com/view/4dX3zl (good old shader toy)
+        let mask = vec3<f32>(t_max.xyz <= min(t_max.yzx, t_max.zxy));
+        normal = mask * -r_sign;
+
+        let t_current = min(min(t_max.x, t_max.y), t_max.z);
+        voxel_pos = pos + dir * t_current - normal * 0.000002;
+
+        if (t_current + distance > max_distance && max_distance > 0.0) {
+            return intersect_scene(Ray(pos, dir), steps);
         }
 
         if (!in_bounds(voxel_pos)) {

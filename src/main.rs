@@ -1,6 +1,6 @@
 use bevy::{asset::AssetServerSettings, prelude::*};
 use character::CharacterEntity;
-use compute::{Edges, Particle, Portal, Bullet};
+use animation::{Edges, Particle, Portal, Bullet};
 use rand::Rng;
 
 mod character;
@@ -9,6 +9,7 @@ mod fps_counter;
 mod load;
 mod trace;
 mod ui;
+mod animation;
 
 #[derive(Component)]
 struct MainCamera;
@@ -48,7 +49,7 @@ fn shoot(
 ) {
     let character = character.single();
 
-    if input.just_pressed(MouseButton::Left) {
+    if input.pressed(MouseButton::Left) {
         commands.spawn_bundle((
             Transform::from_translation(character.translation).with_rotation(character.rotation),
             Particle { material: 41 },

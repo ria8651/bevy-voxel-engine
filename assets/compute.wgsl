@@ -11,6 +11,9 @@ var<storage, read_write> physics_data: array<u32>;
 @group(0) @binding(4)
 var<storage, read> animation_data: array<u32>;
 
+// note: raytracing.wgsl requires you to define u, gh and texture before you import it
+#import "raytracing.wgsl"
+
 fn set_value_index(index: u32) {
     atomicOr(&gh[index / 32u], 1u << (index % 32u));
 }

@@ -1,4 +1,4 @@
-use super::{compute, load::GH};
+use super::{animation, load::GH};
 use bevy::{
     core_pipeline::core_3d::Transparent3d,
     ecs::{
@@ -288,7 +288,7 @@ fn update_uniforms(
     let (transform, _perspective) = main_cam.single();
 
     let transform = Transform {
-        translation: compute::world_to_render(transform.translation, uniforms.texture_size),
+        translation: animation::world_to_render(transform.translation, uniforms.texture_size),
         ..*transform
     };
 
