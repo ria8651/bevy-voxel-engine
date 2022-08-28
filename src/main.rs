@@ -64,24 +64,24 @@ fn setup(mut commands: Commands) {
     commands.spawn_bundle((
         Portal {
             material: 1,
-            half_size: IVec3::new(0, 4, 3),
+            half_size: IVec3::new(0, 9, 6),
             normal: Vec3::new(1.0, 0.0, 0.0),
         },
         Edges {
             material: 23,
-            half_size: IVec3::new(0, 5, 4),
+            half_size: IVec3::new(0, 10, 7),
         },
         Transform::from_xyz(3.0, 2.0, 0.0),
     ));
     commands.spawn_bundle((
         Portal {
             material: 1,
-            half_size: IVec3::new(3, 4, 0),
+            half_size: IVec3::new(6, 9, 0),
             normal: Vec3::new(0.0, 0.0, 1.0),
         },
         Edges {
             material: 22,
-            half_size: IVec3::new(4, 5, 0),
+            half_size: IVec3::new(7, 10, 0),
         },
         Transform::from_xyz(0.0, 2.0, 3.0),
     ));

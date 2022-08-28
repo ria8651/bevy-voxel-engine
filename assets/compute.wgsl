@@ -26,6 +26,16 @@ fn get_texture_value(pos: vec3<i32>) -> vec2<u32> {
     );
 }
 
+let VOXELS_PER_METER: f32 = 4.0;
+
+fn world_to_render(world_pos: vec3<f32>) -> vec3<f32> {
+    return world_pos * VOXELS_PER_METER * 2.0 / f32(u.texture_size);
+}
+
+fn render_to_world(pos: vec3<f32>) -> vec3<f32> {
+    return pos * f32(u.texture_size) / (VOXELS_PER_METER * 2.0);
+}
+
 @compute @workgroup_size(1, 1, 1)
 fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let pos = vec3(i32(invocation_id.x), i32(invocation_id.y), i32(invocation_id.z));
@@ -70,8 +80,11 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                 bitcast<f32>(physics_data[data_index + 5]),
             );
 
-            velocity += vec3(0.0, -9.81, 0.0) * u.delta_time;
-            world_pos += velocity * u.delta_time;
+            if (!shoot_ray(Ray(world_to_render(world_pos), world_to_render(velocity * u.delta_time)), 1.0).hit) {
+                velocity += vec3(0.0, -9.81, 0.0) * u.delta_time;
+                world_pos += velocity * u.delta_time;
+                // world_pos = render_to_world(shoot_ray(Ray(world_to_render(world_pos), world_to_render(velocity * u.delta_time)), u.misc_float).pos);
+            }
             
             physics_data[data_index + 3] = bitcast<u32>(velocity.x);
             physics_data[data_index + 4] = bitcast<u32>(velocity.y);

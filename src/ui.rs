@@ -1,8 +1,9 @@
 use super::trace;
-use super::Particle;
+use super::{Bullet, Particle};
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use egui::Slider;
+use rand::Rng;
 
 pub struct UiPlugin;
 
@@ -35,10 +36,18 @@ fn ui_system(
             ui.collapsing("Compute", |ui| {
                 ui.checkbox(&mut uniforms.enable_compute, "Enable compute");
                 if ui.button("spawn particles").clicked() {
+                    let mut rng = rand::thread_rng();
                     for _ in 0..10000 {
                         commands.spawn_bundle((
                             Transform::from_xyz(0.0, 0.0, 0.0),
-                            Particle { material: 41 },
+                            Particle { material: rng.gen_range(100..104) },
+                            Bullet {
+                                velocity: Vec3::new(
+                                    rng.gen_range(-1.0..1.0),
+                                    rng.gen_range(-1.0..1.0),
+                                    rng.gen_range(-1.0..1.0),
+                                ).clamp_length_max(1.0) * 10.0,
+                            },
                         ));
                     }
                 }

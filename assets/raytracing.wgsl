@@ -151,6 +151,9 @@ fn shoot_ray(r: Ray, max_distance: f32) -> HitInfo {
         // Get position on surface of the octree
         let dist = ray_box_dist(r, vec3(-1.0), vec3(1.0)).x;
         if (dist == 0.0) {
+            if (max_distance > 0.0) {
+                return HitInfo(false, 0u, vec4(0.0), pos + dir * max_distance, vec3(0.0), vec3(0.0), 1u);
+            }
             return intersect_scene(r, 1u);
         }
 
@@ -159,14 +162,14 @@ fn shoot_ray(r: Ray, max_distance: f32) -> HitInfo {
     }
 
     var r_sign = sign(dir);
-    var voxel_pos = pos;
+    var the_current_position_of_the_ray = pos;
     var steps = 0u;
     var normal = trunc(pos * 1.00001);
     var voxel = Voxel(0u, vec3(0.0), 0u);
     var reprojection_pos = vec3(0.0);
     var jumped = false;
     while (steps < 1000u) {
-        voxel = get_value(voxel_pos);
+        voxel = get_value(the_current_position_of_the_ray);
 
         // portals
         let should_portal_skip = voxel.data >> 15u == 1u;
@@ -174,10 +177,9 @@ fn shoot_ray(r: Ray, max_distance: f32) -> HitInfo {
             let portal = u.portals[i32((voxel.data >> 8u) & 127u)]; // 0b01111111u retreive the portal index before overwiting the voxel
             let voxel_size = 2.0 / f32(u.texture_size);
 
-            let thing = (voxel_pos - portal.pos) * r_sign;
             let intersection = ray_plane(Ray(pos, dir), portal.pos, portal.normal);
             if (all(abs(intersection - portal.pos) < vec3(voxel_size) * (vec3<f32>(portal.half_size) + 0.5)) && all(intersection != vec3(0.0))) {
-                voxel_pos = intersection + r_sign * abs(portal.normal) * 0.000001;
+                the_current_position_of_the_ray = intersection + r_sign * abs(portal.normal) * 0.000001;
 
                 let ray_rot_angle = acos(dot(portal.normal, portal.other_normal));
                 var ray_rot_axis: vec3<f32>;
@@ -188,23 +190,23 @@ fn shoot_ray(r: Ray, max_distance: f32) -> HitInfo {
                 }
                 let ray_rot_mat = create_rot_mat(ray_rot_axis, PI - ray_rot_angle);
 
-                let new_pos = (ray_rot_mat * (voxel_pos - portal.pos)) + portal.other_pos;
+                let new_pos = (ray_rot_mat * (the_current_position_of_the_ray - portal.pos)) + portal.other_pos;
                 let new_dir = ray_rot_mat * dir;
 
-                // return HitInfo(true, voxel.data, vec4(voxel_pos * 10.0, 0.0), voxel_pos, voxel_pos - reprojection_pos, normal, steps);
-                // return HitInfo(true, voxel.data, vec4(vec3(ray_rot_angle / u.misc_float / PI), 1.0), voxel_pos, voxel_pos - reprojection_pos, normal, steps);
+                // return HitInfo(true, voxel.data, vec4(the_current_position_of_the_ray * 10.0, 0.0), the_current_position_of_the_ray, the_current_position_of_the_ray - reprojection_pos, normal, steps);
+                // return HitInfo(true, voxel.data, vec4(vec3(ray_rot_angle / u.misc_float / PI), 1.0), the_current_position_of_the_ray, the_current_position_of_the_ray - reprojection_pos, normal, steps);
 
-                reprojection_pos += new_pos - voxel_pos;
+                reprojection_pos += new_pos - the_current_position_of_the_ray;
                 distance += length(new_pos - pos);
 
                 pos = new_pos;
                 dir = new_dir;
                 r_sign = sign(dir);
-                voxel_pos = pos;
+                the_current_position_of_the_ray = pos;
 
                 // jumped = true;
 
-                voxel = get_value(voxel_pos);
+                voxel = get_value(the_current_position_of_the_ray);
             }
         }
 
@@ -220,18 +222,21 @@ fn shoot_ray(r: Ray, max_distance: f32) -> HitInfo {
         normal = mask * -r_sign;
 
         let t_current = min(min(t_max.x, t_max.y), t_max.z);
-        voxel_pos = pos + dir * t_current - normal * 0.000002;
+        the_current_position_of_the_ray = pos + dir * t_current - normal * 0.000002;
 
         if (t_current + distance > max_distance && max_distance > 0.0) {
-            return intersect_scene(Ray(pos, dir), steps);
+            return HitInfo(false, 0u, vec4(0.0), pos + dir * (max_distance - distance), vec3(0.0), vec3(0.0), steps);
         }
 
-        if (!in_bounds(voxel_pos)) {
+        if (!in_bounds(the_current_position_of_the_ray)) {
+            if (max_distance > 0.0) {
+                return HitInfo(false, 0u, vec4(0.0), pos + dir * (max_distance - distance), vec3(0.0), vec3(0.0), steps);
+            }
             return intersect_scene(Ray(pos, dir), steps);
         }
 
         steps = steps + 1u;
     }
 
-    return HitInfo(true, voxel.data, u.materials[voxel.data & 0xFFu], voxel_pos, voxel_pos - reprojection_pos, normal, steps);
+    return HitInfo(true, voxel.data, u.materials[voxel.data & 0xFFu], the_current_position_of_the_ray, the_current_position_of_the_ray - reprojection_pos, normal, steps);
 }

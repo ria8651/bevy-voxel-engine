@@ -20,9 +20,9 @@ fn vertex(vertex: Vertex) -> @builtin(position) vec4<f32> {
 @group(2) @binding(0)
 var<uniform> u: Uniforms;
 @group(2) @binding(1)
-var<storage, read_write> gh: array<u32>;
+var<storage, read> gh: array<u32>;
 @group(2) @binding(2)
-var texture: texture_storage_3d<r16uint, read_write>;
+var texture: texture_storage_3d<r16uint, read>;
 @group(2) @binding(3)
 var screen_texture: texture_storage_2d_array<rgba16float, read_write>;
 
@@ -140,6 +140,8 @@ fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
     // output_colour = hit.reprojection_pos;
     // output_colour = hit.pos;
     // output_colour = vec3<f32>(f32(all(abs(clip_space) <= vec2(0.01))));
+
+    // output_colour = vec3<f32>(f32(shoot_ray(Ray(vec3(0.0), vec3(0.0, -1.0, 0.0)), 0.0).hit));
 
     let knee = 0.2;
     let power = 2.2;

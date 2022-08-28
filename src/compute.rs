@@ -181,11 +181,11 @@ impl render_graph::Node for ComputeNode {
                         0,
                         bytemuck::cast_slice(&extracted_animation_data.data),
                     );
-                    render_queue.write_buffer(
-                        &trace_meta.storage,
-                        0,
-                        bytemuck::cast_slice(&vec![0u8; extracted_gh.buffer_size]),
-                    );
+                    // render_queue.write_buffer(
+                    //     &trace_meta.storage,
+                    //     0,
+                    //     bytemuck::cast_slice(&vec![0u8; extracted_gh.buffer_size]),
+                    // );
 
                     let update_pipeline = pipeline_cache
                         .get_compute_pipeline(pipeline.update_pipeline)

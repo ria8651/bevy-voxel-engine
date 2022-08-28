@@ -418,7 +418,7 @@ impl FromWorld for TracePipeline {
                         binding: 1,
                         visibility: ShaderStages::FRAGMENT,
                         ty: BindingType::Buffer {
-                            ty: BufferBindingType::Storage { read_only: false },
+                            ty: BufferBindingType::Storage { read_only: true },
                             has_dynamic_offset: false,
                             min_binding_size: BufferSize::new(4),
                         },
@@ -428,7 +428,7 @@ impl FromWorld for TracePipeline {
                         binding: 2,
                         visibility: ShaderStages::FRAGMENT,
                         ty: BindingType::StorageTexture {
-                            access: StorageTextureAccess::ReadWrite,
+                            access: StorageTextureAccess::ReadOnly,
                             format: TextureFormat::R16Uint,
                             view_dimension: TextureViewDimension::D3,
                         },
