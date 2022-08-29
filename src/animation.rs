@@ -1,6 +1,7 @@
 use super::{
     compute,
     trace::{ExtractedPortal, Uniforms},
+    Bullet, CharacterEntity,
 };
 use bevy::{prelude::*, render::renderer::RenderDevice};
 use std::collections::HashMap;
@@ -191,14 +192,17 @@ pub fn extract_animation_data(
 }
 
 pub fn extract_physics_data(
-    bullet_query: Query<(&Transform, &Velocity, Entity)>,
+    mut set: ParamSet<(
+        Query<(&Transform, &Velocity, Entity), With<Bullet>>,
+        Query<(&Transform, &Velocity, &CharacterEntity, Entity)>,
+    )>,
     mut extracted_physics_data: ResMut<compute::ExtractedPhysicsData>,
 ) {
     let mut type_buffer = TypeBuffer::new();
     let mut entities = HashMap::new();
 
-    // add velocity components
-    for (transform, velocity, entity) in bullet_query.iter() {
+    // add bullets
+    for (transform, velocity, entity) in set.p0().iter() {
         entities.insert(entity, type_buffer.header.len());
 
         type_buffer.push_object(0, |type_buffer| {
@@ -207,12 +211,26 @@ pub fn extract_physics_data(
         });
     }
 
+    // add player
+    for (transform, velocity, character_entity, entity) in set.p1().iter() {
+        entities.insert(entity, type_buffer.header.len());
+
+        type_buffer.push_object(1, |type_buffer| {
+            type_buffer.push_vec3(transform.translation);
+            type_buffer.push_vec3(velocity.velocity);
+            type_buffer.push_vec3(character_entity.look_at);
+        });
+    }
+
     extracted_physics_data.data = type_buffer.finish();
     extracted_physics_data.entities = entities;
 }
 
 pub fn insert_physics_data(
-    mut bullet_query: Query<(&mut Transform, &mut Velocity, Entity)>,
+    mut set: ParamSet<(
+        Query<(&mut Transform, &mut Velocity, Entity), With<Bullet>>,
+        Query<(&mut Transform, &mut Velocity, &mut CharacterEntity, Entity)>,
+    )>,
     extracted_physics_data: Res<compute::ExtractedPhysicsData>,
     compute_meta: Res<compute::ComputeMeta>,
     render_device: Res<RenderDevice>,
@@ -233,7 +251,8 @@ pub fn insert_physics_data(
         drop(data);
         compute_meta.physics_data.unmap();
 
-        for (mut transform, mut velocity, entity) in bullet_query.iter_mut() {
+        // process bullets
+        for (mut transform, mut velocity, entity) in set.p0().iter_mut() {
             if let Some(index) = extracted_physics_data.entities.get(&entity) {
                 let data_index = result[index + 1] as usize;
                 transform.translation = Vec3::new(
@@ -245,6 +264,28 @@ pub fn insert_physics_data(
                     bytemuck::cast(result[data_index + 3]),
                     bytemuck::cast(result[data_index + 4]),
                     bytemuck::cast(result[data_index + 5]),
+                );
+            }
+        }
+
+        // process players
+        for (mut transform, mut velocity, mut player_entity, entity) in set.p1().iter_mut() {
+            if let Some(index) = extracted_physics_data.entities.get(&entity) {
+                let data_index = result[index + 1] as usize & 0xFFFFFF;
+                transform.translation = Vec3::new(
+                    bytemuck::cast(result[data_index + 0]),
+                    bytemuck::cast(result[data_index + 1]),
+                    bytemuck::cast(result[data_index + 2]),
+                );
+                velocity.velocity = Vec3::new(
+                    bytemuck::cast(result[data_index + 3]),
+                    bytemuck::cast(result[data_index + 4]),
+                    bytemuck::cast(result[data_index + 5]),
+                );
+                player_entity.look_at = Vec3::new(
+                    bytemuck::cast(result[data_index + 6]),
+                    bytemuck::cast(result[data_index + 7]),
+                    bytemuck::cast(result[data_index + 8]),
                 );
             }
         }

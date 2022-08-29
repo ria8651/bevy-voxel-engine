@@ -103,7 +103,7 @@ impl Plugin for Tracer {
             levels: gh.levels,
             offsets: gh.get_offsets(),
             time: 0.0,
-            delta_time: 0.0,
+            delta_time: 1.0 / 120.0,
             texture_size: gh.texture_size,
             show_ray_steps: false,
             indirect_lighting: false,

@@ -15,7 +15,7 @@ mod ui;
 struct MainCamera;
 
 #[derive(Component)]
-struct Bullet;
+pub struct Bullet;
 
 fn main() {
     App::new()

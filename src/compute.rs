@@ -44,7 +44,7 @@ impl Plugin for ComputePlugin {
                 animation_data,
             })
             .insert_resource(ExtractedPhysicsData {
-                data: Vec::new(),
+                data: vec![0],
                 entities: HashMap::new(),
             })
             .add_plugin(ExtractResourcePlugin::<ExtractedGH>::default())
@@ -154,7 +154,6 @@ impl render_graph::Node for ComputeNode {
         let pipeline_cache = world.resource::<PipelineCache>();
         let pipeline = world.resource::<ComputePipeline>();
         let render_queue = world.resource::<RenderQueue>();
-        // let render_device = world.resource::<RenderDevice>();
         let trace_meta = world.resource::<trace::TraceMeta>();
         let compute_meta = world.resource::<ComputeMeta>();
         let extracted_gh = world.resource::<ExtractedGH>();

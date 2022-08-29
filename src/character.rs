@@ -5,15 +5,13 @@ const SENSITIVITY: f32 = 0.004;
 
 #[derive(Component)]
 pub struct CharacterEntity {
-    velocity: Vec3,
-    rotation: Vec2,
+    pub look_at: Vec3,
 }
 
 impl Default for CharacterEntity {
     fn default() -> Self {
         Self {
-            velocity: Vec3::new(0.0, 0.0, 0.0),
-            rotation: Vec2::new(0.0, 0.0),
+            look_at: Vec3::new(0.0, 0.0, 1.0),
         }
     }
 }
@@ -42,7 +40,13 @@ fn setup_character(mut commands: Commands, mut windows: ResMut<Windows>) {
             }),
             ..Default::default()
         })
-        .insert_bundle((CharacterEntity::default(), super::MainCamera));
+        .insert_bundle((
+            CharacterEntity::default(),
+            super::Velocity {
+                velocity: Vec3::splat(1.0),
+            },
+            super::MainCamera,
+        ));
 }
 
 /// Grabs/ungrabs mouse cursor
@@ -52,7 +56,7 @@ fn toggle_grab_cursor(window: &mut Window) {
 }
 
 fn update_character(
-    mut character: Query<(&mut Transform, &mut CharacterEntity)>,
+    mut character: Query<(&mut Transform, &mut super::Velocity, &mut CharacterEntity)>,
     keys: Res<Input<KeyCode>>,
     mut mouse_motion_events: EventReader<MouseMotion>,
     time: Res<Time>,
@@ -64,7 +68,7 @@ fn update_character(
     }
 
     if window.cursor_locked() {
-        let (mut transform, mut character) = character.single_mut();
+        let (mut transform, mut velocity, mut character) = character.single_mut();
 
         // movement
         let mut input = Vec3::new(
@@ -81,9 +85,8 @@ fn update_character(
             + input.x * transform.local_x()
             + input.y * transform.local_y();
         let delta_time = time.delta_seconds();
-        character.velocity = character.velocity
-            + (target_velocity - character.velocity) * (1.0 - 0.9f32.powf(delta_time * 120.0));
-        transform.translation += character.velocity * delta_time;
+        velocity.velocity = velocity.velocity
+            + (target_velocity - velocity.velocity) * (1.0 - 0.9f32.powf(delta_time * 120.0));
 
         // rotation
         let mut mouse_delta = Vec2::new(0.0, 0.0);
@@ -91,13 +94,14 @@ fn update_character(
             mouse_delta += event.delta;
         }
         if mouse_delta != Vec2::ZERO {
-            let sensitivity = SENSITIVITY;
-            character.rotation -= mouse_delta * sensitivity;
-            character.rotation.y = character.rotation.y.clamp(-1.54, 1.54);
-
             // Order is important to prevent unintended roll
-            transform.rotation = Quat::from_axis_angle(Vec3::Y, character.rotation.x)
-                * Quat::from_axis_angle(Vec3::X, character.rotation.y);
+            character.look_at = Quat::from_axis_angle(Vec3::Y, -mouse_delta.x * SENSITIVITY)
+                * Quat::from_axis_angle(transform.local_x(), -mouse_delta.y * SENSITIVITY)
+                * character.look_at;
         }
+
+        let pos = transform.translation;
+        transform.look_at(pos + character.look_at, Vec3::Y);
+        println!("{:?}", character.look_at);
     }
 }

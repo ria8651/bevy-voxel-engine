@@ -72,26 +72,41 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
             bitcast<f32>(physics_data[data_index + 1]),
             bitcast<f32>(physics_data[data_index + 2]),
         );
+        var velocity = vec3(
+            bitcast<f32>(physics_data[data_index + 3]),
+            bitcast<f32>(physics_data[data_index + 4]),
+            bitcast<f32>(physics_data[data_index + 5]),
+        );
         if (data_type == 0) {
             // bullet
-            var velocity = vec3(
-                bitcast<f32>(physics_data[data_index + 3]),
-                bitcast<f32>(physics_data[data_index + 4]),
-                bitcast<f32>(physics_data[data_index + 5]),
-            );
             
             // step bullet by ray
             let hit = shoot_ray(Ray(world_to_render(world_pos), world_to_render(velocity * u.delta_time)), 1.0);
             world_pos = render_to_world(hit.pos);
-            velocity = render_to_world(hit.dir) / u.delta_time;
+            velocity = hit.rot * velocity;
+        } else if (data_type == 1) {
+            // player
+            var look_at = vec3(
+                bitcast<f32>(physics_data[data_index + 6]),
+                bitcast<f32>(physics_data[data_index + 7]),
+                bitcast<f32>(physics_data[data_index + 8]),
+            );
+
+            let hit = shoot_ray(Ray(world_to_render(world_pos), world_to_render(velocity * u.delta_time)), 1.0);
+            world_pos = render_to_world(hit.pos);
+            velocity = hit.rot * velocity;
+            look_at = hit.rot * look_at;
             
-            physics_data[data_index + 3] = bitcast<u32>(velocity.x);
-            physics_data[data_index + 4] = bitcast<u32>(velocity.y);
-            physics_data[data_index + 5] = bitcast<u32>(velocity.z);
+            physics_data[data_index + 6] = bitcast<u32>(look_at.x);
+            physics_data[data_index + 7] = bitcast<u32>(look_at.y);
+            physics_data[data_index + 8] = bitcast<u32>(look_at.z);
         }
         physics_data[data_index + 0] = bitcast<u32>(world_pos.x);
         physics_data[data_index + 1] = bitcast<u32>(world_pos.y);
         physics_data[data_index + 2] = bitcast<u32>(world_pos.z);
+        physics_data[data_index + 3] = bitcast<u32>(velocity.x);
+        physics_data[data_index + 4] = bitcast<u32>(velocity.y);
+        physics_data[data_index + 5] = bitcast<u32>(velocity.z);
     }
 }
 
