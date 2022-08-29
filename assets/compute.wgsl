@@ -11,7 +11,7 @@ var<storage, read_write> physics_data: array<u32>;
 @group(0) @binding(4)
 var<storage, read> animation_data: array<u32>;
 
-// note: raytracing.wgsl requires you to define u, gh and texture before you import it
+// note: raytracing.wgsl requires common.wgsl and for you to define u, gh and texture before you import it
 #import "raytracing.wgsl"
 
 fn set_value_index(index: u32) {
@@ -79,12 +79,11 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                 bitcast<f32>(physics_data[data_index + 4]),
                 bitcast<f32>(physics_data[data_index + 5]),
             );
-
-            if (!shoot_ray(Ray(world_to_render(world_pos), world_to_render(velocity * u.delta_time)), 1.0).hit) {
-                velocity += vec3(0.0, -9.81, 0.0) * u.delta_time;
-                world_pos += velocity * u.delta_time;
-                // world_pos = render_to_world(shoot_ray(Ray(world_to_render(world_pos), world_to_render(velocity * u.delta_time)), u.misc_float).pos);
-            }
+            
+            // step bullet by ray
+            let hit = shoot_ray(Ray(world_to_render(world_pos), world_to_render(velocity * u.delta_time)), 1.0);
+            world_pos = render_to_world(hit.pos);
+            velocity = render_to_world(hit.dir) / u.delta_time;
             
             physics_data[data_index + 3] = bitcast<u32>(velocity.x);
             physics_data[data_index + 4] = bitcast<u32>(velocity.y);

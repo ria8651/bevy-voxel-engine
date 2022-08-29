@@ -26,7 +26,7 @@ var texture: texture_storage_3d<r16uint, read>;
 @group(2) @binding(3)
 var screen_texture: texture_storage_2d_array<rgba16float, read_write>;
 
-// note: raytracing.wgsl requires you to define u, gh and texture before you import it
+// note: raytracing.wgsl requires common.wgsl and for you to define u, gh and texture before you import it
 #import "raytracing.wgsl"
 
 let light_dir = vec3<f32>(1.3, -1.0, 0.8);
@@ -43,7 +43,8 @@ fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed
         // shadow
         var shadow = 1.0;
         if (u.shadows != 0u) {
-            let rand = hash(seed) * 2.0 - 1.0;
+            // let rand = hash(seed) * 2.0 - 1.0;
+            let rand = vec3(0.0);
             let shadow_ray = Ray(pos + normal * 0.0000025, -light_dir + rand * 0.1);
             let shadow_hit = shoot_ray(shadow_ray, 0.0);
             shadow = f32(!(shadow_hit.hit && any(shadow_hit.material == vec4(0.0))));

@@ -9,6 +9,7 @@ use bevy::{
         renderer::{RenderContext, RenderDevice},
         RenderApp, RenderStage,
     },
+    app::CoreStage,
 };
 use std::{borrow::Cow, collections::HashMap};
 
@@ -36,7 +37,8 @@ impl Plugin for ComputePlugin {
 
         // setup world
         app.add_system(animation::extract_animation_data)
-            .add_system(animation::extract_physics_data)
+            .add_system_to_stage(CoreStage::PreUpdate, animation::insert_physics_data)
+            .add_system_to_stage(CoreStage::PostUpdate, animation::extract_physics_data)
             .insert_resource(ComputeMeta {
                 physics_data,
                 animation_data,
@@ -181,23 +183,23 @@ impl render_graph::Node for ComputeNode {
                         0,
                         bytemuck::cast_slice(&extracted_animation_data.data),
                     );
-                    // render_queue.write_buffer(
-                    //     &trace_meta.storage,
-                    //     0,
-                    //     bytemuck::cast_slice(&vec![0u8; extracted_gh.buffer_size]),
-                    // );
+                    render_queue.write_buffer(
+                        &trace_meta.storage,
+                        0,
+                        bytemuck::cast_slice(&vec![0u8; extracted_gh.buffer_size]),
+                    );
 
                     let update_pipeline = pipeline_cache
                         .get_compute_pipeline(pipeline.update_pipeline)
-                        .unwrap();
-                    let physics_pipeline = pipeline_cache
-                        .get_compute_pipeline(pipeline.physics_pipeline)
                         .unwrap();
                     let animation_pipeline = pipeline_cache
                         .get_compute_pipeline(pipeline.animation_pipeline)
                         .unwrap();
                     let rebuild_pipeline = pipeline_cache
                         .get_compute_pipeline(pipeline.rebuild_pipeline)
+                        .unwrap();
+                    let physics_pipeline = pipeline_cache
+                        .get_compute_pipeline(pipeline.physics_pipeline)
                         .unwrap();
 
                     pass.set_pipeline(update_pipeline);
@@ -206,13 +208,6 @@ impl render_graph::Node for ComputeNode {
                         extracted_gh.texture_size,
                         extracted_gh.texture_size,
                     );
-
-                    let dispatch_size =
-                        (extracted_physics_data.data[0] as f32).cbrt().ceil() as u32;
-                    if dispatch_size > 0 {
-                        pass.set_pipeline(physics_pipeline);
-                        pass.dispatch_workgroups(dispatch_size, dispatch_size, dispatch_size);
-                    }
 
                     let dispatch_size =
                         (extracted_animation_data.data[0] as f32).cbrt().ceil() as u32;
@@ -227,6 +222,13 @@ impl render_graph::Node for ComputeNode {
                         extracted_gh.texture_size,
                         extracted_gh.texture_size,
                     );
+
+                    let dispatch_size =
+                        (extracted_physics_data.data[0] as f32).cbrt().ceil() as u32;
+                    if dispatch_size > 0 {
+                        pass.set_pipeline(physics_pipeline);
+                        pass.dispatch_workgroups(dispatch_size, dispatch_size, dispatch_size);
+                    }
                 }
             }
         }

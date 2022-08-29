@@ -1,18 +1,21 @@
+use animation::{Edges, Particle, Portal, Velocity};
 use bevy::{asset::AssetServerSettings, prelude::*};
 use character::CharacterEntity;
-use animation::{Edges, Particle, Portal, Bullet};
 use rand::Rng;
 
+mod animation;
 mod character;
 mod compute;
 mod fps_counter;
 mod load;
 mod trace;
 mod ui;
-mod animation;
 
 #[derive(Component)]
 struct MainCamera;
+
+#[derive(Component)]
+struct Bullet;
 
 fn main() {
     App::new()
@@ -38,6 +41,7 @@ fn main() {
         .add_plugin(compute::ComputePlugin)
         .add_startup_system(setup)
         .add_system(shoot)
+        .add_system(update_velocitys)
         // .add_system(update_particles)
         .run();
 }
@@ -52,8 +56,11 @@ fn shoot(
     if input.pressed(MouseButton::Left) {
         commands.spawn_bundle((
             Transform::from_translation(character.translation).with_rotation(character.rotation),
-            Particle { material: 41 },
-            Bullet { velocity: -character.local_z() * 10.0 },
+            Particle { material: 99 },
+            Velocity {
+                velocity: -character.local_z() * 10.0,
+            },
+            Bullet,
         ));
     }
 }
@@ -63,7 +70,6 @@ fn shoot(
 fn setup(mut commands: Commands) {
     commands.spawn_bundle((
         Portal {
-            material: 1,
             half_size: IVec3::new(0, 9, 6),
             normal: Vec3::new(1.0, 0.0, 0.0),
         },
@@ -75,7 +81,6 @@ fn setup(mut commands: Commands) {
     ));
     commands.spawn_bundle((
         Portal {
-            material: 1,
             half_size: IVec3::new(6, 9, 0),
             normal: Vec3::new(0.0, 0.0, 1.0),
         },
@@ -85,10 +90,9 @@ fn setup(mut commands: Commands) {
         },
         Transform::from_xyz(0.0, 2.0, 3.0),
     ));
-    
+
     commands.spawn_bundle((
         Portal {
-            material: 1,
             half_size: IVec3::new(0, 1, 1),
             normal: Vec3::new(1.0, 0.0, 0.0),
         },
@@ -100,7 +104,6 @@ fn setup(mut commands: Commands) {
     ));
     commands.spawn_bundle((
         Portal {
-            material: 1,
             half_size: IVec3::new(1, 1, 0),
             normal: Vec3::new(0.0, 0.0, 1.0),
         },
@@ -110,15 +113,33 @@ fn setup(mut commands: Commands) {
         },
         Transform::from_xyz(0.0, 5.0, 3.0),
     ));
+
+    commands.spawn_bundle((
+        Portal {
+            half_size: IVec3::new(5, 0, 5),
+            normal: Vec3::new(0.0, 1.0, 0.0),
+        },
+        Edges {
+            material: 22,
+            half_size: IVec3::new(6, 0, 6),
+        },
+        Transform::from_xyz(0.0, -1.0, 0.0),
+    ));
+    commands.spawn_bundle((
+        Portal {
+            half_size: IVec3::new(5, 0, 5),
+            normal: Vec3::new(0.0, -1.0, 0.0),
+        },
+        Edges {
+            material: 22,
+            half_size: IVec3::new(6, 0, 6),
+        },
+        Transform::from_xyz(0.0, 7.0, 0.0),
+    ));
 }
 
-// fn update_particles(mut particle_query: Query<&mut Transform, With<Particle>>) {
-//     particle_query.par_for_each_mut(32, |mut particle| {
-//         let mut rng = rand::thread_rng();
-//         particle.translation += Vec3::new(
-//             rng.gen_range(-1.0..=1.0) * 0.25,
-//             rng.gen_range(-1.0..=1.0) * 0.25,
-//             rng.gen_range(-1.0..=1.0) * 0.25,
-//         );
-//     });
-// }
+fn update_velocitys(mut velocity_query: Query<&mut Velocity, With<Bullet>>, time: Res<Time>) {
+    velocity_query.par_for_each_mut(8, |mut velocity| {
+        velocity.velocity += Vec3::new(0.0, -9.81 * time.delta_seconds(), 0.0);
+    });
+}

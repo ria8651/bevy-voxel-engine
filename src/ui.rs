@@ -1,3 +1,5 @@
+use crate::animation::Velocity;
+
 use super::trace;
 use super::{Bullet, Particle};
 use bevy::prelude::*;
@@ -41,13 +43,14 @@ fn ui_system(
                         commands.spawn_bundle((
                             Transform::from_xyz(0.0, 0.0, 0.0),
                             Particle { material: rng.gen_range(100..104) },
-                            Bullet {
+                            Velocity {
                                 velocity: Vec3::new(
                                     rng.gen_range(-1.0..1.0),
                                     rng.gen_range(-1.0..1.0),
                                     rng.gen_range(-1.0..1.0),
                                 ).clamp_length_max(1.0) * 10.0,
                             },
+                            Bullet,
                         ));
                     }
                 }

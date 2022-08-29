@@ -13,7 +13,6 @@ pub struct Particle {
 /// normal must be a normalized voxel normal
 #[derive(Component)]
 pub struct Portal {
-    pub material: u8,
     pub half_size: IVec3,
     pub normal: Vec3,
 }
@@ -25,7 +24,7 @@ pub struct Edges {
 }
 
 #[derive(Component)]
-pub struct Bullet {
+pub struct Velocity {
     pub velocity: Vec3,
 }
 
@@ -121,7 +120,7 @@ pub fn extract_animation_data(
     for (transform, portal) in portal_query.iter() {
         let pos = world_to_voxel(transform.translation, voxel_world_size);
         type_buffer.push_object(1, |type_buffer| {
-            type_buffer.push_u32(portal.material as u32);
+            type_buffer.push_u32(1); // portal material doesn't matter atm
             type_buffer.push_ivec3(pos);
             type_buffer.push_u32(i);
             type_buffer.push_ivec3(portal.half_size);
@@ -192,8 +191,29 @@ pub fn extract_animation_data(
 }
 
 pub fn extract_physics_data(
-    mut bullet_query: Query<(&mut Transform, &mut Bullet, Entity)>,
+    bullet_query: Query<(&Transform, &Velocity, Entity)>,
     mut extracted_physics_data: ResMut<compute::ExtractedPhysicsData>,
+) {
+    let mut type_buffer = TypeBuffer::new();
+    let mut entities = HashMap::new();
+
+    // add velocity components
+    for (transform, velocity, entity) in bullet_query.iter() {
+        entities.insert(entity, type_buffer.header.len());
+
+        type_buffer.push_object(0, |type_buffer| {
+            type_buffer.push_vec3(transform.translation);
+            type_buffer.push_vec3(velocity.velocity);
+        });
+    }
+
+    extracted_physics_data.data = type_buffer.finish();
+    extracted_physics_data.entities = entities;
+}
+
+pub fn insert_physics_data(
+    mut bullet_query: Query<(&mut Transform, &mut Velocity, Entity)>,
+    extracted_physics_data: Res<compute::ExtractedPhysicsData>,
     compute_meta: Res<compute::ComputeMeta>,
     render_device: Res<RenderDevice>,
 ) {
@@ -213,7 +233,7 @@ pub fn extract_physics_data(
         drop(data);
         compute_meta.physics_data.unmap();
 
-        for (mut transform, mut bullet, entity) in bullet_query.iter_mut() {
+        for (mut transform, mut velocity, entity) in bullet_query.iter_mut() {
             if let Some(index) = extracted_physics_data.entities.get(&entity) {
                 let data_index = result[index + 1] as usize;
                 transform.translation = Vec3::new(
@@ -221,7 +241,7 @@ pub fn extract_physics_data(
                     bytemuck::cast(result[data_index + 1]),
                     bytemuck::cast(result[data_index + 2]),
                 );
-                bullet.velocity = Vec3::new(
+                velocity.velocity = Vec3::new(
                     bytemuck::cast(result[data_index + 3]),
                     bytemuck::cast(result[data_index + 4]),
                     bytemuck::cast(result[data_index + 5]),
@@ -229,20 +249,4 @@ pub fn extract_physics_data(
             }
         }
     }
-
-    let mut type_buffer = TypeBuffer::new();
-    let mut entities = HashMap::new();
-
-    // add bullets
-    for (transform, bullet, entity) in bullet_query.iter() {
-        entities.insert(entity, type_buffer.header.len());
-
-        type_buffer.push_object(0, |type_buffer| {
-            type_buffer.push_vec3(transform.translation);
-            type_buffer.push_vec3(bullet.velocity);
-        });
-    }
-
-    extracted_physics_data.data = type_buffer.finish();
-    extracted_physics_data.entities = entities;
 }
