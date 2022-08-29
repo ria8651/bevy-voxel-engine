@@ -95,7 +95,7 @@ struct HitInfo {
     data: u32,
     material: vec4<f32>,
     pos: vec3<f32>,
-    reprojection_pos: vec3<f32>,
+    portal_offset: vec3<f32>,
     normal: vec3<f32>,
     rot: mat3x3<f32>,
     steps: u32,
@@ -124,7 +124,7 @@ fn intersect_scene(r: Ray, steps: u32) -> HitInfo {
         if (t != 0.0) {
             let pos = r.pos + r.dir * t;
             let normal = trunc(pos * vec3(1.00001, 0.0, 1.00001));
-            return HitInfo(true, 0u, vec4(vec3(0.2), 0.0), pos, pos, normal, IDENTITY, steps);
+            return HitInfo(true, 0u, vec4(vec3(0.2), 0.0), pos, vec3(0.0), normal, IDENTITY, steps);
         }
 
         let t = ray_box_dist(r, vec3(3.0), vec3(-3.0, -10000.0, -3.0)).y;
@@ -134,10 +134,10 @@ fn intersect_scene(r: Ray, steps: u32) -> HitInfo {
                 let normal = -trunc(pos / vec3(2.99999));
                 let col = skybox(normalize(pos - vec3(0.0, -1.0, 0.0)), u.time);
                 // let col = vec3(0.3, 0.3, 0.8);
-                return HitInfo(true, 0u, vec4(col, 1.0), pos, pos, normal, IDENTITY, steps);
+                return HitInfo(true, 0u, vec4(col, 1.0), pos, vec3(0.0), normal, IDENTITY, steps);
             } else {
                 let normal = -trunc(pos / vec3(2.99999, 10000.0, 2.99999));
-                return HitInfo(true, 0u, vec4(vec3(0.2), 0.0), pos, pos, normal, IDENTITY, steps);
+                return HitInfo(true, 0u, vec4(vec3(0.2), 0.0), pos, vec3(0.0), normal, IDENTITY, steps);
             }
         }
     }
@@ -174,7 +174,7 @@ fn shoot_ray(r: Ray, physics_distance: f32) -> HitInfo {
     var steps = 0u;
     var normal = trunc(pos * 1.00001);
     var voxel = Voxel(0u, vec3(0.0), 0u);
-    var reprojection_pos = vec3(0.0);
+    var portal_offset = vec3(0.0);
     var rot = IDENTITY;
     while (steps < 1000u) {
         voxel = get_value(tcpotr);
@@ -187,7 +187,10 @@ fn shoot_ray(r: Ray, physics_distance: f32) -> HitInfo {
 
             let intersection = ray_plane(Ray(pos, dir), portal.pos, portal.normal);
             if (all(abs(intersection - portal.pos) < vec3(voxel_size) * (vec3<f32>(portal.half_size) + 0.5)) && all(intersection != vec3(0.0))) {
-                tcpotr = intersection + r_sign * abs(portal.normal) * 0.000001;
+                tcpotr = intersection + r_sign * abs(portal.normal) * 0.0000001;
+                if (length(tcpotr - pos) + distance > physics_distance && physics_distance > 0.0) {
+                    return HitInfo(false, 0u, vec4(0.0), pos + dir * (physics_distance - distance), vec3(0.0), vec3(0.0), rot, steps);
+                }
 
                 let ray_rot_angle = acos(dot(portal.normal, portal.other_normal));
                 var ray_rot_axis: vec3<f32>;
@@ -201,11 +204,11 @@ fn shoot_ray(r: Ray, physics_distance: f32) -> HitInfo {
                 let new_pos = (ray_rot_mat * (tcpotr - portal.pos)) + portal.other_pos;
                 let new_dir = ray_rot_mat * dir;
 
-                // return HitInfo(true, voxel.data, vec4(tcpotr * 10.0, 0.0), tcpotr, tcpotr - reprojection_pos, normal, steps);
-                // return HitInfo(true, voxel.data, vec4(vec3(ray_rot_angle / u.misc_float / PI), 1.0), tcpotr, tcpotr - reprojection_pos, normal, steps);
+                // return HitInfo(true, voxel.data, vec4(tcpotr * 10.0, 0.0), tcpotr, tcpotr - portal_offset, normal, steps);
+                // return HitInfo(true, voxel.data, vec4(vec3(ray_rot_angle / u.misc_float / PI), 1.0), tcpotr, tcpotr - portal_offset, normal, steps);
 
-                reprojection_pos += new_pos - tcpotr;
-                distance += length(new_pos - pos);
+                portal_offset -= new_pos - tcpotr;
+                distance += length(tcpotr - pos);
 
                 rot = ray_rot_mat * rot;
                 pos = new_pos;
@@ -233,15 +236,15 @@ fn shoot_ray(r: Ray, physics_distance: f32) -> HitInfo {
         normal = mask * -r_sign;
 
         let t_current = min(min(t_max.x, t_max.y), t_max.z);
-        tcpotr = pos + dir * t_current - normal * 0.000002;
+        tcpotr = pos + dir * t_current - normal * 0.0000002;
 
         if (t_current + distance > physics_distance && physics_distance > 0.0) {
-            return HitInfo(false, 0u, vec4(0.0), pos + dir * (physics_distance - distance), vec3(0.0), vec3(0.0), rot, steps);
+            return HitInfo(false, 0u, vec4(0.0), pos + dir * (physics_distance - distance), portal_offset, vec3(0.0), rot, steps);
         }
 
         if (!in_bounds(tcpotr)) {
             if (physics_distance > 0.0) {
-                return HitInfo(false, 0u, vec4(0.0), pos + dir * (physics_distance - distance), vec3(0.0), vec3(0.0), rot, steps);
+                return HitInfo(false, 0u, vec4(0.0), pos + dir * (physics_distance - distance), portal_offset, vec3(0.0), rot, steps);
             }
             return intersect_scene(Ray(pos, dir), steps);
         }
@@ -249,5 +252,5 @@ fn shoot_ray(r: Ray, physics_distance: f32) -> HitInfo {
         steps = steps + 1u;
     }
 
-    return HitInfo(true, voxel.data, u.materials[voxel.data & 0xFFu], tcpotr, tcpotr - reprojection_pos, normal, rot, steps);
+    return HitInfo(true, voxel.data, u.materials[voxel.data & 0xFFu], tcpotr, portal_offset, normal, rot, steps);
 }

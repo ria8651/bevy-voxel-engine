@@ -102,6 +102,5 @@ fn update_character(
 
         let pos = transform.translation;
         transform.look_at(pos + character.look_at, Vec3::Y);
-        println!("{:?}", character.look_at);
     }
 }

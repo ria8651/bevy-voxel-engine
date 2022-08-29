@@ -92,10 +92,14 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                 bitcast<f32>(physics_data[data_index + 8]),
             );
 
-            let hit = shoot_ray(Ray(world_to_render(world_pos), world_to_render(velocity * u.delta_time)), 1.0);
-            world_pos = render_to_world(hit.pos);
-            velocity = hit.rot * velocity;
-            look_at = hit.rot * look_at;
+            if (any(abs(velocity) > vec3(0.0001))) {
+                let ray = Ray(world_to_render(world_pos), normalize(velocity * u.delta_time));
+                let d = length(velocity) * u.delta_time * VOXELS_PER_METER * 2.0 / f32(u.texture_size);
+                let hit = shoot_ray(ray, d);
+                world_pos = render_to_world(hit.pos);
+                velocity = hit.rot * velocity;
+                look_at = hit.rot * look_at;
+            }
             
             physics_data[data_index + 6] = bitcast<u32>(look_at.x);
             physics_data[data_index + 7] = bitcast<u32>(look_at.y);

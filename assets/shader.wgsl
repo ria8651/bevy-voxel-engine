@@ -98,7 +98,7 @@ fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
         output_colour = direct_lighting + indirect_lighting;
 
         // reprojection
-        let last_frame_clip_space = u.last_camera * vec4<f32>(hit.reprojection_pos, 1.0);
+        let last_frame_clip_space = u.last_camera * vec4<f32>(hit.pos + hit.portal_offset, 1.0);
         var last_frame_pos = vec2<f32>(-1.0, 1.0) * (last_frame_clip_space.xy / last_frame_clip_space.z);
         last_frame_pos.x = last_frame_pos.x / aspect;
         let texture_pos = vec2<i32>((last_frame_pos.xy * 0.5 + 0.5) * u.resolution);
@@ -131,15 +131,15 @@ fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
         // store colour for next frame
         let texture_pos = vec2<i32>(frag_pos.xy);
         textureStore(screen_texture, texture_pos, 0, vec4<f32>(output_colour.rgb, samples));
-        textureStore(screen_texture, texture_pos, 1, hit.reprojection_pos.xyzz);
+        textureStore(screen_texture, texture_pos, 1, (hit.pos + hit.portal_offset).xyzz);
     }
 
     if (u.show_ray_steps != 0u) {
         output_colour = vec3<f32>(f32(steps) / 100.0);
     }
 
-    // output_colour = hit.reprojection_pos;
-    // output_colour = hit.pos;
+    // output_colour = (hit.pos + hit.portal_offset) * 2.0;
+    // output_colour = hit.pos * 2.0;
     // output_colour = vec3<f32>(f32(all(abs(clip_space) <= vec2(0.01))));
 
     // output_colour = vec3<f32>(f32(shoot_ray(Ray(vec3(0.0), vec3(0.0, -1.0, 0.0)), 0.0).hit));
