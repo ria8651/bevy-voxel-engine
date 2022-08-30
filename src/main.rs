@@ -1,7 +1,7 @@
-use animation::{Edges, Particle, Portal, Velocity};
+use animation::{world_to_render, Edges, Particle, Portal, Velocity};
 use bevy::{asset::AssetServerSettings, prelude::*};
 use character::CharacterEntity;
-use rand::Rng;
+use trace::Uniforms;
 
 mod animation;
 mod character;
@@ -42,7 +42,6 @@ fn main() {
         .add_startup_system(setup)
         .add_system(shoot)
         .add_system(update_velocitys)
-        // .add_system(update_particles)
         .run();
 }
 
@@ -138,8 +137,15 @@ fn setup(mut commands: Commands) {
     ));
 }
 
-fn update_velocitys(mut velocity_query: Query<&mut Velocity, With<Bullet>>, time: Res<Time>) {
-    velocity_query.par_for_each_mut(8, |mut velocity| {
+fn update_velocitys(
+    mut velocity_query: Query<(&Transform, &mut Velocity, Entity), With<Bullet>>,
+    time: Res<Time>,
+) {
+    velocity_query.par_for_each_mut(8, |(_transform, mut velocity, _entity)| {
         velocity.velocity += Vec3::new(0.0, -9.81 * time.delta_seconds(), 0.0);
+        // let e = world_to_render(transform.translation.abs(), uniforms.texture_size);
+        // if e.x > 1.0 || e.y > 1.0 || e.z > 1.0 {
+        //     to_destroy.push(entity);
+        // }
     });
 }

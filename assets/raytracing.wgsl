@@ -236,7 +236,7 @@ fn shoot_ray(r: Ray, physics_distance: f32) -> HitInfo {
         normal = mask * -r_sign;
 
         let t_current = min(min(t_max.x, t_max.y), t_max.z);
-        tcpotr = pos + dir * t_current - normal * 0.0000002;
+        tcpotr = pos + dir * t_current - normal * 0.000002;
 
         if (t_current + distance > physics_distance && physics_distance > 0.0) {
             return HitInfo(false, 0u, vec4(0.0), pos + dir * (physics_distance - distance), portal_offset, vec3(0.0), rot, steps);
@@ -252,5 +252,5 @@ fn shoot_ray(r: Ray, physics_distance: f32) -> HitInfo {
         steps = steps + 1u;
     }
 
-    return HitInfo(true, voxel.data, u.materials[voxel.data & 0xFFu], tcpotr, portal_offset, normal, rot, steps);
+    return HitInfo(true, voxel.data, u.materials[voxel.data & 0xFFu], tcpotr + normal * 0.000004, portal_offset, normal, rot, steps);
 }

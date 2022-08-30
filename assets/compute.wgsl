@@ -50,7 +50,7 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     }
 
     // delete old animaiton data
-    if (material.y == 1u || material.y >> 7u == 1u) {
+    if ((material.y == 1u || material.y >> 7u == 1u) && rand.x < u.misc_float) {
         textureStore(texture, pos.zyx, vec4(0u));
     }
 }
@@ -81,9 +81,19 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
             // bullet
             
             // step bullet by ray
-            let hit = shoot_ray(Ray(world_to_render(world_pos), world_to_render(velocity * u.delta_time)), 1.0);
-            world_pos = render_to_world(hit.pos);
-            velocity = hit.rot * velocity;
+            if (any(abs(velocity) > vec3(0.0001))) {
+                let ray = Ray(world_to_render(world_pos), normalize(velocity * u.delta_time));
+                let d = length(velocity) * u.delta_time * VOXELS_PER_METER * 2.0 / f32(u.texture_size);
+                let hit = shoot_ray(ray, d);
+                world_pos = render_to_world(hit.pos);
+                velocity = hit.rot * velocity;
+
+                // bounce off walls
+                if (hit.hit) {
+                    velocity = reflect(velocity, normalize(hit.normal));
+                    // velocity = hit.normal * 10.0;
+                }
+            }
         } else if (data_type == 1) {
             // player
             var look_at = vec3(
@@ -96,8 +106,15 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                 let ray = Ray(world_to_render(world_pos), normalize(velocity * u.delta_time));
                 let d = length(velocity) * u.delta_time * VOXELS_PER_METER * 2.0 / f32(u.texture_size);
                 let hit = shoot_ray(ray, d);
-                world_pos = render_to_world(hit.pos);
-                velocity = hit.rot * velocity;
+                // world_pos = render_to_world(hit.pos);
+                // velocity = hit.rot * velocity;
+                if (hit.hit) {
+                    // velocity = reflect(-velocity, hit.normal);
+                    velocity = hit.normal * 10.0;
+                } else {
+                    world_pos = render_to_world(hit.pos);
+                    velocity = hit.rot * velocity;
+                }
                 look_at = hit.rot * look_at;
             }
             
