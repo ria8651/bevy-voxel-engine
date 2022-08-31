@@ -28,14 +28,6 @@ fn get_texture_value(pos: vec3<i32>) -> vec2<u32> {
 
 let VOXELS_PER_METER: f32 = 4.0;
 
-fn world_to_render(world_pos: vec3<f32>) -> vec3<f32> {
-    return world_pos * VOXELS_PER_METER * 2.0 / f32(u.texture_size);
-}
-
-fn render_to_world(pos: vec3<f32>) -> vec3<f32> {
-    return pos * f32(u.texture_size) / (VOXELS_PER_METER * 2.0);
-}
-
 @compute @workgroup_size(1, 1, 1)
 fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let pos = vec3(i32(invocation_id.x), i32(invocation_id.y), i32(invocation_id.z));
@@ -63,6 +55,9 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let pos = vec3(i32(invocation_id.x), i32(invocation_id.y), i32(invocation_id.z));
     let index = pos.x * dispatch_size * dispatch_size + pos.y * dispatch_size + pos.z + 1;
 
+    let wtr = VOXELS_PER_METER * 2.0 / f32(u.texture_size); // world to render ratio
+    let rtw = f32(u.texture_size) / (VOXELS_PER_METER * 2.0); // render to world ratio
+
     if (index <= header_len) {
         let data_index = i32(u32(physics_data[index]) & 0x00FFFFFFu);
         let data_type = i32(u32(physics_data[index]) >> 24u);
@@ -82,10 +77,10 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
             
             // step bullet by ray
             if (any(abs(velocity) > vec3(0.0001))) {
-                let ray = Ray(world_to_render(world_pos), normalize(velocity * u.delta_time));
+                let ray = Ray(world_pos * wtr, normalize(velocity * u.delta_time));
                 let d = length(velocity) * u.delta_time * VOXELS_PER_METER * 2.0 / f32(u.texture_size);
                 let hit = shoot_ray(ray, d);
-                world_pos = render_to_world(hit.pos);
+                world_pos = hit.pos * rtw;
                 velocity = hit.rot * velocity;
 
                 // bounce off walls
@@ -102,32 +97,30 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                 bitcast<f32>(physics_data[data_index + 8]),
             );
 
-            if (any(abs(velocity) > vec3(0.0001))) {
-                let world_to_render_ratio = VOXELS_PER_METER * 2.0 / f32(u.texture_size);
+            if (any(abs(velocity) > vec3(0.01))) {
+                let direction = normalize(velocity * u.delta_time);
+                let distance = length(velocity) * u.delta_time * wtr * 2.0;
 
-                let offset = vec3(0.0, -1.0, 0.0);
-
-                let ray = Ray(world_to_render(world_pos + offset), normalize(velocity * u.delta_time));
-                let d = length(velocity) * u.delta_time * world_to_render_ratio;
-                let hit = shoot_ray(ray, d);
-                look_at = hit.rot * look_at;
-
-                if (hit.hit) {
-                    // velocity = reflect(velocity, hit.normal);
-                    velocity = velocity - dot(velocity, hit.normal) * hit.normal;
-                    world_pos += velocity * u.delta_time;
-                } else {
-                    world_pos = render_to_world(hit.pos) - offset;
-                    velocity = hit.rot * velocity;
+                for (var i = 0u; i < 8u; i += 1u) {
+                    let offset = vec3(
+                        f32(i & 1u), 
+                        f32((i >> 1u) & 1u), 
+                        f32((i >> 2u) & 1u)
+                    ) * 2.0 - 1.0;
+                    let offset = offset * vec3(0.25, 1.0, 0.25);
+                    let hit = shoot_ray(Ray(world_pos * wtr, direction), distance);
+                    if (hit.hit) {
+                        velocity = velocity - dot(velocity, hit.normal) * hit.normal;
+                    }
                 }
 
-                // world_pos = render_to_world(hit.pos);
-                // velocity = hit.rot * velocity;
-                // let down_hit = shoot_ray(Ray(world_to_render(world_pos), vec3(0.0, -1.0, 0.0)), 1.0 * world_to_render_ratio);
-                // if (down_hit.hit) {
-                //     world_pos = render_to_world(down_hit.pos) + vec3(0.0, 1.0, 0.0);
-                //     velocity.y = 0.0;
-                // }
+                if (any(abs(velocity) > vec3(0.01))) {
+                    let direction = normalize(velocity * u.delta_time);
+                    let distance = length(velocity) * u.delta_time * wtr;
+                    let hit = shoot_ray(Ray(world_pos * wtr, direction), distance);
+                    look_at = hit.rot * look_at;
+                    world_pos = hit.pos * rtw;
+                }
             }
             
             physics_data[data_index + 6] = bitcast<u32>(look_at.x);
