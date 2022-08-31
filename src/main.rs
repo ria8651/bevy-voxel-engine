@@ -32,7 +32,7 @@ fn main() {
             ..default()
         })
         .insert_resource(Settings {
-            spectator: false,
+            spectator: true,
         })
         .insert_resource(load::load_vox().unwrap())
         .insert_resource(trace::ShaderTimer(Timer::from_seconds(1000.0, true)))

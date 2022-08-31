@@ -5,12 +5,14 @@ const SENSITIVITY: f32 = 0.004;
 
 #[derive(Component)]
 pub struct CharacterEntity {
+    pub grounded: bool,
     pub look_at: Vec3,
 }
 
 impl Default for CharacterEntity {
     fn default() -> Self {
         Self {
+            grounded: false,
             look_at: Vec3::new(0.0, 0.0, 1.0),
         }
     }
@@ -69,7 +71,7 @@ fn update_character(
     }
 
     let (mut transform, mut velocity, mut character) = character.single_mut();
-    let mut target_velocity;
+    let target_velocity;
     if window.cursor_locked() {
         // movement
         let mut input = Vec3::new(
@@ -87,6 +89,13 @@ fn update_character(
                 + input.x * transform.local_x()
                 + input.y * transform.local_y();
         } else {
+            if velocity.velocity.y == 0.0 {
+                character.grounded = true;
+            }
+            if input.y > 0.0 && character.grounded {
+                velocity.velocity.y = 5.0;
+                character.grounded = false;
+            }
             velocity.velocity += Vec3::new(0.0, -9.81 * time.delta_seconds(), 0.0);
 
             let plane_forward = transform.local_x().cross(Vec3::Y).normalize();
@@ -113,6 +122,15 @@ fn update_character(
         target_velocity = Vec3::splat(0.0);
     }
 
+    let acceleration: f32 = if settings.spectator {
+        0.8
+    } else if character.grounded {
+        0.8
+    } else {
+        0.99
+    };
+
     velocity.velocity = velocity.velocity
-        + (target_velocity - velocity.velocity) * (1.0 - 0.9f32.powf(time.delta_seconds() * 120.0));
+        + (target_velocity - velocity.velocity)
+            * (1.0 - acceleration.powf(time.delta_seconds() * 120.0));
 }
