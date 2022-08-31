@@ -61,15 +61,16 @@ fn update_character(
     mut mouse_motion_events: EventReader<MouseMotion>,
     time: Res<Time>,
     mut windows: ResMut<Windows>,
+    settings: Res<super::Settings>,
 ) {
     let window = windows.get_primary_mut().unwrap();
     if keys.just_pressed(KeyCode::Escape) {
         toggle_grab_cursor(window);
     }
 
+    let (mut transform, mut velocity, mut character) = character.single_mut();
+    let mut target_velocity;
     if window.cursor_locked() {
-        let (mut transform, mut velocity, mut character) = character.single_mut();
-
         // movement
         let mut input = Vec3::new(
             (keys.pressed(KeyCode::D) as i32 - keys.pressed(KeyCode::A) as i32) as f32,
@@ -81,12 +82,18 @@ fn update_character(
         }
         input *= SPEED;
 
-        let target_velocity = input.z * transform.local_z()
-            + input.x * transform.local_x()
-            + input.y * transform.local_y();
-        let delta_time = time.delta_seconds();
-        velocity.velocity = velocity.velocity
-            + (target_velocity - velocity.velocity) * (1.0 - 0.9f32.powf(delta_time * 120.0));
+        if settings.spectator {
+            target_velocity = input.z * transform.local_z()
+                + input.x * transform.local_x()
+                + input.y * transform.local_y();
+        } else {
+            velocity.velocity += Vec3::new(0.0, -9.81 * time.delta_seconds(), 0.0);
+
+            let plane_forward = transform.local_x().cross(Vec3::Y).normalize();
+            target_velocity = input.z * plane_forward
+                + input.x * transform.local_x()
+                + velocity.velocity.y * Vec3::Y;
+        }
 
         // rotation
         let mut mouse_delta = Vec2::new(0.0, 0.0);
@@ -102,5 +109,10 @@ fn update_character(
 
         let pos = transform.translation;
         transform.look_at(pos + character.look_at, Vec3::Y);
+    } else {
+        target_velocity = Vec3::splat(0.0);
     }
+
+    velocity.velocity = velocity.velocity
+        + (target_velocity - velocity.velocity) * (1.0 - 0.9f32.powf(time.delta_seconds() * 120.0));
 }

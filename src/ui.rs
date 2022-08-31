@@ -19,6 +19,7 @@ fn ui_system(
     mut commands: Commands,
     mut egui_context: ResMut<EguiContext>,
     mut uniforms: ResMut<trace::Uniforms>,
+    mut settings: ResMut<super::Settings>,
     particle_query: Query<Entity, With<Particle>>,
 ) {
     egui::Window::new("Settings")
@@ -61,6 +62,7 @@ fn ui_system(
                 }
                 ui.label(format!("Particle count: {}", particle_query.iter().count()));
             });
+            ui.checkbox(&mut settings.spectator, "Spectator mode");
             ui.checkbox(&mut uniforms.misc_bool, "Misc bool");
             ui.add(Slider::new(&mut uniforms.misc_float, 0.0..=1.0).text("Misc float"));
         });

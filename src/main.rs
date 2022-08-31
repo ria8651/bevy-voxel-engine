@@ -1,7 +1,6 @@
-use animation::{world_to_render, Edges, Particle, Portal, Velocity};
+use animation::{Edges, Particle, Portal, Velocity};
 use bevy::{asset::AssetServerSettings, prelude::*};
 use character::CharacterEntity;
-use trace::Uniforms;
 
 mod animation;
 mod character;
@@ -17,6 +16,10 @@ struct MainCamera;
 #[derive(Component)]
 pub struct Bullet;
 
+pub struct Settings {
+    pub spectator: bool,
+}
+
 fn main() {
     App::new()
         .insert_resource(AssetServerSettings {
@@ -27,6 +30,9 @@ fn main() {
             width: 600.0,
             height: 600.0,
             ..default()
+        })
+        .insert_resource(Settings {
+            spectator: false,
         })
         .insert_resource(load::load_vox().unwrap())
         .insert_resource(trace::ShaderTimer(Timer::from_seconds(1000.0, true)))

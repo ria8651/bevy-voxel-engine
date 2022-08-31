@@ -103,19 +103,31 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
             );
 
             if (any(abs(velocity) > vec3(0.0001))) {
-                let ray = Ray(world_to_render(world_pos), normalize(velocity * u.delta_time));
-                let d = length(velocity) * u.delta_time * VOXELS_PER_METER * 2.0 / f32(u.texture_size);
+                let world_to_render_ratio = VOXELS_PER_METER * 2.0 / f32(u.texture_size);
+
+                let offset = vec3(0.0, -1.0, 0.0);
+
+                let ray = Ray(world_to_render(world_pos + offset), normalize(velocity * u.delta_time));
+                let d = length(velocity) * u.delta_time * world_to_render_ratio;
                 let hit = shoot_ray(ray, d);
-                // world_pos = render_to_world(hit.pos);
-                // velocity = hit.rot * velocity;
+                look_at = hit.rot * look_at;
+
                 if (hit.hit) {
-                    // velocity = reflect(-velocity, hit.normal);
-                    velocity = hit.normal * 10.0;
+                    // velocity = reflect(velocity, hit.normal);
+                    velocity = velocity - dot(velocity, hit.normal) * hit.normal;
+                    world_pos += velocity * u.delta_time;
                 } else {
-                    world_pos = render_to_world(hit.pos);
+                    world_pos = render_to_world(hit.pos) - offset;
                     velocity = hit.rot * velocity;
                 }
-                look_at = hit.rot * look_at;
+
+                // world_pos = render_to_world(hit.pos);
+                // velocity = hit.rot * velocity;
+                // let down_hit = shoot_ray(Ray(world_to_render(world_pos), vec3(0.0, -1.0, 0.0)), 1.0 * world_to_render_ratio);
+                // if (down_hit.hit) {
+                //     world_pos = render_to_world(down_hit.pos) + vec3(0.0, 1.0, 0.0);
+                //     velocity.y = 0.0;
+                // }
             }
             
             physics_data[data_index + 6] = bitcast<u32>(look_at.x);
