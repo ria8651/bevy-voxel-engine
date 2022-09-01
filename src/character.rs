@@ -32,7 +32,7 @@ fn setup_character(mut commands: Commands, mut windows: ResMut<Windows>) {
 
     commands
         .spawn_bundle(Camera3dBundle {
-            transform: Transform::from_xyz(0.0, 0.0, 0.0)
+            transform: Transform::from_xyz(2.0, 2.0, 2.0)
                 .looking_at(Vec3::new(0.0, 0.0, 1.0), Vec3::Y),
             projection: Projection::Perspective(PerspectiveProjection {
                 fov: 1.48353,

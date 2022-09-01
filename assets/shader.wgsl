@@ -46,7 +46,7 @@ fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed
             // let rand = hash(seed) * 2.0 - 1.0;
             let rand = vec3(0.0);
             let shadow_ray = Ray(pos, -light_dir + rand * 0.1);
-            let shadow_hit = shoot_ray(shadow_ray, 0.0);
+            let shadow_hit = shoot_ray(shadow_ray, 0.0, 255u);
             shadow = f32(!(shadow_hit.hit && any(shadow_hit.material == vec4(0.0))));
         }
 
@@ -73,7 +73,7 @@ fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
     let dir = normalize(dir.xyz - pos);
     var ray = Ray(pos, dir);
 
-    let hit = shoot_ray(ray, 0.0);
+    let hit = shoot_ray(ray, 0.0, 255u);
     var steps = hit.steps;
 
     var samples = 0.0;
@@ -85,7 +85,7 @@ fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
         var indirect_lighting = vec3(0.2);
         if (u.indirect_lighting != 0u) {
             let indirect_dir = cosine_hemisphere(hit.normal, seed + 10u);
-            let indirect_hit = shoot_ray(Ray(hit.pos + hit.normal * 0.0000025, indirect_dir), 0.0);
+            let indirect_hit = shoot_ray(Ray(hit.pos + hit.normal * 0.0000025, indirect_dir), 0.0, 255u);
             if (indirect_hit.hit) {
                 indirect_lighting = calculate_direct(indirect_hit.material, indirect_hit.pos, indirect_hit.normal, seed + 20u);
             } else {

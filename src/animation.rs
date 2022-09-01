@@ -111,8 +111,8 @@ pub fn extract_animation_data(
     for (transform, particle) in particle_query.iter() {
         let pos = world_to_voxel(transform.translation, voxel_world_size);
         type_buffer.push_object(0, |type_buffer| {
-            type_buffer.push_u32(particle.material as u32);
             type_buffer.push_ivec3(pos);
+            type_buffer.push_u32(particle.material as u32);
         });
     }
 
@@ -121,10 +121,9 @@ pub fn extract_animation_data(
     for (transform, portal) in portal_query.iter() {
         let pos = world_to_voxel(transform.translation, voxel_world_size);
         type_buffer.push_object(1, |type_buffer| {
-            type_buffer.push_u32(1); // portal material doesn't matter atm
             type_buffer.push_ivec3(pos);
-            type_buffer.push_u32(i);
             type_buffer.push_ivec3(portal.half_size);
+            type_buffer.push_u32(i);
         });
         i += 1;
     }
@@ -133,8 +132,8 @@ pub fn extract_animation_data(
     for (transform, edges) in edges_query.iter() {
         let pos = world_to_voxel(transform.translation, voxel_world_size);
         type_buffer.push_object(2, |type_buffer| {
-            type_buffer.push_u32(edges.material as u32);
             type_buffer.push_ivec3(pos);
+            type_buffer.push_u32(edges.material as u32);
             type_buffer.push_ivec3(edges.half_size);
         });
     }

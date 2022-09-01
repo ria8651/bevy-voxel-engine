@@ -1,3 +1,7 @@
+let PORTAL_FLAG = 64u; // 0b01000000
+let ANIMATION_FLAG = 32u; // 0b00100000
+let COLLISION_FLAG = 16u; // 0b00010000
+
 fn get_value_index(index: u32) -> bool {
     return ((gh[index / 32u] >> (index % 32u)) & 1u) != 0u;
 }
@@ -109,17 +113,7 @@ let IDENTITY = mat3x3<f32>(
 
 fn intersect_scene(r: Ray, steps: u32) -> HitInfo {
     if (u.skybox != 0u) {
-        // plane
-        // let normal = vec3(0.0, 1.0, 0.0);
-        // let denom = dot(normal, r.dir);
-        // if (abs(denom) > 0.00001) {
-        //     let t = dot(normal, -normal - r.pos) / denom;
-        //     if (t >= 0.0) {
-        //         let pos = r.pos + r.dir * t;
-        //         return HitInfo(true, vec4(vec3(0.2), 0.0), pos, pos, normal, steps);
-        //     }
-        // }
-
+        // pillar
         let t = ray_box_dist(r, vec3(-1.0), vec3(1.0, -10000.0, 1.0)).x;
         if (t != 0.0) {
             let pos = r.pos + r.dir * t;
@@ -127,6 +121,7 @@ fn intersect_scene(r: Ray, steps: u32) -> HitInfo {
             return HitInfo(true, 0u, vec4(vec3(0.2), 0.0), pos, vec3(0.0), normal, IDENTITY, steps);
         }
 
+        // skybox
         let t = ray_box_dist(r, vec3(3.0), vec3(-3.0, -10000.0, -3.0)).y;
         if (t != 0.0) {
             let pos = r.pos + r.dir * t;
@@ -147,9 +142,10 @@ fn intersect_scene(r: Ray, steps: u32) -> HitInfo {
 
 let PI: f32 = 3.14159265358979323846264338327950288;
 
-// physics_distance is in terms of t so make sure to normalize your 
-// ray direction if you want it to be in world cordinates
-fn shoot_ray(r: Ray, physics_distance: f32) -> HitInfo {
+/// physics_distance is in terms of t so make sure to normalize your 
+/// ray direction if you want it to be in world cordinates.
+/// only hits any voxels that have any of the input flags set.
+fn shoot_ray(r: Ray, physics_distance: f32, flags: u32) -> HitInfo {
     var pos = r.pos;
     let dir_mask = vec3<f32>(r.dir == vec3(0.0));
     var dir = r.dir + dir_mask * 0.000001;
@@ -180,9 +176,9 @@ fn shoot_ray(r: Ray, physics_distance: f32) -> HitInfo {
         voxel = get_value(tcpotr);
 
         // portals
-        let should_portal_skip = voxel.data >> 15u == 1u;
+        let should_portal_skip = ((voxel.data >> 8u) & PORTAL_FLAG) > 0u;
         if (should_portal_skip) {
-            let portal = u.portals[i32((voxel.data >> 8u) & 127u)]; // 0b01111111u retreive the portal index before overwiting the voxel
+            let portal = u.portals[i32(voxel.data & 0xFFu)];
             let voxel_size = 2.0 / f32(u.texture_size);
 
             let intersection = ray_plane(Ray(pos, dir), portal.pos, portal.normal);
@@ -222,10 +218,8 @@ fn shoot_ray(r: Ray, physics_distance: f32) -> HitInfo {
             }
         }
 
-        if ((voxel.data & 0xFFu) != 0u && !should_portal_skip) {
-            if (!(physics_distance > 0.0 && (voxel.data >> 8u) == 1u)) {
-                break;
-            }
+        if ((voxel.data & 0xFFu) != 0u && !should_portal_skip && ((voxel.data >> 8u) & flags) > 0u) {
+            break;
         }
 
         let voxel_size = 2.0 / f32(voxel.grid_size);

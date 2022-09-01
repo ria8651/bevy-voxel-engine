@@ -83,6 +83,7 @@ pub fn load_vox() -> Result<GH, String> {
 
         let index = pos.x as usize * size * size + pos.y as usize * size + pos.z as usize;
         gh.texture_data[index as usize * 2] = voxel.i;
+        gh.texture_data[index as usize * 2 + 1] = 16; // set the collision flag
     }
 
     Ok(gh)
