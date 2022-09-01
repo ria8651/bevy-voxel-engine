@@ -1750,6 +1750,7 @@ dependencies = [
  "bevy",
  "bevy_egui",
  "bytemuck",
+ "concurrent-queue",
  "dot_vox",
  "futures-intrusive",
  "rand",

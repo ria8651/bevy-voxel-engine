@@ -74,7 +74,8 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
         );
         if (data_type == 0) {
             // bullet
-            
+            var hit_normal = vec3(0.0);
+
             // step bullet by ray
             if (any(abs(velocity) > vec3(0.0001))) {
                 let direction = Ray(world_pos * wtr, normalize(velocity));
@@ -85,10 +86,15 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
 
                 // bounce off walls
                 if (hit.hit) {
-                    velocity = reflect(velocity, normalize(hit.normal));
+                    // velocity = reflect(velocity, normalize(hit.normal));
                     // velocity = hit.normal * 10.0;
+                    hit_normal = hit.normal;
                 }
             }
+
+            physics_data[data_index + 6] = bitcast<u32>(hit_normal.x);
+            physics_data[data_index + 7] = bitcast<u32>(hit_normal.y);
+            physics_data[data_index + 8] = bitcast<u32>(hit_normal.z);
         } else if (data_type == 1) {
             // player
             var look_at = vec3(

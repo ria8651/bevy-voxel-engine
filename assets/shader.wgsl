@@ -130,8 +130,8 @@ fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
     if (u.freeze == 0u) {
         // store colour for next frame
         let texture_pos = vec2<i32>(frag_pos.xy);
-        textureStore(screen_texture, texture_pos, 0, vec4<f32>(output_colour.rgb, samples));
-        textureStore(screen_texture, texture_pos, 1, (hit.pos + hit.portal_offset).xyzz);
+        textureStore(screen_texture, texture_pos, 0, vec4(output_colour.rgb, samples));
+        textureStore(screen_texture, texture_pos, 1, vec4(hit.pos + hit.portal_offset, 0.0));
     }
 
     if (u.show_ray_steps != 0u) {

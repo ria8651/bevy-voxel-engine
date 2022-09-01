@@ -51,7 +51,7 @@ fn ui_system(
                                     rng.gen_range(-1.0..1.0),
                                 ).clamp_length_max(1.0) * 10.0,
                             },
-                            Bullet,
+                            Bullet { bullet_type: 0, hit_normal: Vec3::splat(0.0) },
                         ));
                     }
                 }

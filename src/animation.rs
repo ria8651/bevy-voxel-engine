@@ -85,15 +85,15 @@ impl TypeBuffer {
     }
 }
 
-const VOXELS_PER_METER: u32 = 4;
+pub const VOXELS_PER_METER: f32 = 4.0;
 
 pub fn world_to_voxel(world_pos: Vec3, voxel_world_size: u32) -> IVec3 {
-    let world_pos = world_pos * VOXELS_PER_METER as f32;
+    let world_pos = world_pos * VOXELS_PER_METER;
     world_pos.as_ivec3() + IVec3::splat(voxel_world_size as i32 / 2)
 }
 
 pub fn world_to_render(world_pos: Vec3, voxel_world_size: u32) -> Vec3 {
-    2.0 * world_pos * VOXELS_PER_METER as f32 / voxel_world_size as f32
+    2.0 * world_pos * VOXELS_PER_METER / voxel_world_size as f32
 }
 
 pub fn extract_animation_data(
@@ -151,10 +151,12 @@ pub fn extract_animation_data(
             let second_normal = second.1.normal;
 
             let voxel_size = 2.0 / uniforms.texture_size as f32;
-            let first_pos =
-                world_to_render(first.0.translation, uniforms.texture_size) + voxel_size / 2.0;
-            let second_pos =
-                world_to_render(second.0.translation, uniforms.texture_size) + voxel_size / 2.0;
+            let first_pos = world_to_render(first.0.translation, uniforms.texture_size)
+                + voxel_size / 2.0
+                - first_normal * voxel_size / 2.0;
+            let second_pos = world_to_render(second.0.translation, uniforms.texture_size)
+                + voxel_size / 2.0
+                - second_normal * voxel_size / 2.0;
 
             uniforms.portals[i - 1] = ExtractedPortal {
                 pos: [first_pos.x, first_pos.y, first_pos.z, 0.0],
@@ -207,6 +209,7 @@ pub fn extract_physics_data(
         type_buffer.push_object(0, |type_buffer| {
             type_buffer.push_vec3(transform.translation);
             type_buffer.push_vec3(velocity.velocity);
+            type_buffer.push_vec3(Vec3::splat(0.0)); // space to recieve hit data
         });
     }
 
@@ -227,7 +230,7 @@ pub fn extract_physics_data(
 
 pub fn insert_physics_data(
     mut set: ParamSet<(
-        Query<(&mut Transform, &mut Velocity, Entity), With<Bullet>>,
+        Query<(&mut Transform, &mut Velocity, &mut Bullet, Entity)>,
         Query<(&mut Transform, &mut Velocity, &mut CharacterEntity, Entity)>,
     )>,
     extracted_physics_data: Res<compute::ExtractedPhysicsData>,
@@ -251,7 +254,7 @@ pub fn insert_physics_data(
         compute_meta.physics_data.unmap();
 
         // process bullets
-        for (mut transform, mut velocity, entity) in set.p0().iter_mut() {
+        for (mut transform, mut velocity, mut bullet, entity) in set.p0().iter_mut() {
             if let Some(index) = extracted_physics_data.entities.get(&entity) {
                 let data_index = result[index + 1] as usize;
                 transform.translation = Vec3::new(
@@ -263,6 +266,11 @@ pub fn insert_physics_data(
                     bytemuck::cast(result[data_index + 3]),
                     bytemuck::cast(result[data_index + 4]),
                     bytemuck::cast(result[data_index + 5]),
+                );
+                bullet.hit_normal = Vec3::new(
+                    bytemuck::cast(result[data_index + 6]),
+                    bytemuck::cast(result[data_index + 7]),
+                    bytemuck::cast(result[data_index + 8]),
                 );
             }
         }
