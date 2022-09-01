@@ -1,4 +1,4 @@
-use bevy::{input::mouse::MouseMotion, prelude::*, render::camera::Projection};
+use bevy::{input::mouse::MouseMotion, prelude::*};
 
 const SPEED: f32 = 10.0;
 const SENSITIVITY: f32 = 0.004;
@@ -7,15 +7,9 @@ const SENSITIVITY: f32 = 0.004;
 pub struct CharacterEntity {
     pub grounded: bool,
     pub look_at: Vec3,
-}
-
-impl Default for CharacterEntity {
-    fn default() -> Self {
-        Self {
-            grounded: false,
-            look_at: Vec3::new(0.0, 0.0, 1.0),
-        }
-    }
+    pub up: Vec3,
+    pub portal1: Entity,
+    pub portal2: Entity,
 }
 
 pub struct Character;
@@ -27,28 +21,8 @@ impl Plugin for Character {
     }
 }
 
-fn setup_character(mut commands: Commands, mut windows: ResMut<Windows>) {
+fn setup_character(mut windows: ResMut<Windows>) {
     toggle_grab_cursor(windows.get_primary_mut().unwrap());
-
-    commands
-        .spawn_bundle(Camera3dBundle {
-            transform: Transform::from_xyz(2.0, 2.0, 2.0)
-                .looking_at(Vec3::new(0.0, 0.0, 1.0), Vec3::Y),
-            projection: Projection::Perspective(PerspectiveProjection {
-                fov: 1.48353,
-                near: 0.05,
-                far: 10000.0,
-                ..Default::default()
-            }),
-            ..Default::default()
-        })
-        .insert_bundle((
-            CharacterEntity::default(),
-            super::Velocity {
-                velocity: Vec3::splat(1.0),
-            },
-            super::MainCamera,
-        ));
 }
 
 /// Grabs/ungrabs mouse cursor
@@ -110,27 +84,60 @@ fn update_character(
             mouse_delta += event.delta;
         }
         if mouse_delta != Vec2::ZERO {
+            let angle = character.look_at.dot(character.up).acos();
+            let max_angle = 0.01;
+
             // Order is important to prevent unintended roll
             character.look_at = Quat::from_axis_angle(Vec3::Y, -mouse_delta.x * SENSITIVITY)
-                * Quat::from_axis_angle(transform.local_x(), -mouse_delta.y * SENSITIVITY)
+                * Quat::from_axis_angle(
+                    transform.local_x(),
+                    (-mouse_delta.y * SENSITIVITY)
+                        .min(angle - max_angle)
+                        .max(angle + max_angle - std::f32::consts::PI),
+                )
                 * character.look_at;
         }
 
         let pos = transform.translation;
-        transform.look_at(pos + character.look_at, Vec3::Y);
+        transform.look_at(pos + character.look_at, character.up);
     } else {
         target_velocity = Vec3::splat(0.0);
     }
 
     let acceleration: f32 = if settings.spectator {
-        0.8
+        0.2
     } else if character.grounded {
-        0.8
+        0.2
     } else {
-        0.99
+        0.01
     };
 
-    velocity.velocity = velocity.velocity
-        + (target_velocity - velocity.velocity)
-            * (1.0 - acceleration.powf(time.delta_seconds() * 120.0));
+    velocity.velocity = lerp(
+        velocity.velocity,
+        target_velocity,
+        acceleration,
+        time.delta_seconds(),
+    );
+
+    character.up = slerp(
+        character.up.normalize(),
+        Vec3::Y,
+        0.04,
+        time.delta_seconds(),
+    );
+}
+
+fn lerp(i: Vec3, f: Vec3, s: f32, dt: f32) -> Vec3 {
+    let s = (1.0 - s).powf(dt * 120.0);
+    i * s + f * (1.0 - s)
+}
+
+// https://youtu.be/ibkT5ao8kGY
+fn slerp(i: Vec3, f: Vec3, s: f32, dt: f32) -> Vec3 {
+    let s = (1.0 - s).powf(dt * 120.0);
+    let theta = i.dot(f).acos();
+    if theta.sin() == 0.0 {
+        return i + Vec3::splat(0.00000001);
+    }
+    ((s * theta).sin() / theta.sin()) * i + (((1.0 - s) * theta).sin() / theta.sin()) * f
 }

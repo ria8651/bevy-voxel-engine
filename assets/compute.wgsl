@@ -102,6 +102,11 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                 bitcast<f32>(physics_data[data_index + 7]),
                 bitcast<f32>(physics_data[data_index + 8]),
             );
+            var up = vec3(
+                bitcast<f32>(physics_data[data_index + 9]),
+                bitcast<f32>(physics_data[data_index + 10]),
+                bitcast<f32>(physics_data[data_index + 11]),
+            );
 
             if (any(abs(velocity) > vec3(0.01))) {
                 let direction = normalize(velocity);
@@ -157,6 +162,7 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                     let distance = length(velocity) * u.delta_time * wtr;
                     let hit = shoot_ray(Ray(world_pos * wtr, direction), distance, 0u);
                     look_at = hit.rot * look_at;
+                    up = hit.rot * up;
                     velocity = hit.rot * velocity;
                     world_pos = hit.pos * rtw;
                 }
@@ -165,6 +171,9 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
             physics_data[data_index + 6] = bitcast<u32>(look_at.x);
             physics_data[data_index + 7] = bitcast<u32>(look_at.y);
             physics_data[data_index + 8] = bitcast<u32>(look_at.z);
+            physics_data[data_index + 9] = bitcast<u32>(up.x);
+            physics_data[data_index + 10] = bitcast<u32>(up.y);
+            physics_data[data_index + 11] = bitcast<u32>(up.z);
         }
         physics_data[data_index + 0] = bitcast<u32>(world_pos.x);
         physics_data[data_index + 1] = bitcast<u32>(world_pos.y);

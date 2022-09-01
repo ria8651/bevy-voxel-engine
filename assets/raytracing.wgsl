@@ -193,7 +193,11 @@ fn shoot_ray(r: Ray, physics_distance: f32, flags: u32) -> HitInfo {
                 if (any(abs(portal.normal) != abs(portal.other_normal))) {
                     ray_rot_axis = cross(portal.normal, portal.other_normal);
                 } else {
-                    ray_rot_axis = vec3(0.0, 1.0, 0.0);
+                    if (all(abs(portal.normal) == vec3(0.0, 1.0, 0.0))) {
+                        ray_rot_axis = vec3(1.0, 0.0, 0.0);
+                    } else {
+                        ray_rot_axis = vec3(0.0, 1.0, 0.0);
+                    }
                 }
                 let ray_rot_mat = create_rot_mat(ray_rot_axis, PI - ray_rot_angle);
 

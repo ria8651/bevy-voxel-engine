@@ -221,6 +221,7 @@ pub fn extract_physics_data(
             type_buffer.push_vec3(transform.translation);
             type_buffer.push_vec3(velocity.velocity);
             type_buffer.push_vec3(character_entity.look_at);
+            type_buffer.push_vec3(character_entity.up);
         });
     }
 
@@ -293,6 +294,11 @@ pub fn insert_physics_data(
                     bytemuck::cast(result[data_index + 6]),
                     bytemuck::cast(result[data_index + 7]),
                     bytemuck::cast(result[data_index + 8]),
+                );
+                player_entity.up = Vec3::new(
+                    bytemuck::cast(result[data_index + 9]),
+                    bytemuck::cast(result[data_index + 10]),
+                    bytemuck::cast(result[data_index + 11]),
                 );
             }
         }
