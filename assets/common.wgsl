@@ -99,6 +99,56 @@ fn in_bounds(v: vec3<f32>) -> bool {
     return (s.x * s.y * s.z) > 0.5;
 }
 
+// filmic tonemapping
+fn filmic(x: vec3<f32>) -> vec3<f32> {
+    var x1: vec3<f32>;
+    var X: vec3<f32>;
+    var result: vec3<f32>;
+
+    x1 = x;
+    let e5: vec3<f32> = x1;
+    let e11: vec3<f32> = x1;
+    X = max(vec3<f32>(0.0), (e11 - vec3<f32>(0.004000000189989805)));
+    let e17: vec3<f32> = X;
+    let e19: vec3<f32> = X;
+    let e25: vec3<f32> = X;
+    let e27: vec3<f32> = X;
+    result = ((e17 * ((6.199999809265137 * e19) + vec3<f32>(0.5))) / ((e25 * ((6.199999809265137 * e27) + vec3<f32>(1.7000000476837158))) + vec3<f32>(0.05999999865889549)));
+    let e41: vec3<f32> = result;
+    return pow(e41, vec3<f32>(2.200000047683716));
+}
+
+// aces tonemapping
+fn aces(x: vec3<f32>) -> vec3<f32> {
+    var x1: vec3<f32>;
+    var a: f32 = 2.51;
+    var b: f32 = 0.03;
+    var c: f32 = 2.43;
+    var d: f32 = 0.59;
+    var e: f32 = 0.14;
+
+    x1 = x;
+    let e13: vec3<f32> = x1;
+    let e14: f32 = a;
+    let e15: vec3<f32> = x1;
+    let e17: f32 = b;
+    let e21: vec3<f32> = x1;
+    let e22: f32 = c;
+    let e23: vec3<f32> = x1;
+    let e25: f32 = d;
+    let e29: f32 = e;
+    let e35: vec3<f32> = x1;
+    let e36: f32 = a;
+    let e37: vec3<f32> = x1;
+    let e39: f32 = b;
+    let e43: vec3<f32> = x1;
+    let e44: f32 = c;
+    let e45: vec3<f32> = x1;
+    let e47: f32 = d;
+    let e51: f32 = e;
+    return clamp(((e35 * ((e36 * e37) + vec3<f32>(e39))) / ((e43 * ((e44 * e45) + vec3<f32>(e47))) + vec3<f32>(e51))), vec3<f32>(0.0), vec3<f32>(1.0));
+}
+
 fn skybox(dir: vec3<f32>, time_of_day: f32) -> vec3<f32> {
     var dir1: vec3<f32>;
     var time_of_day1: f32;

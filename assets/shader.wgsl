@@ -29,13 +29,17 @@ var screen_texture: texture_storage_2d_array<rgba16float, read_write>;
 // note: raytracing.wgsl requires common.wgsl and for you to define u, gh and texture before you import it
 #import "raytracing.wgsl"
 
-let light_dir = vec3<f32>(1.3, -1.0, 0.8);
+let light_dir = vec3<f32>(0.8, -1.0, 0.8);
+let light_colour = vec3<f32>(1.0, 1.0, 1.0);
 
 fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed: vec3<u32>) -> vec3<f32> {
-    var lighting = 0.0;
+    var lighting = vec3(0.0);
     if (material.a == 0.0) {
         // ambient
-        let ambient = 0.2;
+        var ambient = vec3(0.0);
+        if (!(u.indirect_lighting != 0u)) {
+            ambient = vec3(0.3);
+        }
 
         // diffuse
         let diffuse = max(dot(normal, -normalize(light_dir)), 0.0);
@@ -43,18 +47,18 @@ fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed
         // shadow
         var shadow = 1.0;
         if (u.shadows != 0u) {
-            // let rand = hash(seed) * 2.0 - 1.0;
-            let rand = vec3(0.0);
+            let rand = hash(seed) * 2.0 - 1.0;
+            // let rand = vec3(0.0);
             let shadow_ray = Ray(pos, -light_dir + rand * 0.1);
             let shadow_hit = shoot_ray(shadow_ray, 0.0, 255u);
             shadow = f32(!(shadow_hit.hit && any(shadow_hit.material == vec4(0.0))));
         }
 
-        lighting = ambient + diffuse * shadow;
+        lighting = ambient + diffuse * shadow * light_colour;
     } else {
-        lighting = 1.0;
+        lighting = vec3(1.0);
     }
-    return lighting * material.rgb;
+    return lighting;
 }
 
 @fragment
@@ -82,20 +86,20 @@ fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
         let direct_lighting = calculate_direct(hit.material, hit.pos, hit.normal, seed + 15u);
 
         // indirect lighting
-        var indirect_lighting = vec3(0.2);
+        var indirect_lighting = vec3(0.0);
         if (u.indirect_lighting != 0u) {
             let indirect_dir = cosine_hemisphere(hit.normal, seed + 10u);
-            let indirect_hit = shoot_ray(Ray(hit.pos + hit.normal * 0.0000025, indirect_dir), 0.0, 255u);
+            let indirect_hit = shoot_ray(Ray(hit.pos, indirect_dir), 0.0, 255u);
             if (indirect_hit.hit) {
                 indirect_lighting = calculate_direct(indirect_hit.material, indirect_hit.pos, indirect_hit.normal, seed + 20u);
             } else {
-                indirect_lighting = vec3<f32>(0.2);
-                // indirect_lighting = skybox(ray.dir, 10.0);
+                indirect_lighting = vec3<f32>(0.3);
+                // indirect_lighting = skybox(indirect_dir, 10.0);
             }
         }
 
         // final blend
-        output_colour = direct_lighting + indirect_lighting;
+        output_colour = (direct_lighting + indirect_lighting) * hit.material.rgb;
 
         // reprojection
         let last_frame_clip_space = u.last_camera * vec4<f32>(hit.pos + hit.portal_offset, 1.0);
@@ -140,12 +144,9 @@ fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     // output_colour = (hit.pos + hit.portal_offset) * 2.0;
     // output_colour = hit.pos * 2.0;
-    // output_colour = vec3<f32>(f32(all(abs(clip_space) <= vec2(0.01))));
 
-    // output_colour = vec3<f32>(f32(shoot_ray(Ray(vec3(0.0), vec3(0.0, -1.0, 0.0)), 0.0).hit));
-
-    let knee = 0.2;
-    let power = 2.2;
-    output_colour = clamp(output_colour, vec3<f32>(0.0), vec3<f32>(1.0));
-    return vec4<f32>((1.0 - knee) * pow(output_colour, vec3<f32>(power)) + knee * output_colour, 1.0);
+    output_colour = max(output_colour, vec3(0.0));
+    // output_colour = aces(output_colour);
+    output_colour = pow(output_colour, vec3(2.2));
+    return vec4<f32>(output_colour, 1.0);
 }
