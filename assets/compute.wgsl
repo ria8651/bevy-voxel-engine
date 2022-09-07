@@ -72,42 +72,29 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
             bitcast<f32>(physics_data[data_index + 4]),
             bitcast<f32>(physics_data[data_index + 5]),
         );
+        var hit_normal = vec3(0.0);
+        var portal_rotation = IDENTITY;
         if (data_type == 0) {
-            // bullet
-            var hit_normal = vec3(0.0);
+            // point
 
-            // step bullet by ray
+            // step point by ray
             if (any(abs(velocity) > vec3(0.0001))) {
                 let direction = Ray(world_pos * wtr, normalize(velocity));
                 let distance = length(velocity) * u.delta_time * wtr;
                 let hit = shoot_ray(direction, distance, 16u);
+                portal_rotation = hit.rot;
                 world_pos = hit.pos * rtw;
                 velocity = hit.rot * velocity;
 
-                // bounce off walls
                 if (hit.hit) {
                     // velocity = reflect(velocity, normalize(hit.normal));
                     // velocity = hit.normal * 10.0;
+                    velocity = velocity - dot(velocity, hit.normal) * hit.normal;
                     hit_normal = hit.normal;
                 }
             }
-
-            physics_data[data_index + 6] = bitcast<u32>(hit_normal.x);
-            physics_data[data_index + 7] = bitcast<u32>(hit_normal.y);
-            physics_data[data_index + 8] = bitcast<u32>(hit_normal.z);
         } else if (data_type == 1) {
             // player
-            var look_at = vec3(
-                bitcast<f32>(physics_data[data_index + 6]),
-                bitcast<f32>(physics_data[data_index + 7]),
-                bitcast<f32>(physics_data[data_index + 8]),
-            );
-            var up = vec3(
-                bitcast<f32>(physics_data[data_index + 9]),
-                bitcast<f32>(physics_data[data_index + 10]),
-                bitcast<f32>(physics_data[data_index + 11]),
-            );
-
             if (any(abs(velocity) > vec3(0.01))) {
                 let direction = normalize(velocity);
                 let distance = length(velocity) * u.delta_time * wtr;
@@ -161,19 +148,11 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                     let direction = normalize(velocity * u.delta_time);
                     let distance = length(velocity) * u.delta_time * wtr;
                     let hit = shoot_ray(Ray(world_pos * wtr, direction), distance, 0u);
-                    look_at = hit.rot * look_at;
-                    up = hit.rot * up;
+                    portal_rotation = hit.rot;
                     velocity = hit.rot * velocity;
                     world_pos = hit.pos * rtw;
                 }
             }
-            
-            physics_data[data_index + 6] = bitcast<u32>(look_at.x);
-            physics_data[data_index + 7] = bitcast<u32>(look_at.y);
-            physics_data[data_index + 8] = bitcast<u32>(look_at.z);
-            physics_data[data_index + 9] = bitcast<u32>(up.x);
-            physics_data[data_index + 10] = bitcast<u32>(up.y);
-            physics_data[data_index + 11] = bitcast<u32>(up.z);
         }
         physics_data[data_index + 0] = bitcast<u32>(world_pos.x);
         physics_data[data_index + 1] = bitcast<u32>(world_pos.y);
@@ -181,6 +160,18 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
         physics_data[data_index + 3] = bitcast<u32>(velocity.x);
         physics_data[data_index + 4] = bitcast<u32>(velocity.y);
         physics_data[data_index + 5] = bitcast<u32>(velocity.z);
+        physics_data[data_index + 6] = bitcast<u32>(hit_normal.x);
+        physics_data[data_index + 7] = bitcast<u32>(hit_normal.y);
+        physics_data[data_index + 8] = bitcast<u32>(hit_normal.z);
+        physics_data[data_index + 9] = bitcast<u32>(portal_rotation.x.x);
+        physics_data[data_index + 10] = bitcast<u32>(portal_rotation.x.y);
+        physics_data[data_index + 11] = bitcast<u32>(portal_rotation.x.z);
+        physics_data[data_index + 12] = bitcast<u32>(portal_rotation.y.x);
+        physics_data[data_index + 13] = bitcast<u32>(portal_rotation.y.y);
+        physics_data[data_index + 14] = bitcast<u32>(portal_rotation.y.z);
+        physics_data[data_index + 15] = bitcast<u32>(portal_rotation.z.x);
+        physics_data[data_index + 16] = bitcast<u32>(portal_rotation.z.y);
+        physics_data[data_index + 17] = bitcast<u32>(portal_rotation.z.z);
     }
 }
 

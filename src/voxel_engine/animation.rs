@@ -1,33 +1,10 @@
 use super::{
     compute,
     trace::{ExtractedPortal, Uniforms},
-    Bullet, CharacterEntity,
+    BoxCollider, Edges, Particle, Portal, Velocity,
 };
 use bevy::{prelude::*, render::renderer::RenderDevice};
 use std::collections::HashMap;
-
-#[derive(Component)]
-pub struct Particle {
-    pub material: u8,
-}
-
-/// normal must be a normalized voxel normal
-#[derive(Component)]
-pub struct Portal {
-    pub half_size: IVec3,
-    pub normal: Vec3,
-}
-
-#[derive(Component)]
-pub struct Edges {
-    pub material: u8,
-    pub half_size: IVec3,
-}
-
-#[derive(Component)]
-pub struct Velocity {
-    pub velocity: Vec3,
-}
 
 #[derive(Clone)]
 struct TypeBuffer {
@@ -82,6 +59,18 @@ impl TypeBuffer {
         self.data.push(bytemuck::cast(value.x));
         self.data.push(bytemuck::cast(value.y));
         self.data.push(bytemuck::cast(value.z));
+    }
+
+    fn push_mat3(&mut self, value: Mat3) {
+        self.data.push(bytemuck::cast(value.x_axis.x));
+        self.data.push(bytemuck::cast(value.x_axis.y));
+        self.data.push(bytemuck::cast(value.x_axis.z));
+        self.data.push(bytemuck::cast(value.y_axis.x));
+        self.data.push(bytemuck::cast(value.y_axis.y));
+        self.data.push(bytemuck::cast(value.y_axis.z));
+        self.data.push(bytemuck::cast(value.z_axis.x));
+        self.data.push(bytemuck::cast(value.z_axis.y));
+        self.data.push(bytemuck::cast(value.z_axis.z));
     }
 }
 
@@ -194,45 +183,47 @@ pub fn extract_animation_data(
 
 pub fn extract_physics_data(
     mut set: ParamSet<(
-        Query<(&Transform, &Velocity, Entity), With<Bullet>>,
-        Query<(&Transform, &Velocity, &CharacterEntity, Entity)>,
+        Query<(&Transform, &Velocity, Entity), Without<BoxCollider>>,
+        Query<(&Transform, &Velocity, &BoxCollider, Entity)>,
     )>,
     mut extracted_physics_data: ResMut<compute::ExtractedPhysicsData>,
 ) {
     let mut type_buffer = TypeBuffer::new();
     let mut entities = HashMap::new();
 
-    // add bullets
+    // add points
     for (transform, velocity, entity) in set.p0().iter() {
         entities.insert(entity, type_buffer.header.len());
 
         type_buffer.push_object(0, |type_buffer| {
             type_buffer.push_vec3(transform.translation);
             type_buffer.push_vec3(velocity.velocity);
-            type_buffer.push_vec3(Vec3::splat(0.0)); // space to recieve hit data
+            type_buffer.push_vec3(Vec3::ZERO); // space to recieve hit data
+            type_buffer.push_mat3(Mat3::IDENTITY); // space to recieve portal rotation
         });
     }
 
-    // add player
-    for (transform, velocity, character_entity, entity) in set.p1().iter() {
+    // add boxes
+    for (transform, velocity, box_collider, entity) in set.p1().iter() {
         entities.insert(entity, type_buffer.header.len());
 
         type_buffer.push_object(1, |type_buffer| {
             type_buffer.push_vec3(transform.translation);
             type_buffer.push_vec3(velocity.velocity);
-            type_buffer.push_vec3(character_entity.look_at);
-            type_buffer.push_vec3(character_entity.up);
+            type_buffer.push_vec3(Vec3::ZERO); // space to recieve hit data
+            type_buffer.push_mat3(Mat3::IDENTITY); // space to recieve portal rotation
+            type_buffer.push_ivec3(box_collider.half_size);
         });
     }
-
+    
     extracted_physics_data.data = type_buffer.finish();
     extracted_physics_data.entities = entities;
+
 }
 
 pub fn insert_physics_data(
     mut set: ParamSet<(
-        Query<(&mut Transform, &mut Velocity, &mut Bullet, Entity)>,
-        Query<(&mut Transform, &mut Velocity, &mut CharacterEntity, Entity)>,
+        Query<(&mut Transform, &mut Velocity, Entity)>,
     )>,
     extracted_physics_data: Res<compute::ExtractedPhysicsData>,
     compute_meta: Res<compute::ComputeMeta>,
@@ -254,30 +245,8 @@ pub fn insert_physics_data(
         drop(data);
         compute_meta.physics_data.unmap();
 
-        // process bullets
-        for (mut transform, mut velocity, mut bullet, entity) in set.p0().iter_mut() {
-            if let Some(index) = extracted_physics_data.entities.get(&entity) {
-                let data_index = result[index + 1] as usize;
-                transform.translation = Vec3::new(
-                    bytemuck::cast(result[data_index + 0]),
-                    bytemuck::cast(result[data_index + 1]),
-                    bytemuck::cast(result[data_index + 2]),
-                );
-                velocity.velocity = Vec3::new(
-                    bytemuck::cast(result[data_index + 3]),
-                    bytemuck::cast(result[data_index + 4]),
-                    bytemuck::cast(result[data_index + 5]),
-                );
-                bullet.hit_normal = Vec3::new(
-                    bytemuck::cast(result[data_index + 6]),
-                    bytemuck::cast(result[data_index + 7]),
-                    bytemuck::cast(result[data_index + 8]),
-                );
-            }
-        }
-
-        // process players
-        for (mut transform, mut velocity, mut player_entity, entity) in set.p1().iter_mut() {
+        // process points and boxes
+        for (mut transform, mut velocity, entity) in set.p0().iter_mut() {
             if let Some(index) = extracted_physics_data.entities.get(&entity) {
                 let data_index = result[index + 1] as usize & 0xFFFFFF;
                 transform.translation = Vec3::new(
@@ -290,15 +259,27 @@ pub fn insert_physics_data(
                     bytemuck::cast(result[data_index + 4]),
                     bytemuck::cast(result[data_index + 5]),
                 );
-                player_entity.look_at = Vec3::new(
+                velocity.hit_normal = Vec3::new(
                     bytemuck::cast(result[data_index + 6]),
                     bytemuck::cast(result[data_index + 7]),
                     bytemuck::cast(result[data_index + 8]),
                 );
-                player_entity.up = Vec3::new(
-                    bytemuck::cast(result[data_index + 9]),
-                    bytemuck::cast(result[data_index + 10]),
-                    bytemuck::cast(result[data_index + 11]),
+                velocity.portal_rotation = Mat3::from_cols(
+                    Vec3::new(
+                        bytemuck::cast(result[data_index + 9]),
+                        bytemuck::cast(result[data_index + 10]),
+                        bytemuck::cast(result[data_index + 11]),
+                    ),
+                    Vec3::new(
+                        bytemuck::cast(result[data_index + 12]),
+                        bytemuck::cast(result[data_index + 13]),
+                        bytemuck::cast(result[data_index + 14]),
+                    ),
+                    Vec3::new(
+                        bytemuck::cast(result[data_index + 15]),
+                        bytemuck::cast(result[data_index + 16]),
+                        bytemuck::cast(result[data_index + 17]),
+                    ),
                 );
             }
         }

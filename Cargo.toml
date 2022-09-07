@@ -3,6 +3,14 @@ name = "grid-hierarchy"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "porgal_test"
+path = "src/portal_test/main.rs"
+
+[lib]
+name = "voxel_engine"
+path = "src/voxel_engine/lib.rs"
+
 [dependencies]
 bevy = "0.8"
 bevy_egui = "0.15"

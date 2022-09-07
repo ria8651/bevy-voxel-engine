@@ -1,4 +1,5 @@
 use bevy::{input::mouse::MouseMotion, prelude::*};
+use voxel_engine::Velocity;
 
 const SPEED: f32 = 10.0;
 const SENSITIVITY: f32 = 0.004;
@@ -32,7 +33,7 @@ fn toggle_grab_cursor(window: &mut Window) {
 }
 
 fn update_character(
-    mut character: Query<(&mut Transform, &mut super::Velocity, &mut CharacterEntity)>,
+    mut character: Query<(&mut Transform, &mut Velocity, &mut CharacterEntity)>,
     keys: Res<Input<KeyCode>>,
     mut mouse_motion_events: EventReader<MouseMotion>,
     time: Res<Time>,
@@ -47,6 +48,32 @@ fn update_character(
     let (mut transform, mut velocity, mut character) = character.single_mut();
     let target_velocity;
     if window.cursor_locked() {
+        character.look_at = velocity.portal_rotation * character.look_at;
+        character.up = velocity.portal_rotation * character.up;
+
+        // rotation
+        let mut mouse_delta = Vec2::new(0.0, 0.0);
+        for event in mouse_motion_events.iter() {
+            mouse_delta += event.delta;
+        }
+        if mouse_delta != Vec2::ZERO {
+            let angle = character.look_at.dot(character.up).acos();
+            let max_angle = 0.1;
+
+            // Order is important to prevent unintended roll
+            character.look_at = Quat::from_axis_angle(Vec3::Y, -mouse_delta.x * SENSITIVITY)
+                * Quat::from_axis_angle(
+                    transform.local_x(),
+                    (-mouse_delta.y * SENSITIVITY)
+                        .min(angle - max_angle)
+                        .max(angle + max_angle - std::f32::consts::PI),
+                )
+                * character.look_at;
+        }
+
+        let pos = transform.translation;
+        transform.look_at(pos + character.look_at, character.up);
+
         // movement
         let mut input = Vec3::new(
             (keys.pressed(KeyCode::D) as i32 - keys.pressed(KeyCode::A) as i32) as f32,
@@ -77,29 +104,6 @@ fn update_character(
                 + input.x * transform.local_x()
                 + velocity.velocity.y * Vec3::Y;
         }
-
-        // rotation
-        let mut mouse_delta = Vec2::new(0.0, 0.0);
-        for event in mouse_motion_events.iter() {
-            mouse_delta += event.delta;
-        }
-        if mouse_delta != Vec2::ZERO {
-            let angle = character.look_at.dot(character.up).acos();
-            let max_angle = 0.1;
-
-            // Order is important to prevent unintended roll
-            character.look_at = Quat::from_axis_angle(Vec3::Y, -mouse_delta.x * SENSITIVITY)
-                * Quat::from_axis_angle(
-                    transform.local_x(),
-                    (-mouse_delta.y * SENSITIVITY)
-                        .min(angle - max_angle)
-                        .max(angle + max_angle - std::f32::consts::PI),
-                )
-                * character.look_at;
-        }
-
-        let pos = transform.translation;
-        transform.look_at(pos + character.look_at, character.up);
     } else {
         target_velocity = Vec3::splat(0.0);
     }

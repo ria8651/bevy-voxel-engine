@@ -1,7 +1,4 @@
-use crate::animation::Velocity;
-
-use super::trace;
-use super::{Bullet, Particle};
+use super::{Bullet, Particle, Velocity};
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use egui::Slider;
@@ -18,7 +15,7 @@ impl Plugin for UiPlugin {
 fn ui_system(
     mut commands: Commands,
     mut egui_context: ResMut<EguiContext>,
-    mut uniforms: ResMut<trace::Uniforms>,
+    mut uniforms: ResMut<voxel_engine::trace::Uniforms>,
     mut settings: ResMut<super::Settings>,
     particle_query: Query<Entity, With<Particle>>,
 ) {
@@ -43,15 +40,19 @@ fn ui_system(
                     for _ in 0..10000 {
                         commands.spawn_bundle((
                             Transform::from_xyz(0.0, 0.0, 0.0),
-                            Particle { material: rng.gen_range(100..104) },
-                            Velocity {
-                                velocity: Vec3::new(
-                                    rng.gen_range(-1.0..1.0),
-                                    rng.gen_range(-1.0..1.0),
-                                    rng.gen_range(-1.0..1.0),
-                                ).clamp_length_max(1.0) * 10.0,
+                            Particle {
+                                material: rng.gen_range(100..104),
                             },
-                            Bullet { bullet_type: 0, hit_normal: Vec3::splat(0.0) },
+                            Velocity::new(
+                                Vec3::new(
+                                    rng.gen_range(-1.0..1.0),
+                                    rng.gen_range(-1.0..1.0),
+                                    rng.gen_range(-1.0..1.0),
+                                )
+                                .clamp_length_max(1.0)
+                                    * 10.0,
+                            ),
+                            Bullet { bullet_type: 0 },
                         ));
                     }
                 }

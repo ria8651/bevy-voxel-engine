@@ -1,19 +1,12 @@
-use animation::VOXELS_PER_METER;
-use animation::{Edges, Particle, Portal, Velocity};
 use bevy::{asset::AssetServerSettings, prelude::*, render::camera::Projection};
 use character::CharacterEntity;
 use concurrent_queue::ConcurrentQueue;
+use voxel_engine::{
+    BoxCollider, Edges, Particle, Portal, Velocity, VoxelCamera, VoxelWorld, VOXELS_PER_METER,
+};
 
-mod animation;
 mod character;
-mod compute;
-mod fps_counter;
-mod load;
-mod trace;
 mod ui;
-
-#[derive(Component)]
-struct MainCamera;
 
 // zero: normal bullet
 // one: orange portal bullet
@@ -21,7 +14,6 @@ struct MainCamera;
 #[derive(Component)]
 pub struct Bullet {
     bullet_type: u32,
-    hit_normal: Vec3,
 }
 
 pub struct Settings {
@@ -40,17 +32,10 @@ fn main() {
             ..default()
         })
         .insert_resource(Settings { spectator: true })
-        .insert_resource(load::load_vox().unwrap())
-        .insert_resource(trace::ShaderTimer(Timer::from_seconds(1000.0, true)))
-        .insert_resource(trace::LastFrameData {
-            last_camera: Mat4::default(),
-        })
         .add_plugins(DefaultPlugins)
-        .add_plugin(fps_counter::FpsCounter)
+        .add_plugin(VoxelWorld)
         .add_plugin(character::Character)
-        .add_plugin(trace::Tracer)
         .add_plugin(ui::UiPlugin)
-        .add_plugin(compute::ComputePlugin)
         .add_startup_system(setup)
         .add_system(shoot)
         .add_system(update_velocitys)
@@ -71,26 +56,16 @@ fn shoot(
         commands.spawn_bundle((
             Transform::from_translation(character.translation).with_rotation(character.rotation),
             Particle { material: 120 },
-            Velocity {
-                velocity: -character.local_z() * 50.0,
-            },
-            Bullet {
-                bullet_type: 1,
-                hit_normal: Vec3::splat(0.0),
-            },
+            Velocity::new(-character.local_z() * 50.0),
+            Bullet { bullet_type: 1 },
         ));
     }
     if input.just_pressed(MouseButton::Right) {
         commands.spawn_bundle((
             Transform::from_translation(character.translation).with_rotation(character.rotation),
             Particle { material: 121 },
-            Velocity {
-                velocity: -character.local_z() * 50.0,
-            },
-            Bullet {
-                bullet_type: 2,
-                hit_normal: Vec3::splat(0.0),
-            },
+            Velocity::new(-character.local_z() * 50.0),
+            Bullet { bullet_type: 2 },
         ));
     }
 
@@ -103,15 +78,14 @@ fn update_velocitys(
     mut commands: Commands,
     mut velocity_query: Query<(&Transform, &mut Velocity, Entity), With<Bullet>>,
     time: Res<Time>,
-    uniforms: Res<trace::Uniforms>,
 ) {
     let to_destroy = ConcurrentQueue::unbounded();
-    velocity_query.par_for_each_mut(8, |(transform, mut velocity, entity)| {
+    velocity_query.par_for_each_mut(8, |(_transform, mut velocity, _entity)| {
         velocity.velocity += Vec3::new(0.0, -9.81 * time.delta_seconds(), 0.0);
-        let e = animation::world_to_render(transform.translation.abs(), uniforms.texture_size);
-        if e.x > 1.0 || e.y > 1.0 || e.z > 1.0 {
-            to_destroy.push(entity).unwrap();
-        }
+        // let e = animation::world_to_render(transform.translation.abs(), uniforms.texture_size);
+        // if e.x > 1.0 || e.y > 1.0 || e.z > 1.0 {
+        //     to_destroy.push(entity).unwrap();
+        // }
     });
 
     while let Ok(entity) = to_destroy.pop() {
@@ -121,15 +95,15 @@ fn update_velocitys(
 
 fn spawn_portals(
     mut commands: Commands,
-    bullet_query: Query<(&Transform, &Bullet, Entity)>,
+    bullet_query: Query<(&Transform, &Velocity, &Bullet, Entity)>,
     mut character_query: Query<&mut CharacterEntity>,
 ) {
-    for (transform, bullet, entity) in bullet_query.iter() {
+    for (transform, velocity, bullet, entity) in bullet_query.iter() {
         if bullet.bullet_type == 1 || bullet.bullet_type == 2 {
-            if bullet.hit_normal != Vec3::splat(0.0) {
+            if velocity.hit_normal != Vec3::splat(0.0) {
                 commands.entity(entity).despawn();
 
-                let normal = bullet.hit_normal;
+                let normal = velocity.hit_normal;
                 let pos = ((transform.translation + normal * (0.5 / VOXELS_PER_METER))
                     * VOXELS_PER_METER)
                     .floor()
@@ -225,10 +199,11 @@ fn setup(mut commands: Commands) {
                 portal1,
                 portal2,
             },
-            Velocity {
-                velocity: Vec3::splat(1.0),
+            Velocity::new(Vec3::splat(0.0)),
+            BoxCollider {
+                half_size: IVec3::new(2, 4, 2),
             },
-            MainCamera,
+            VoxelCamera,
         ));
 
     // commands.spawn_bundle((

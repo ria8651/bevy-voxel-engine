@@ -1,4 +1,4 @@
-use super::{animation, load::GH};
+use super::{animation, load::GH, VoxelCamera};
 use bevy::{
     core_pipeline::core_3d::Transparent3d,
     ecs::{
@@ -272,7 +272,7 @@ impl ExtractResource for ExtractedUniforms {
 fn update_uniforms(
     mut uniforms: ResMut<Uniforms>,
     windows: Res<Windows>,
-    main_cam: Query<(&Transform, &Projection), With<super::MainCamera>>,
+    main_cam: Query<(&Transform, &Projection), With<VoxelCamera>>,
     mut shader_timer: ResMut<ShaderTimer>,
     time: Res<Time>,
     mut last_frame_data: ResMut<LastFrameData>,
