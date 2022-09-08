@@ -60,8 +60,7 @@ pub struct VoxelWorld;
 
 impl Plugin for VoxelWorld {
     fn build(&self, app: &mut App) {
-        app.insert_resource(load::load_vox().unwrap())
-            .insert_resource(trace::ShaderTimer(Timer::from_seconds(1000.0, true)))
+        app.insert_resource(trace::ShaderTimer(Timer::from_seconds(1000.0, true)))
             .insert_resource(trace::LastFrameData {
                 last_camera: Mat4::default(),
             })
@@ -69,4 +68,11 @@ impl Plugin for VoxelWorld {
             .add_plugin(compute::ComputePlugin)
             .add_plugin(fps_counter::FpsCounter);
     }
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub enum LoadVoxelWorld {
+    Empty(u32),
+    File(String),
+    None,
 }

@@ -1,5 +1,6 @@
-use super::{animation, load::GH, trace};
+use super::{animation, trace};
 use bevy::{
+    app::CoreStage,
     prelude::*,
     render::{
         extract_resource::{ExtractResource, ExtractResourcePlugin},
@@ -9,7 +10,6 @@ use bevy::{
         renderer::{RenderContext, RenderDevice},
         RenderApp, RenderStage,
     },
-    app::CoreStage,
 };
 use std::{borrow::Cow, collections::HashMap};
 
@@ -47,7 +47,6 @@ impl Plugin for ComputePlugin {
                 data: vec![0],
                 entities: HashMap::new(),
             })
-            .add_plugin(ExtractResourcePlugin::<ExtractedGH>::default())
             .add_plugin(ExtractResourcePlugin::<ExtractedAnimationData>::default())
             .add_plugin(ExtractResourcePlugin::<ExtractedPhysicsData>::default())
             .add_plugin(ExtractResourcePlugin::<ComputeMeta>::default());
@@ -84,20 +83,9 @@ pub struct ComputeMeta {
     pub animation_data: Buffer,
 }
 
-struct ExtractedGH {
-    buffer_size: usize,
-    texture_size: u32,
-}
-
-impl ExtractResource for ExtractedGH {
-    type Source = GH;
-
-    fn extract_resource(gh: &Self::Source) -> Self {
-        ExtractedGH {
-            buffer_size: gh.get_final_length() as usize / 8,
-            texture_size: gh.texture_size,
-        }
-    }
+pub struct ExtractedGH {
+    pub buffer_size: usize,
+    pub texture_size: u32,
 }
 
 #[derive(PartialEq, Eq)]

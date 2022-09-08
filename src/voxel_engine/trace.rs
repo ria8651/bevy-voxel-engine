@@ -1,4 +1,4 @@
-use super::{animation, load::GH, VoxelCamera};
+use super::{animation, compute::ExtractedGH, load::GH, LoadVoxelWorld, VoxelCamera};
 use bevy::{
     core_pipeline::core_3d::Transparent3d,
     ecs::{
@@ -63,11 +63,13 @@ impl Plugin for Tracer {
         });
         let screen_texture_view = screen_texture.create_view(&TextureViewDescriptor::default());
 
-        // storage
-        let gh = app.world.resource::<GH>();
+        let gh = GH::new(32);
+        let buffer_size = gh.get_final_length() as usize / 8;
+        let texture_size = gh.texture_size;
 
+        // storage
         let storage = render_device.create_buffer_with_data(&BufferInitDescriptor {
-            contents: &vec![0; gh.get_final_length() as usize / 8],
+            contents: &vec![0; buffer_size],
             label: None,
             usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
         });
@@ -125,10 +127,14 @@ impl Plugin for Tracer {
         app.add_startup_system(setup)
             .add_system(update_uniforms)
             .add_system(resize_system)
+            .add_system(load_voxel_world)
             .insert_resource(uniforms_struct)
+            .insert_resource(LoadVoxelWorld::None)
+            .insert_resource(NewGH::None)
             .add_plugin(ExtractComponentPlugin::<TraceMaterial>::default())
             .add_plugin(ExtractResourcePlugin::<ExtractedUniforms>::default())
-            .add_plugin(ExtractResourcePlugin::<ResizeEvent>::default());
+            .add_plugin(ExtractResourcePlugin::<ResizeEvent>::default())
+            .add_plugin(ExtractResourcePlugin::<NewGH>::default());
 
         app.sub_app_mut(RenderApp)
             .add_render_command::<Transparent3d, DrawCustom>()
@@ -139,9 +145,14 @@ impl Plugin for Tracer {
                 texture_view,
                 bind_group: None,
             })
+            .insert_resource(ExtractedGH {
+                buffer_size,
+                texture_size,
+            })
             .init_resource::<TracePipeline>()
             .init_resource::<SpecializedMeshPipelines<TracePipeline>>()
             .add_system_to_stage(RenderStage::Prepare, resize_prepare)
+            .add_system_to_stage(RenderStage::Prepare, load_voxel_world_prepare)
             .add_system_to_stage(RenderStage::Prepare, prepare_uniforms)
             .add_system_to_stage(RenderStage::Queue, queue_custom)
             .add_system_to_stage(RenderStage::Queue, queue_trace_bind_group);
@@ -567,3 +578,91 @@ fn resize_prepare(
 
 #[derive(Clone, Copy, ExtractResource)]
 struct ResizeEvent(f32, f32);
+
+#[derive(Clone)]
+enum NewGH {
+    Some(Box<GH>),
+    None,
+}
+
+impl ExtractResource for NewGH {
+    type Source = NewGH;
+
+    fn extract_resource(source: &Self::Source) -> Self {
+        source.clone()
+    }
+}
+
+fn load_voxel_world(
+    mut load_voxel_world: ResMut<LoadVoxelWorld>,
+    mut new_gh: ResMut<NewGH>,
+    mut uniforms: ResMut<Uniforms>,
+) {
+    match load_voxel_world.as_ref() {
+        LoadVoxelWorld::Empty(_) | LoadVoxelWorld::File(_) => {
+            let gh = match load_voxel_world.as_ref() {
+                LoadVoxelWorld::Empty(size) => GH::new(*size),
+                LoadVoxelWorld::File(path) => {
+                    let file = std::fs::read(path).unwrap();
+                    GH::load_vox(&file).unwrap()
+                }
+                LoadVoxelWorld::None => unreachable!(),
+            };
+
+            uniforms.pallete = gh.pallete;
+            uniforms.levels = gh.levels;
+            uniforms.texture_size = gh.texture_size;
+
+            *new_gh = NewGH::Some(Box::new(gh));
+            *load_voxel_world = LoadVoxelWorld::None;
+        }
+        LoadVoxelWorld::None => {
+            *new_gh = NewGH::None;
+        }
+    }
+}
+
+fn load_voxel_world_prepare(
+    mut commands: Commands,
+    render_device: Res<RenderDevice>,
+    render_queue: Res<RenderQueue>,
+    mut trace_meta: ResMut<TraceMeta>,
+    new_gh: Res<NewGH>,
+) {
+    if let NewGH::Some(gh) = new_gh.as_ref() {
+        let buffer_size = gh.get_final_length() as usize / 8;
+        let texture_size = gh.texture_size;
+
+        // storage
+        trace_meta.storage = render_device.create_buffer_with_data(&BufferInitDescriptor {
+            contents: &vec![0; buffer_size],
+            label: None,
+            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
+        });
+
+        // texture
+        let texture = render_device.create_texture_with_data(
+            render_queue.as_ref(),
+            &TextureDescriptor {
+                label: None,
+                size: Extent3d {
+                    width: gh.texture_size,
+                    height: gh.texture_size,
+                    depth_or_array_layers: gh.texture_size,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: TextureDimension::D3,
+                format: TextureFormat::R16Uint,
+                usage: TextureUsages::STORAGE_BINDING | TextureUsages::COPY_DST,
+            },
+            &gh.texture_data,
+        );
+        trace_meta.texture_view = texture.create_view(&TextureViewDescriptor::default());
+
+        commands.insert_resource(ExtractedGH {
+            buffer_size,
+            texture_size,
+        });
+    }
+}
