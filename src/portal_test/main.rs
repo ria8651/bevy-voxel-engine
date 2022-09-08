@@ -2,7 +2,7 @@ use bevy::{asset::AssetServerSettings, prelude::*, render::camera::Projection};
 use character::CharacterEntity;
 use concurrent_queue::ConcurrentQueue;
 use voxel_engine::{
-    BoxCollider, Edges, Particle, Portal, Velocity, VoxelCamera, VoxelWorld, VOXELS_PER_METER,
+    Box, BoxCollider, Edges, Particle, Portal, Velocity, VoxelCamera, VoxelWorld, VOXELS_PER_METER,
 };
 
 mod character;
@@ -54,7 +54,7 @@ fn shoot(
 
     if input.just_pressed(MouseButton::Left) {
         commands.spawn_bundle((
-            Transform::from_translation(character.translation).with_rotation(character.rotation),
+            Transform::from_translation(character.translation),
             Particle { material: 120 },
             Velocity::new(-character.local_z() * 50.0),
             Bullet { bullet_type: 1 },
@@ -62,7 +62,7 @@ fn shoot(
     }
     if input.just_pressed(MouseButton::Right) {
         commands.spawn_bundle((
-            Transform::from_translation(character.translation).with_rotation(character.rotation),
+            Transform::from_translation(character.translation),
             Particle { material: 121 },
             Velocity::new(-character.local_z() * 50.0),
             Bullet { bullet_type: 2 },
@@ -71,6 +71,21 @@ fn shoot(
 
     if keyboard.just_pressed(KeyCode::P) {
         settings.spectator = !settings.spectator;
+    }
+
+    if keyboard.just_pressed(KeyCode::B) {
+        commands.spawn_bundle((
+            Transform::from_translation(character.translation),
+            Velocity::new(-character.local_z() * 10.0),
+            Bullet { bullet_type: 0 },
+            BoxCollider {
+                half_size: IVec3::new(3, 3, 3),
+            },
+            Box {
+                material: 14,
+                half_size: IVec3::new(3, 3, 3),
+            },
+        ));
     }
 }
 

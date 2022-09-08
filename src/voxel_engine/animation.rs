@@ -1,7 +1,7 @@
 use super::{
     compute,
     trace::{ExtractedPortal, Uniforms},
-    BoxCollider, Edges, Particle, Portal, Velocity,
+    Box, BoxCollider, Edges, Particle, Portal, Velocity,
 };
 use bevy::{prelude::*, render::renderer::RenderDevice};
 use std::collections::HashMap;
@@ -90,6 +90,7 @@ pub fn extract_animation_data(
     particle_query: Query<(&Transform, &Particle)>,
     portal_query: Query<(&Transform, &Portal)>,
     edges_query: Query<(&Transform, &Edges)>,
+    boxes_query: Query<(&Transform, &Box)>,
     mut uniforms: ResMut<Uniforms>,
 ) {
     let mut type_buffer = TypeBuffer::new();
@@ -124,6 +125,16 @@ pub fn extract_animation_data(
             type_buffer.push_ivec3(pos);
             type_buffer.push_u32(edges.material as u32);
             type_buffer.push_ivec3(edges.half_size);
+        });
+    }
+
+    // add boxes
+    for (transform, boxes) in boxes_query.iter() {
+        let pos = world_to_voxel(transform.translation, voxel_world_size);
+        type_buffer.push_object(3, |type_buffer| {
+            type_buffer.push_ivec3(pos);
+            type_buffer.push_u32(boxes.material as u32);
+            type_buffer.push_ivec3(boxes.half_size);
         });
     }
 
@@ -215,16 +226,13 @@ pub fn extract_physics_data(
             type_buffer.push_ivec3(box_collider.half_size);
         });
     }
-    
+
     extracted_physics_data.data = type_buffer.finish();
     extracted_physics_data.entities = entities;
-
 }
 
 pub fn insert_physics_data(
-    mut set: ParamSet<(
-        Query<(&mut Transform, &mut Velocity, Entity)>,
-    )>,
+    mut set: ParamSet<(Query<(&mut Transform, &mut Velocity, Entity)>,)>,
     extracted_physics_data: Res<compute::ExtractedPhysicsData>,
     compute_meta: Res<compute::ComputeMeta>,
     render_device: Res<RenderDevice>,

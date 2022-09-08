@@ -1,3 +1,4 @@
+use super::character::CharacterEntity;
 use super::{Bullet, Particle, Velocity};
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext, EguiPlugin};
@@ -17,7 +18,7 @@ fn ui_system(
     mut egui_context: ResMut<EguiContext>,
     mut uniforms: ResMut<voxel_engine::trace::Uniforms>,
     mut settings: ResMut<super::Settings>,
-    particle_query: Query<Entity, With<Particle>>,
+    particle_query: Query<Entity, (With<Velocity>, Without<CharacterEntity>)>,
 ) {
     egui::Window::new("Settings")
         .anchor(egui::Align2::RIGHT_TOP, [-5.0, 5.0])

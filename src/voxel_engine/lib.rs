@@ -29,6 +29,12 @@ pub struct Edges {
 }
 
 #[derive(Component)]
+pub struct Box {
+    pub material: u8,
+    pub half_size: IVec3,
+}
+
+#[derive(Component)]
 pub struct Velocity {
     pub velocity: Vec3,
     pub hit_normal: Vec3,

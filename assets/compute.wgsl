@@ -99,7 +99,11 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                 let direction = normalize(velocity);
                 let distance = length(velocity) * u.delta_time * wtr;
 
-                let size = vec3(2, 4, 2);
+                let size = vec3(
+                    bitcast<i32>(physics_data[data_index + 18]),
+                    bitcast<i32>(physics_data[data_index + 19]),
+                    bitcast<i32>(physics_data[data_index + 20]),
+                );
                 let v_sign = sign(velocity);
 
                 // x face
@@ -195,7 +199,6 @@ fn update_animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
         let data_index = i32(u32(animation_data[index]) & 0x00FFFFFFu);
         let data_type = i32(u32(animation_data[index]) >> 24u);
 
-        
         let texture_pos = vec3(
             bitcast<i32>(animation_data[data_index + 0]),
             bitcast<i32>(animation_data[data_index + 1]),
@@ -222,8 +225,8 @@ fn update_animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                 }
             }
         } else if (data_type == 2) {
-            // portal frame
-            let portal_index = animation_data[data_index + 3];
+            // edges
+            let material = animation_data[data_index + 3];
             let half_size = vec3(
                 bitcast<i32>(animation_data[data_index + 4]),
                 bitcast<i32>(animation_data[data_index + 5]),
@@ -236,10 +239,26 @@ fn update_animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                         if (abs(pos.x) == half_size.x || abs(pos.y) == half_size.y) {
                             if (abs(pos.x) == half_size.x || abs(pos.z) == half_size.z) {
                                 if (abs(pos.y) == half_size.y || abs(pos.z) == half_size.z) {
-                                    write_pos(texture_pos + pos, portal_index, ANIMATION_FLAG | COLLISION_FLAG);
+                                    write_pos(texture_pos + pos, material, ANIMATION_FLAG | COLLISION_FLAG);
                                 }
                             }
                         }
+                    }
+                }
+            }
+        } else if (data_type == 3) {
+            // boxes
+            let material = animation_data[data_index + 3];
+            let half_size = vec3(
+                bitcast<i32>(animation_data[data_index + 4]),
+                bitcast<i32>(animation_data[data_index + 5]),
+                bitcast<i32>(animation_data[data_index + 6]),
+            );
+            for (var x = -half_size.x; x <= half_size.x; x++) {
+                for (var y = -half_size.y; y <= half_size.y; y++) {
+                    for (var z = -half_size.z; z <= half_size.z; z++) {
+                        let pos = vec3(x, y, z);
+                        write_pos(texture_pos + pos, material, ANIMATION_FLAG); //  | COLLISION_FLAG
                     }
                 }
             }
