@@ -30,6 +30,8 @@ use bevy::{
     },
     window::WindowResized,
 };
+use pollster::FutureExt;
+use std::sync::Arc;
 
 pub struct Tracer;
 
@@ -63,7 +65,7 @@ impl Plugin for Tracer {
         });
         let screen_texture_view = screen_texture.create_view(&TextureViewDescriptor::default());
 
-        let gh = GH::new(32);
+        let gh = GH::empty(32);
         let buffer_size = gh.get_final_length() as usize / 8;
         let texture_size = gh.texture_size;
 
@@ -581,7 +583,7 @@ struct ResizeEvent(f32, f32);
 
 #[derive(Clone)]
 enum NewGH {
-    Some(Box<GH>),
+    Some(Arc<GH>),
     None,
 }
 
@@ -601,10 +603,10 @@ fn load_voxel_world(
     match load_voxel_world.as_ref() {
         LoadVoxelWorld::Empty(_) | LoadVoxelWorld::File(_) => {
             let gh = match load_voxel_world.as_ref() {
-                LoadVoxelWorld::Empty(size) => GH::new(*size),
+                LoadVoxelWorld::Empty(size) => GH::empty(*size),
                 LoadVoxelWorld::File(path) => {
                     let file = std::fs::read(path).unwrap();
-                    GH::load_vox(&file).unwrap()
+                    GH::from_vox(&file).unwrap()
                 }
                 LoadVoxelWorld::None => unreachable!(),
             };
@@ -613,7 +615,7 @@ fn load_voxel_world(
             uniforms.levels = gh.levels;
             uniforms.texture_size = gh.texture_size;
 
-            *new_gh = NewGH::Some(Box::new(gh));
+            *new_gh = NewGH::Some(Arc::new(gh));
             *load_voxel_world = LoadVoxelWorld::None;
         }
         LoadVoxelWorld::None => {

@@ -70,7 +70,7 @@ impl Plugin for VoxelWorld {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+// #[derive(Clone)]
 pub enum LoadVoxelWorld {
     Empty(u32),
     File(String),

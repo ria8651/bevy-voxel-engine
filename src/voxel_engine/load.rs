@@ -10,7 +10,7 @@ pub struct GH {
 }
 
 impl GH {
-    pub fn new(texture_size: u32) -> Self {
+    pub fn empty(texture_size: u32) -> Self {
         let levels = [8, 16, 32, 0, 0, 0, 0, 0];
         Self {
             levels,
@@ -38,7 +38,7 @@ impl GH {
         length
     }
 
-    pub fn load_vox(file: &[u8]) -> Result<GH, String> {
+    pub fn from_vox(file: &[u8]) -> Result<GH, String> {
         let vox = dot_vox::load_bytes(file)?;
         let size = vox.models[0].size;
         if size.x != size.y || size.x != size.z || size.y != size.z {
@@ -47,7 +47,7 @@ impl GH {
 
         let size = size.x as usize;
 
-        let mut gh = GH::new(size as u32);
+        let mut gh = GH::empty(size as u32);
         for i in 0..256 {
             let value = vox.palette[i].to_le_bytes();
             let mut material = Vec4::new(

@@ -3,7 +3,9 @@ use super::{Bullet, Particle, Velocity};
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use egui::Slider;
+use pollster::FutureExt;
 use rand::Rng;
+use voxel_engine::LoadVoxelWorld;
 
 pub struct UiPlugin;
 
@@ -19,10 +21,19 @@ fn ui_system(
     mut uniforms: ResMut<voxel_engine::trace::Uniforms>,
     mut settings: ResMut<super::Settings>,
     particle_query: Query<Entity, (With<Velocity>, Without<CharacterEntity>)>,
+    mut load_voxel_world: ResMut<LoadVoxelWorld>,
 ) {
     egui::Window::new("Settings")
         .anchor(egui::Align2::RIGHT_TOP, [-5.0, 5.0])
         .show(egui_context.ctx_mut(), |ui| {
+            if ui.button("Open File").clicked() {
+                // let path = rfd::AsyncFileDialog::new()
+                //     .add_filter("Magica Voxel VOX File", &["vox"])
+                //     .pick_file().block_on();
+                
+                let path = tinyfiledialogs::open_file_dialog("Select file", "", None);
+                *load_voxel_world = LoadVoxelWorld::File(path.unwrap());
+            }
             ui.collapsing("Rendering", |ui| {
                 ui.checkbox(&mut uniforms.show_ray_steps, "Show ray steps");
                 ui.checkbox(&mut uniforms.indirect_lighting, "Indirect lighting");

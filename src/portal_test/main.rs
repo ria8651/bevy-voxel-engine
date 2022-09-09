@@ -2,7 +2,7 @@ use bevy::{asset::AssetServerSettings, prelude::*, render::camera::Projection};
 use character::CharacterEntity;
 use concurrent_queue::ConcurrentQueue;
 use voxel_engine::{
-    Box, BoxCollider, Edges, LoadVoxelWorld, Particle, Portal, Velocity, VoxelCamera, VoxelWorld,
+    Box, BoxCollider, Edges, Particle, Portal, Velocity, VoxelCamera, VoxelWorld,
     VOXELS_PER_METER,
 };
 
@@ -87,15 +87,6 @@ fn shoot(
                 half_size: IVec3::new(3, 3, 3),
             },
         ));
-    }
-
-    if keyboard.just_pressed(KeyCode::L) {
-        commands.insert_resource(LoadVoxelWorld::File(
-            "/Users/brian/Documents/Code/Rust/vox/monument/monu7.vox".to_string(),
-        ));
-    }
-    if keyboard.just_pressed(KeyCode::K) {
-        commands.insert_resource(LoadVoxelWorld::Empty(256));
     }
 }
 

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "porgal_test"
+name = "portal_test"
 path = "src/portal_test/main.rs"
 
 [lib]
@@ -13,10 +13,11 @@ path = "src/voxel_engine/lib.rs"
 
 [dependencies]
 bevy = "0.8"
-bevy_egui = "0.15"
+bevy_egui = "0.16"
 bytemuck = "1.10"
 rand = "0.8"
 dot_vox = "4.1"
 wgpu = "0.13.1"
-futures-intrusive = "0.4"
+pollster = "0.2.5"
 concurrent-queue = "1.2"
+tinyfiledialogs = "3.9"
