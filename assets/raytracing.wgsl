@@ -222,7 +222,7 @@ fn shoot_ray(r: Ray, physics_distance: f32, flags: u32) -> HitInfo {
             }
         }
 
-        if ((voxel.data & 0xFFu) != 0u && !should_portal_skip && ((voxel.data >> 8u) & flags) > 0u) {
+        if ((voxel.data & 0xFFu) != 0u && !should_portal_skip && (((voxel.data >> 8u) & flags) > 0u || flags == 0u)) {
             break;
         }
 

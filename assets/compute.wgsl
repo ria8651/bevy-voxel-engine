@@ -19,7 +19,7 @@ fn set_value_index(index: u32) {
 }
 
 fn get_texture_value(pos: vec3<i32>) -> vec2<u32> {
-    let texture_value = textureLoad(texture, vec3<i32>(pos)).r;
+    let texture_value = textureLoad(texture, pos).r;
     return vec2(
         texture_value & 0xFFu,
         texture_value >> 8u,
@@ -28,7 +28,11 @@ fn get_texture_value(pos: vec3<i32>) -> vec2<u32> {
 
 let VOXELS_PER_METER: f32 = 4.0;
 
-@compute @workgroup_size(1, 1, 1)
+fn in_texture_bounds(pos: vec3<i32>) -> bool {
+    return all(pos >= vec3(0)) && all(pos < vec3(i32(u.texture_size)));
+}
+
+@compute @workgroup_size(4, 4, 4)
 fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let pos = vec3(i32(invocation_id.x), i32(invocation_id.y), i32(invocation_id.z));
     let seed = vec3<u32>(vec3<f32>(pos.xyz) + u.time * 240.0);
@@ -36,15 +40,44 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
 
     let material = get_texture_value(pos.zyx);
 
-    // just for fun
-    if (material.x == 58u && rand.x < 0.01 && u.misc_bool != 0u) {
-        textureStore(texture, pos.zyx, vec4(0u));
-    }
-
     // delete old animaiton data
     if ((material.y & (ANIMATION_FLAG | PORTAL_FLAG)) > 0u && rand.x < u.misc_float) {
         textureStore(texture, pos.zyx, vec4(0u));
+        return;
     }
+
+    let pos = pos.zyx;
+    if (material.x != 0u) {
+        let new_pos = pos + vec3(0, -1, 0);
+        let new_mat = get_texture_value(new_pos).x;
+        let new_pos1 = pos + vec3(1, -1, 0);
+        let new_mat1 = get_texture_value(new_pos1).x;
+        let new_pos2 = pos + vec3(-1, -1, 0);
+        let new_mat2 = get_texture_value(new_pos2).x;
+        let new_pos3 = pos + vec3(0, -1, 1);
+        let new_mat3 = get_texture_value(new_pos3).x;
+        let new_pos4 = pos + vec3(0, -1, -1);
+        let new_mat4 = get_texture_value(new_pos4).x;
+
+        if (in_texture_bounds(new_pos) && new_mat == 0u) {
+            textureStore(texture, new_pos, vec4(material.x | (material.y << 8u)));
+            textureStore(texture, pos, vec4(0u));
+        } else if (in_texture_bounds(new_pos1) && new_mat1 == 0u) {
+            textureStore(texture, new_pos1, vec4(material.x | (material.y << 8u)));
+            textureStore(texture, pos, vec4(0u));
+        } else if (in_texture_bounds(new_pos2) && new_mat2 == 0u) {
+            textureStore(texture, new_pos2, vec4(material.x | (material.y << 8u)));
+            textureStore(texture, pos, vec4(0u));
+        } else if (in_texture_bounds(new_pos3) && new_mat3 == 0u) {
+            textureStore(texture, new_pos3, vec4(material.x | (material.y << 8u)));
+            textureStore(texture, pos, vec4(0u));
+        } else if (in_texture_bounds(new_pos4) && new_mat4 == 0u) {
+            textureStore(texture, new_pos4, vec4(material.x | (material.y << 8u)));
+            textureStore(texture, pos, vec4(0u));
+        }
+    }
+
+    textureStore(texture, vec3(64, 64, 64), vec4(42u | (COLLISION_FLAG << 8u)));
 }
 
 @compute @workgroup_size(1, 1, 1)
@@ -81,7 +114,7 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
             if (any(abs(velocity) > vec3(0.0001))) {
                 let direction = Ray(world_pos * wtr, normalize(velocity));
                 let distance = length(velocity) * u.delta_time * wtr;
-                let hit = shoot_ray(direction, distance, 16u);
+                let hit = shoot_ray(direction, distance, COLLISION_FLAG);
                 portal_rotation = hit.rot;
                 world_pos = hit.pos * rtw;
                 velocity = hit.rot * velocity;
@@ -110,7 +143,7 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                 for (var y = -size.y; y <= size.y; y++) {
                     for (var z = -size.z; z <= size.z; z++) {
                         let offset = vec3(f32(size.x) * v_sign.x, f32(y), f32(z)) / (VOXELS_PER_METER * 1.0001);
-                        let hit = shoot_ray(Ray((world_pos + offset) * wtr, direction), distance, 16u);
+                        let hit = shoot_ray(Ray((world_pos + offset) * wtr, direction), distance, COLLISION_FLAG);
                         
                         let plane_normal = vec3(1.0, 0.0, 0.0);
                         if (hit.hit && all(abs(hit.normal) == plane_normal)) {
@@ -124,7 +157,7 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                 for (var x = -size.x; x <= size.x; x++) {
                     for (var z = -size.z; z <= size.z; z++) {
                         let offset = vec3(f32(x), f32(size.y) * v_sign.y, f32(z)) / (VOXELS_PER_METER * 1.001);
-                        let hit = shoot_ray(Ray((world_pos + offset) * wtr, direction), distance, 16u);
+                        let hit = shoot_ray(Ray((world_pos + offset) * wtr, direction), distance, COLLISION_FLAG);
                         
                         let plane_normal = vec3(0.0, 1.0, 0.0);
                         if (hit.hit && all(abs(hit.normal) == plane_normal)) {
@@ -138,7 +171,7 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                 for (var x = -size.x; x <= size.x; x++) {
                     for (var y = -size.y; y <= size.y; y++) {
                         let offset = vec3(f32(x), f32(y), f32(size.z) * v_sign.z) / (VOXELS_PER_METER * 1.0001);
-                        let hit = shoot_ray(Ray((world_pos + offset) * wtr, direction), distance, 16u);
+                        let hit = shoot_ray(Ray((world_pos + offset) * wtr, direction), distance, COLLISION_FLAG);
                         
                         let plane_normal = vec3(0.0, 0.0, 1.0);
                         if (hit.hit && all(abs(hit.normal) == plane_normal)) {
@@ -151,7 +184,7 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                 if (any(abs(velocity) > vec3(0.01))) {
                     let direction = normalize(velocity * u.delta_time);
                     let distance = length(velocity) * u.delta_time * wtr;
-                    let hit = shoot_ray(Ray(world_pos * wtr, direction), distance, 0u);
+                    let hit = shoot_ray(Ray(world_pos * wtr, direction), distance, 1u);
                     portal_rotation = hit.rot;
                     velocity = hit.rot * velocity;
                     world_pos = hit.pos * rtw;
@@ -258,7 +291,7 @@ fn update_animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                 for (var y = -half_size.y; y <= half_size.y; y++) {
                     for (var z = -half_size.z; z <= half_size.z; z++) {
                         let pos = vec3(x, y, z);
-                        write_pos(texture_pos + pos, material, ANIMATION_FLAG); //  | COLLISION_FLAG
+                        write_pos(texture_pos + pos, material, 0u); // ANIMATION_FLAG | COLLISION_FLAG
                     }
                 }
             }
@@ -266,7 +299,7 @@ fn update_animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     }
 }
 
-@compute @workgroup_size(1, 1, 1)
+@compute @workgroup_size(4, 4, 4)
 fn rebuild_gh(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let pos = vec3(i32(invocation_id.x), i32(invocation_id.y), i32(invocation_id.z));
     

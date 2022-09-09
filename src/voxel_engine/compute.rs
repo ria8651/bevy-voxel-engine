@@ -191,9 +191,9 @@ impl render_graph::Node for ComputeNode {
 
                     pass.set_pipeline(update_pipeline);
                     pass.dispatch_workgroups(
-                        extracted_gh.texture_size,
-                        extracted_gh.texture_size,
-                        extracted_gh.texture_size,
+                        extracted_gh.texture_size / 4,
+                        extracted_gh.texture_size / 4,
+                        extracted_gh.texture_size / 4,
                     );
 
                     let dispatch_size =
@@ -205,9 +205,9 @@ impl render_graph::Node for ComputeNode {
 
                     pass.set_pipeline(rebuild_pipeline);
                     pass.dispatch_workgroups(
-                        extracted_gh.texture_size,
-                        extracted_gh.texture_size,
-                        extracted_gh.texture_size,
+                        extracted_gh.texture_size / 4,
+                        extracted_gh.texture_size / 4,
+                        extracted_gh.texture_size / 4,
                     );
 
                     let dispatch_size =

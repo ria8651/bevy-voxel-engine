@@ -2,13 +2,12 @@ use bevy::{asset::AssetServerSettings, prelude::*, render::camera::Projection};
 use character::CharacterEntity;
 use concurrent_queue::ConcurrentQueue;
 use voxel_engine::{
-    Box, BoxCollider, Edges, Particle, Portal, Velocity, VoxelCamera, VoxelWorld,
-    VOXELS_PER_METER,
+    Box, BoxCollider, Edges, Particle, Portal, Velocity, VoxelCamera, VoxelWorld, VOXELS_PER_METER,
 };
 
 mod character;
-mod ui;
 mod fps_counter;
+mod ui;
 
 // zero: normal bullet
 // one: orange portal bullet
@@ -197,10 +196,11 @@ fn setup(mut commands: Commands) {
         ))
         .id();
 
+    let transform =
+        Transform::from_xyz(-25.0, 25.0, -25.0).looking_at(Vec3::new(0.0, 0.0, 1.0), Vec3::Y);
     commands
         .spawn_bundle(Camera3dBundle {
-            transform: Transform::from_xyz(2.0, 2.0, 2.0)
-                .looking_at(Vec3::new(0.0, 0.0, 1.0), Vec3::Y),
+            transform,
             projection: Projection::Perspective(PerspectiveProjection {
                 fov: 1.48353,
                 near: 0.05,
@@ -212,7 +212,7 @@ fn setup(mut commands: Commands) {
         .insert_bundle((
             CharacterEntity {
                 grounded: false,
-                look_at: Vec3::new(0.0, 0.0, 1.0),
+                look_at: -transform.local_z(),
                 up: Vec3::new(0.0, 1.0, 0.0),
                 portal1,
                 portal2,
