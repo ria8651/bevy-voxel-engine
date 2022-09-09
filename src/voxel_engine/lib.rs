@@ -3,7 +3,6 @@ use bevy::prelude::*;
 
 mod animation;
 mod compute;
-mod fps_counter;
 mod load;
 pub mod trace;
 
@@ -65,8 +64,7 @@ impl Plugin for VoxelWorld {
                 last_camera: Mat4::default(),
             })
             .add_plugin(trace::Tracer)
-            .add_plugin(compute::ComputePlugin)
-            .add_plugin(fps_counter::FpsCounter);
+            .add_plugin(compute::ComputePlugin);
     }
 }
 

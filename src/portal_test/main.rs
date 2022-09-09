@@ -8,6 +8,7 @@ use voxel_engine::{
 
 mod character;
 mod ui;
+mod fps_counter;
 
 // zero: normal bullet
 // one: orange portal bullet
@@ -37,6 +38,7 @@ fn main() {
         .add_plugin(VoxelWorld)
         .add_plugin(character::Character)
         .add_plugin(ui::UiPlugin)
+        .add_plugin(fps_counter::FpsCounter)
         .add_startup_system(setup)
         .add_system(shoot)
         .add_system(update_velocitys)
