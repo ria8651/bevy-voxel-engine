@@ -3,7 +3,6 @@ use super::{Bullet, Particle, Velocity};
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use egui::Slider;
-use pollster::FutureExt;
 use rand::Rng;
 use voxel_engine::LoadVoxelWorld;
 
@@ -30,7 +29,7 @@ fn ui_system(
                 // let path = rfd::AsyncFileDialog::new()
                 //     .add_filter("Magica Voxel VOX File", &["vox"])
                 //     .pick_file().block_on();
-                
+
                 let path = tinyfiledialogs::open_file_dialog("Select file", "", None);
                 *load_voxel_world = LoadVoxelWorld::File(path.unwrap());
             }

@@ -30,7 +30,6 @@ use bevy::{
     },
     window::WindowResized,
 };
-use pollster::FutureExt;
 use std::sync::Arc;
 
 pub struct Tracer;
@@ -65,7 +64,12 @@ impl Plugin for Tracer {
         });
         let screen_texture_view = screen_texture.create_view(&TextureViewDescriptor::default());
 
-        let gh = GH::empty(32);
+        let default_path = "/Users/brian/Documents/Code/Rust/vox/monument/monu7.vox".to_string();
+        let gh = if let Ok(file) = std::fs::read(default_path) {
+            GH::from_vox(&file).unwrap()
+        } else {
+            GH::empty(32)
+        };
         let buffer_size = gh.get_final_length() as usize / 8;
         let texture_size = gh.texture_size;
 

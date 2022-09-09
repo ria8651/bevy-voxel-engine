@@ -220,9 +220,9 @@ checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
 
 [[package]]
 name = "bevy"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "55f08528a4e59d607460513a823b40f602d013c1a00f57b824f1075d5d48c3cd"
+checksum = "fea147ef1ebb92d41294cfad804c40de151b174c711ce6e0a4a40eba23eae1a4"
 dependencies = [
  "bevy_internal",
 ]
@@ -1753,7 +1753,6 @@ dependencies = [
  "bytemuck",
  "concurrent-queue",
  "dot_vox",
- "pollster",
  "rand",
  "tinyfiledialogs",
  "wgpu",
@@ -2693,12 +2692,6 @@ dependencies = [
  "deflate 1.0.0",
  "miniz_oxide 0.5.3",
 ]
-
-[[package]]
-name = "pollster"
-version = "0.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5da3b0203fd7ee5720aa0b5e790b591aa5d3f41c3ed2c34a3a393382198af2f7"
 
 [[package]]
 name = "pp-rs"
