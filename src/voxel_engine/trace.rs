@@ -64,7 +64,7 @@ impl Plugin for Tracer {
         });
         let screen_texture_view = screen_texture.create_view(&TextureViewDescriptor::default());
 
-        let default_path = "/Users/brian/Documents/Code/Rust/vox/monument/monu7.vox".to_string();
+        let default_path = "/Users/brian/Documents/Code/Rust/vox/monument/monu9.vox".to_string();
         let gh = if let Ok(file) = std::fs::read(default_path) {
             GH::from_vox(&file).unwrap()
         } else {

@@ -69,7 +69,7 @@ fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
     var clip_space = get_clip_space(frag_pos, u.resolution);
     let aspect = u.resolution.x / u.resolution.y;
     clip_space.x = clip_space.x * aspect;
-    var output_colour = vec3(0.0, 0.0, 0.0);
+    var output_colour = vec3(0.0);
 
     let pos = u.camera_inverse * vec4(0.0, 0.0, 0.0, 1.0);
     let dir = u.camera_inverse * vec4(clip_space.x, clip_space.y, -1.0, 1.0);

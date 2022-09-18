@@ -1,6 +1,7 @@
 let PORTAL_FLAG = 64u; // 0b01000000
 let ANIMATION_FLAG = 32u; // 0b00100000
 let COLLISION_FLAG = 16u; // 0b00010000
+let SAND_FLAG = 8u; // 0b00001000
 
 fn get_value_index(index: u32) -> bool {
     return ((gh[index / 32u] >> (index % 32u)) & 1u) != 0u;

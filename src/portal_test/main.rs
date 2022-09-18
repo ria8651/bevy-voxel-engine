@@ -32,7 +32,7 @@ fn main() {
             height: 600.0,
             ..default()
         })
-        .insert_resource(Settings { spectator: true })
+        .insert_resource(Settings { spectator: false })
         .add_plugins(DefaultPlugins)
         .add_plugin(VoxelWorld)
         .add_plugin(character::Character)
@@ -197,7 +197,7 @@ fn setup(mut commands: Commands) {
         .id();
 
     let transform =
-        Transform::from_xyz(-25.0, 25.0, -25.0).looking_at(Vec3::new(0.0, 0.0, 1.0), Vec3::Y);
+        Transform::from_xyz(0.1, 10.0, 0.1).looking_at(Vec3::new(0.0, 0.0, 1.0), Vec3::Y);
     commands
         .spawn_bundle(Camera3dBundle {
             transform,

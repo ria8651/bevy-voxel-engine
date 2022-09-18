@@ -13,7 +13,7 @@ use bevy::{
 };
 use std::{borrow::Cow, collections::HashMap};
 
-const MAX_ANIMATION_DATA: usize = 1024000;
+const MAX_ANIMATION_DATA: usize = 32000000; // 32mb
 
 pub struct ComputePlugin;
 
@@ -115,14 +115,11 @@ impl render_graph::Node for ComputeNode {
         // if the corresponding pipeline has loaded, transition to the next stage
         match self.state {
             ComputeState::Loading => {
+                // if the update pipeline is ready the other's probably are too lol
                 if let CachedPipelineState::Ok(_) =
                     pipeline_cache.get_compute_pipeline_state(pipeline.update_pipeline)
                 {
-                    if let CachedPipelineState::Ok(_) =
-                        pipeline_cache.get_compute_pipeline_state(pipeline.rebuild_pipeline)
-                    {
-                        self.state = ComputeState::Init;
-                    }
+                    self.state = ComputeState::Init;
                 }
             }
             ComputeState::Init => {
@@ -179,6 +176,9 @@ impl render_graph::Node for ComputeNode {
                     let update_pipeline = pipeline_cache
                         .get_compute_pipeline(pipeline.update_pipeline)
                         .unwrap();
+                    let automata_pipeline = pipeline_cache
+                        .get_compute_pipeline(pipeline.automata_pipeline)
+                        .unwrap();
                     let animation_pipeline = pipeline_cache
                         .get_compute_pipeline(pipeline.animation_pipeline)
                         .unwrap();
@@ -190,6 +190,13 @@ impl render_graph::Node for ComputeNode {
                         .unwrap();
 
                     pass.set_pipeline(update_pipeline);
+                    pass.dispatch_workgroups(
+                        extracted_gh.texture_size / 4,
+                        extracted_gh.texture_size / 4,
+                        extracted_gh.texture_size / 4,
+                    );
+                    
+                    pass.set_pipeline(automata_pipeline);
                     pass.dispatch_workgroups(
                         extracted_gh.texture_size / 4,
                         extracted_gh.texture_size / 4,
@@ -227,6 +234,7 @@ impl render_graph::Node for ComputeNode {
 struct ComputePipeline {
     compute_bind_group_layout: BindGroupLayout,
     update_pipeline: CachedComputePipelineId,
+    automata_pipeline: CachedComputePipelineId,
     physics_pipeline: CachedComputePipelineId,
     animation_pipeline: CachedComputePipelineId,
     rebuild_pipeline: CachedComputePipelineId,
@@ -306,6 +314,13 @@ impl FromWorld for ComputePipeline {
             shader_defs: vec![],
             entry_point: Cow::from("update"),
         });
+        let automata_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
+            label: None,
+            layout: Some(vec![compute_bind_group_layout.clone()]),
+            shader: compute_shader.clone(),
+            shader_defs: vec![],
+            entry_point: Cow::from("automata"),
+        });
         let physics_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
             label: None,
             layout: Some(vec![compute_bind_group_layout.clone()]),
@@ -331,6 +346,7 @@ impl FromWorld for ComputePipeline {
         ComputePipeline {
             compute_bind_group_layout,
             update_pipeline,
+            automata_pipeline,
             physics_pipeline,
             animation_pipeline,
             rebuild_pipeline,

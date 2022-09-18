@@ -19,7 +19,7 @@ fn set_value_index(index: u32) {
 }
 
 fn get_texture_value(pos: vec3<i32>) -> vec2<u32> {
-    let texture_value = textureLoad(texture, pos).r;
+    let texture_value = textureLoad(texture, pos.zyx).r;
     return vec2(
         texture_value & 0xFFu,
         texture_value >> 8u,
@@ -35,10 +35,10 @@ fn in_texture_bounds(pos: vec3<i32>) -> bool {
 @compute @workgroup_size(4, 4, 4)
 fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let pos = vec3(i32(invocation_id.x), i32(invocation_id.y), i32(invocation_id.z));
-    let seed = vec3<u32>(vec3<f32>(pos.xyz) + u.time * 240.0);
+    let seed = vec3<u32>(vec3<f32>(pos) + u.time * 240.0);
     let rand = hash(seed);
 
-    let material = get_texture_value(pos.zyx);
+    let material = get_texture_value(pos);
 
     // delete old animaiton data
     if ((material.y & (ANIMATION_FLAG | PORTAL_FLAG)) > 0u && rand.x < u.misc_float) {
@@ -46,8 +46,29 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
         return;
     }
 
-    let pos = pos.zyx;
-    if (material.x != 0u) {
+    // change stuff to sand randomly
+    if (material.x != 0u && rand.y < 0.01) {
+        textureStore(texture, pos.zyx, vec4(material.x | ((material.y | SAND_FLAG) << 8u)))
+    }
+}
+
+fn write_pos(pos: vec3<i32>, material: u32, flags: u32) {
+    let voxel_type = get_texture_value(pos);
+    if (voxel_type.x == 0u) {
+        textureStore(texture, pos.zyx, vec4(material | (flags << 8u)));
+    }
+}
+
+@compute @workgroup_size(4, 4, 4)
+fn automata(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
+    let pos = vec3(i32(invocation_id.x), i32(invocation_id.y), i32(invocation_id.z));
+    let pos_seed = vec3<u32>(vec3<f32>(pos.xyz));
+    let pos_time_seed = vec3<u32>(vec3<f32>(pos.xyz) + u.time * 240.0);
+
+    let material = get_texture_value(pos);
+
+    // sand
+    if ((material.y & SAND_FLAG) > 0u && (material.y & ANIMATION_FLAG) == 0u) {
         let new_pos = pos + vec3(0, -1, 0);
         let new_mat = get_texture_value(new_pos).x;
         let new_pos1 = pos + vec3(1, -1, 0);
@@ -60,24 +81,36 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
         let new_mat4 = get_texture_value(new_pos4).x;
 
         if (in_texture_bounds(new_pos) && new_mat == 0u) {
-            textureStore(texture, new_pos, vec4(material.x | (material.y << 8u)));
-            textureStore(texture, pos, vec4(0u));
+            textureStore(texture, new_pos.zyx, vec4(material.x | (material.y << 8u)));
+            textureStore(texture, pos.zyx, vec4(0u));
         } else if (in_texture_bounds(new_pos1) && new_mat1 == 0u) {
-            textureStore(texture, new_pos1, vec4(material.x | (material.y << 8u)));
-            textureStore(texture, pos, vec4(0u));
+            textureStore(texture, new_pos1.zyx, vec4(material.x | (material.y << 8u)));
+            textureStore(texture, pos.zyx, vec4(0u));
         } else if (in_texture_bounds(new_pos2) && new_mat2 == 0u) {
-            textureStore(texture, new_pos2, vec4(material.x | (material.y << 8u)));
-            textureStore(texture, pos, vec4(0u));
+            textureStore(texture, new_pos2.zyx, vec4(material.x | (material.y << 8u)));
+            textureStore(texture, pos.zyx, vec4(0u));
         } else if (in_texture_bounds(new_pos3) && new_mat3 == 0u) {
-            textureStore(texture, new_pos3, vec4(material.x | (material.y << 8u)));
-            textureStore(texture, pos, vec4(0u));
+            textureStore(texture, new_pos3.zyx, vec4(material.x | (material.y << 8u)));
+            textureStore(texture, pos.zyx, vec4(0u));
         } else if (in_texture_bounds(new_pos4) && new_mat4 == 0u) {
-            textureStore(texture, new_pos4, vec4(material.x | (material.y << 8u)));
-            textureStore(texture, pos, vec4(0u));
+            textureStore(texture, new_pos4.zyx, vec4(material.x | (material.y << 8u)));
+            textureStore(texture, pos.zyx, vec4(0u));
         }
     }
 
-    textureStore(texture, vec3(64, 64, 64), vec4(42u | (COLLISION_FLAG << 8u)));
+    // grass
+    let pos_rand = hash(pos_seed + 100u);
+    if (material.x == 44u && (material.y & COLLISION_FLAG) > 0u && hash(pos_seed + 50u).x >= 0.85) {
+        for (var i = 1; i < 4 + i32(pos_rand.y * 3.0 - 0.5); i += 1) {
+            let i = f32(i);
+            let new_pos = vec3<f32>(pos) + vec3(
+                ((i - 1.0) / 4.0) * sin(u.time + i + 10.0 * pos_rand.x), 
+                i, 
+                ((i - 1.0) / 4.0) * cos(u.time + i + 10.0 * pos_rand.z)
+            );
+            write_pos(vec3<i32>(new_pos), 44u, ANIMATION_FLAG);
+        }
+    }
 }
 
 @compute @workgroup_size(1, 1, 1)
@@ -212,13 +245,6 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     }
 }
 
-fn write_pos(pos: vec3<i32>, material: u32, data: u32) {
-    let voxel_type = get_texture_value(pos.zyx);
-    if (voxel_type.x == 0u) {
-        textureStore(texture, pos.zyx, vec4(material | (data << 8u)));
-    }
-}
-
 @compute @workgroup_size(1, 1, 1)
 fn update_animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     // place animation data into world
@@ -303,7 +329,7 @@ fn update_animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
 fn rebuild_gh(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let pos = vec3(i32(invocation_id.x), i32(invocation_id.y), i32(invocation_id.z));
     
-    let material = get_texture_value(pos.zyx);
+    let material = get_texture_value(pos);
     if (material.x != 0u || (material.y & PORTAL_FLAG) > 0u) {
         // set bits in grid hierarchy
         let size0 = u.levels[0][0];
