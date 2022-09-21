@@ -236,7 +236,12 @@ pub fn insert_physics_data(
     extracted_physics_data: Res<compute::ExtractedPhysicsData>,
     compute_meta: Res<compute::ComputeMeta>,
     render_device: Res<RenderDevice>,
+    uniforms: Res<super::trace::Uniforms>,
 ) {
+    if !uniforms.enable_compute {
+        return;
+    }
+
     // process last frames physics data
     if extracted_physics_data.data.len() > 1 {
         let buffer_slice = compute_meta

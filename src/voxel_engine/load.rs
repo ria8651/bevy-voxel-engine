@@ -11,7 +11,7 @@ pub struct GH {
 
 impl GH {
     pub fn empty(texture_size: u32) -> Self {
-        let levels = [8, 16, 32, 64, 0, 0, 0, 0];
+        let levels = [8, 16, 32, 64, 128, 256, 0, 0];
         Self {
             levels,
             texture_size,

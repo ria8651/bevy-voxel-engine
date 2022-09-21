@@ -195,7 +195,7 @@ impl render_graph::Node for ComputeNode {
                         extracted_gh.texture_size / 4,
                         extracted_gh.texture_size / 4,
                     );
-                    
+
                     pass.set_pipeline(automata_pipeline);
                     pass.dispatch_workgroups(
                         extracted_gh.texture_size / 4,
@@ -223,6 +223,8 @@ impl render_graph::Node for ComputeNode {
                         pass.set_pipeline(physics_pipeline);
                         pass.dispatch_workgroups(dispatch_size, dispatch_size, dispatch_size);
                     }
+
+                    println!("compute");
                 }
             }
         }
@@ -308,35 +310,35 @@ impl FromWorld for ComputePipeline {
         let mut pipeline_cache = world.resource_mut::<PipelineCache>();
 
         let update_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
-            label: None,
+            label: Some(Cow::from("update_pipeline")),
             layout: Some(vec![compute_bind_group_layout.clone()]),
             shader: compute_shader.clone(),
             shader_defs: vec![],
             entry_point: Cow::from("update"),
         });
         let automata_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
-            label: None,
+            label: Some(Cow::from("automata_pipeline")),
             layout: Some(vec![compute_bind_group_layout.clone()]),
             shader: compute_shader.clone(),
             shader_defs: vec![],
             entry_point: Cow::from("automata"),
         });
         let physics_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
-            label: None,
+            label: Some(Cow::from("physics_pipeline")),
             layout: Some(vec![compute_bind_group_layout.clone()]),
             shader: compute_shader.clone(),
             shader_defs: vec![],
             entry_point: Cow::from("update_physics"),
         });
         let animation_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
-            label: None,
+            label: Some(Cow::from("animation_pipeline")),
             layout: Some(vec![compute_bind_group_layout.clone()]),
             shader: compute_shader.clone(),
             shader_defs: vec![],
             entry_point: Cow::from("update_animation"),
         });
         let rebuild_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
-            label: None,
+            label: Some(Cow::from("rebuild_pipeline")),
             layout: Some(vec![compute_bind_group_layout.clone()]),
             shader: compute_shader.clone(),
             shader_defs: vec![],
