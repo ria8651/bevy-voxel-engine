@@ -369,8 +369,6 @@ fn queue_custom(
             }
         }
     }
-
-    println!("trace");
 }
 
 // create a bind group for the time uniform buffer

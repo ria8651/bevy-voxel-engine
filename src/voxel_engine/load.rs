@@ -9,9 +9,20 @@ pub struct GH {
     pub pallete: [PalleteEntry; 256],
 }
 
+const fn num_bits<T>() -> usize { std::mem::size_of::<T>() * 8 }
+fn log_2(x: u32) -> u32 {
+    assert!(x > 0);
+    num_bits::<u32>() as u32 - x.leading_zeros() - 1
+}
+
 impl GH {
     pub fn empty(texture_size: u32) -> Self {
-        let levels = [8, 16, 32, 64, 128, 256, 0, 0];
+        let mut levels = [0; 8];
+        let i = log_2(texture_size) - 3;
+        for i in 0..i {
+            levels[i as usize] = 1 << (i + 3);
+        }
+
         Self {
             levels,
             texture_size,

@@ -223,8 +223,6 @@ impl render_graph::Node for ComputeNode {
                         pass.set_pipeline(physics_pipeline);
                         pass.dispatch_workgroups(dispatch_size, dispatch_size, dispatch_size);
                     }
-
-                    println!("compute");
                 }
             }
         }
