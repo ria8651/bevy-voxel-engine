@@ -39,23 +39,14 @@ fn get_value(pos: vec3<f32>) -> Voxel {
     let scaled6 = vec3<u32>(scaled * f32(size6));
     let scaled7 = vec3<u32>(scaled * f32(size7));
 
-    let index0 = u.offsets[0][0] + scaled0.x * size0 * size0 + scaled0.y * size0 + scaled0.z;
-    let index1 = u.offsets[0][1] + scaled1.x * size1 * size1 + scaled1.y * size1 + scaled1.z;
-    let index2 = u.offsets[0][2] + scaled2.x * size2 * size2 + scaled2.y * size2 + scaled2.z;
-    let index3 = u.offsets[0][3] + scaled3.x * size3 * size3 + scaled3.y * size3 + scaled3.z;
-    let index4 = u.offsets[1][0] + scaled4.x * size4 * size4 + scaled4.y * size4 + scaled4.z;
-    let index5 = u.offsets[1][1] + scaled5.x * size5 * size5 + scaled5.y * size5 + scaled5.z;
-    let index6 = u.offsets[1][2] + scaled6.x * size6 * size6 + scaled6.y * size6 + scaled6.z;
-    let index7 = u.offsets[1][3] + scaled7.x * size7 * size7 + scaled7.y * size7 + scaled7.z;
-
-    let state0 = get_value_index(index0);
-    let state1 = get_value_index(index1);
-    let state2 = get_value_index(index2);
-    let state3 = get_value_index(index3);
-    let state4 = get_value_index(index4);
-    let state5 = get_value_index(index5);
-    let state6 = get_value_index(index6);
-    let state7 = get_value_index(index7);
+    let state0 = get_value_index(u.offsets[0][0] + scaled0.x * size0 * size0 + scaled0.y * size0 + scaled0.z);
+    let state1 = get_value_index(u.offsets[0][1] + scaled1.x * size1 * size1 + scaled1.y * size1 + scaled1.z);
+    let state2 = get_value_index(u.offsets[0][2] + scaled2.x * size2 * size2 + scaled2.y * size2 + scaled2.z);
+    let state3 = get_value_index(u.offsets[0][3] + scaled3.x * size3 * size3 + scaled3.y * size3 + scaled3.z);
+    let state4 = get_value_index(u.offsets[1][0] + scaled4.x * size4 * size4 + scaled4.y * size4 + scaled4.z);
+    let state5 = get_value_index(u.offsets[1][1] + scaled5.x * size5 * size5 + scaled5.y * size5 + scaled5.z);
+    let state6 = get_value_index(u.offsets[1][2] + scaled6.x * size6 * size6 + scaled6.y * size6 + scaled6.z);
+    let state7 = get_value_index(u.offsets[1][3] + scaled7.x * size7 * size7 + scaled7.y * size7 + scaled7.z);
 
     if (!state0 && size0 != 0u) {
         let rounded_pos = ((vec3<f32>(scaled0) + 0.5) / f32(size0)) * 2.0 - 1.0;

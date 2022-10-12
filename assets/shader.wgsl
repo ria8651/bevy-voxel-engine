@@ -9,7 +9,7 @@ struct Vertex {
     @location(0) position: vec3<f32>,
     @location(1) normal: vec3<f32>,
     @location(2) uv: vec2<f32>,
-};
+}
 
 @vertex
 fn vertex(vertex: Vertex) -> @builtin(position) vec4<f32> {

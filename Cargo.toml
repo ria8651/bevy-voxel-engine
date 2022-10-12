@@ -12,7 +12,7 @@ name = "voxel_engine"
 path = "src/voxel_engine/lib.rs"
 
 [dependencies]
-bevy = "0.8"
+bevy = { version = "0.8", default-features = false, features = ["render", "x11", "filesystem_watcher"] }
 bevy_egui = "0.16"
 bytemuck = "1.10"
 rand = "0.8"

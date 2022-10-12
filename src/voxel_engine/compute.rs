@@ -13,7 +13,7 @@ use bevy::{
 };
 use std::{borrow::Cow, collections::HashMap};
 
-const MAX_ANIMATION_DATA: usize = 32000000; // 32mb
+const MAX_ANIMATION_DATA: usize = 1000000; // 4mb
 
 pub struct ComputePlugin;
 
