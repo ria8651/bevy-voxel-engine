@@ -14,7 +14,7 @@ use bevy::{
     },
     prelude::*,
     render::{
-        camera::Projection,
+        camera::{Projection, CameraProjection},
         extract_component::{ExtractComponent, ExtractComponentPlugin},
         extract_resource::{ExtractResource, ExtractResourcePlugin},
         mesh::MeshVertexBufferLayout,
@@ -117,9 +117,10 @@ impl Plugin for Tracer {
             indirect_lighting: false,
             shadows: true,
             accumulation_frames: 1.0,
+            fov: 1.0,
             freeze: false,
             enable_compute: true,
-            skybox: false,
+            skybox: true,
             misc_bool: false,
             misc_float: 1.0,
         };
@@ -223,6 +224,7 @@ pub struct Uniforms {
     pub indirect_lighting: bool,
     pub shadows: bool,
     pub accumulation_frames: f32,
+    pub fov: f32,
     pub freeze: bool,
     pub enable_compute: bool,
     pub skybox: bool,
@@ -248,12 +250,13 @@ pub struct ExtractedUniforms {
     indirect_lighting: u32,
     shadows: u32,
     accumulation_frames: f32,
+    fov: f32,
     freeze: u32,
     pub enable_compute: u32,
     skybox: u32,
     misc_bool: u32,
     misc_float: f32,
-    // padding: [u32; 1],
+    padding: [u32; 3],
 }
 
 impl ExtractResource for ExtractedUniforms {
@@ -276,12 +279,13 @@ impl ExtractResource for ExtractedUniforms {
             indirect_lighting: uniforms.indirect_lighting as u32,
             shadows: uniforms.shadows as u32,
             accumulation_frames: uniforms.accumulation_frames,
+            fov: uniforms.fov,
             freeze: uniforms.freeze as u32,
             enable_compute: uniforms.enable_compute as u32,
             skybox: uniforms.skybox as u32,
             misc_bool: uniforms.misc_bool as u32,
             misc_float: uniforms.misc_float,
-            // padding: [0; 1],
+            padding: [0; 3],
         }
     }
 }

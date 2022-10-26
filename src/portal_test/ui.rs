@@ -42,6 +42,11 @@ fn ui_system(
                     Slider::new(&mut uniforms.accumulation_frames, 1.0..=100.0)
                         .text("Accumulation frames"),
                 );
+                ui.add(
+                    Slider::new(&mut uniforms.fov, 0.1..=10.0)
+                        .text("Fov")
+                        .logarithmic(true),
+                );
                 ui.checkbox(&mut uniforms.freeze, "Freeze");
             });
             ui.collapsing("Compute", |ui| {

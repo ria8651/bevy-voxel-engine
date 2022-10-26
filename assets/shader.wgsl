@@ -51,7 +51,7 @@ fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed
             // let rand = vec3(0.0);
             let shadow_ray = Ray(pos, -light_dir + rand * 0.1);
             let shadow_hit = shoot_ray(shadow_ray, 0.0, 0u);
-            shadow = f32(!(shadow_hit.hit && any(shadow_hit.material == vec4(0.0))));
+            shadow = f32(!shadow_hit.hit);
         }
 
         lighting = ambient + diffuse * shadow * light_colour;
@@ -72,7 +72,7 @@ fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
     var output_colour = vec3(0.0);
 
     let pos = u.camera_inverse * vec4(0.0, 0.0, 0.0, 1.0);
-    let dir = u.camera_inverse * vec4(clip_space.x, clip_space.y, -1.0, 1.0);
+    let dir = u.camera_inverse * vec4(clip_space.x * u.fov, clip_space.y * u.fov, -1.0, 1.0);
     let pos = pos.xyz;
     let dir = normalize(dir.xyz - pos);
     var ray = Ray(pos, dir);
@@ -81,7 +81,7 @@ fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
     var steps = hit.steps;
 
     var samples = 0.0;
-    if (hit.hit || any(hit.material != vec4(0.0))) {
+    if (hit.hit) {
         // direct lighting
         let direct_lighting = calculate_direct(hit.material, hit.pos, hit.normal, seed + 15u);
 
@@ -103,7 +103,7 @@ fn fragment(@builtin(position) frag_pos: vec4<f32>) -> @location(0) vec4<f32> {
 
         // reprojection
         let last_frame_clip_space = u.last_camera * vec4<f32>(hit.pos + hit.portal_offset, 1.0);
-        var last_frame_pos = vec2<f32>(-1.0, 1.0) * (last_frame_clip_space.xy / last_frame_clip_space.z);
+        var last_frame_pos = vec2<f32>(-1.0, 1.0) * (last_frame_clip_space.xy / last_frame_clip_space.z / u.fov);
         last_frame_pos.x = last_frame_pos.x / aspect;
         let texture_pos = vec2<i32>((last_frame_pos.xy * 0.5 + 0.5) * u.resolution);
 

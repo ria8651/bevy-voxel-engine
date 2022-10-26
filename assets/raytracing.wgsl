@@ -105,27 +105,35 @@ let IDENTITY = mat3x3<f32>(
 
 fn intersect_scene(r: Ray, steps: u32) -> HitInfo {
     if (u.skybox != 0u) {
-        // pillar
-        let t = ray_box_dist(r, vec3(-1.0), vec3(1.0, -10000.0, 1.0)).x;
-        if (t != 0.0) {
-            let pos = r.pos + r.dir * t;
-            let normal = trunc(pos * vec3(1.00001, 0.0, 1.00001));
-            return HitInfo(true, 0u, vec4(vec3(0.2), 0.0), pos, vec3(0.0), normal, IDENTITY, steps);
-        }
+        // // pillar
+        // let t = ray_box_dist(r, vec3(-1.0), vec3(1.0, -10000.0, 1.0)).x;
+        // if (t != 0.0) {
+        //     let pos = r.pos + r.dir * t;
+        //     let normal = trunc(pos * vec3(1.00001, 0.0, 1.00001));
+        //     return HitInfo(true, 0u, vec4(vec3(0.2), 0.0), pos, vec3(0.0), normal, IDENTITY, steps);
+        // }
 
-        // skybox
-        let t = ray_box_dist(r, vec3(3.0), vec3(-3.0, -10000.0, -3.0)).y;
-        if (t != 0.0) {
-            let pos = r.pos + r.dir * t;
-            if (pos.y > -1.0) {
-                let normal = -trunc(pos / vec3(2.99999));
-                let col = skybox(normalize(pos - vec3(0.0, -1.0, 0.0)), u.time);
-                // let col = vec3(0.3, 0.3, 0.8);
-                return HitInfo(true, 0u, vec4(col, 1.0), pos, vec3(0.0), normal, IDENTITY, steps);
-            } else {
-                let normal = -trunc(pos / vec3(2.99999, 10000.0, 2.99999));
-                return HitInfo(true, 0u, vec4(vec3(0.2), 0.0), pos, vec3(0.0), normal, IDENTITY, steps);
-            }
+        // // skybox
+        // let t = ray_box_dist(r, vec3(3.0), vec3(-3.0, -10000.0, -3.0)).y;
+        // if (t != 0.0) {
+        //     let pos = r.pos + r.dir * t;
+        //     if (pos.y > -1.0) {
+        //         let normal = -trunc(pos / vec3(2.99999));
+        //         let col = skybox(normalize(pos - vec3(0.0, -1.0, 0.0)), u.time);
+        //         // let col = vec3(0.3, 0.3, 0.8);
+        //         return HitInfo(true, 0u, vec4(col, 1.0), pos, vec3(0.0), normal, IDENTITY, steps);
+        //     } else {
+        //         let normal = -trunc(pos / vec3(2.99999, 10000.0, 2.99999));
+        //         return HitInfo(true, 0u, vec4(vec3(0.2), 0.0), pos, vec3(0.0), normal, IDENTITY, steps);
+        //     }
+        // }
+
+        let normal = vec3(0.0, 1.0, 0.0);
+        let hit = ray_plane(r, vec3(0.0, -1.0, 0.0), normal);
+        if (any(hit != vec3(0.0))) {
+            let pos = hit + normal * 0.000002;
+            let colour = vec3(150.0, 200.0, 83.0) / 255.0;
+            return HitInfo(true, 0u, vec4(colour, 0.0), pos, vec3(0.0), normal, IDENTITY, steps);
         }
     }
 
@@ -136,7 +144,7 @@ let PI: f32 = 3.14159265358979323846264338327950288;
 
 /// physics_distance is in terms of t so make sure to normalize your 
 /// ray direction if you want it to be in world cordinates.
-/// only hits any voxels that have any of the input flags set.
+/// only hits voxels that have any of the flags set or hits everything if flags is 0
 fn shoot_ray(r: Ray, physics_distance: f32, flags: u32) -> HitInfo {
     var pos = r.pos;
     let dir_mask = vec3<f32>(r.dir == vec3(0.0));

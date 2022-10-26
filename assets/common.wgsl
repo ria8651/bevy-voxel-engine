@@ -22,6 +22,7 @@ struct Uniforms {
     indirect_lighting: u32,
     shadows: u32,
     accumulation_frames: f32,
+    fov: f32,
     freeze: u32,
     enanble_compute: u32,
     skybox: u32,
