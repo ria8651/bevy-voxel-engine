@@ -66,23 +66,24 @@ impl Plugin for ComputePlugin {
     }
 }
 
-#[derive(Clone, ExtractResource)]
+#[derive(Clone, Resource, ExtractResource)]
 pub struct ExtractedAnimationData {
     pub data: Vec<u32>,
 }
 
-#[derive(Clone, ExtractResource)]
+#[derive(Clone, Resource, ExtractResource)]
 pub struct ExtractedPhysicsData {
     pub data: Vec<u32>,
     pub entities: HashMap<Entity, usize>,
 }
 
-#[derive(Clone, ExtractResource)]
+#[derive(Clone, Resource, ExtractResource)]
 pub struct ComputeMeta {
     pub physics_data: Buffer,
     pub animation_data: Buffer,
 }
 
+#[derive(Resource)]
 pub struct ExtractedGH {
     pub buffer_size: usize,
     pub texture_size: u32,
@@ -231,6 +232,7 @@ impl render_graph::Node for ComputeNode {
     }
 }
 
+#[derive(Resource)]
 struct ComputePipeline {
     compute_bind_group_layout: BindGroupLayout,
     update_pipeline: CachedComputePipelineId,
@@ -354,6 +356,7 @@ impl FromWorld for ComputePipeline {
     }
 }
 
+#[derive(Resource)]
 struct ComputeBindGroup(BindGroup);
 
 fn queue_bind_group(

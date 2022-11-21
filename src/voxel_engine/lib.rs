@@ -59,16 +59,19 @@ pub struct VoxelWorld;
 
 impl Plugin for VoxelWorld {
     fn build(&self, app: &mut App) {
-        app.insert_resource(trace::ShaderTimer(Timer::from_seconds(1000.0, true)))
-            .insert_resource(trace::LastFrameData {
-                last_camera: Mat4::default(),
-            })
-            .add_plugin(trace::Tracer)
-            .add_plugin(compute::ComputePlugin);
+        app.insert_resource(trace::ShaderTimer(Timer::from_seconds(
+            1000.0,
+            TimerMode::Repeating,
+        )))
+        .insert_resource(trace::LastFrameData {
+            last_camera: Mat4::default(),
+        })
+        .add_plugin(trace::Tracer)
+        .add_plugin(compute::ComputePlugin);
     }
 }
 
-// #[derive(Clone)]
+#[derive(Resource)]
 pub enum LoadVoxelWorld {
     Empty(u32),
     File(String),

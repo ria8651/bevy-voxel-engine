@@ -16,7 +16,7 @@ impl Plugin for FpsCounter {
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // fps
-    commands.spawn_bundle(TextBundle {
+    commands.spawn(TextBundle {
         text: Text {
             sections: vec![TextSection {
                 value: "0.00".to_string(),

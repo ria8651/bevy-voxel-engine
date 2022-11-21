@@ -9,7 +9,9 @@ pub struct GH {
     pub pallete: [PalleteEntry; 256],
 }
 
-const fn num_bits<T>() -> usize { std::mem::size_of::<T>() * 8 }
+const fn num_bits<T>() -> usize {
+    std::mem::size_of::<T>() * 8
+}
 fn log_2(x: u32) -> u32 {
     assert!(x > 0);
     num_bits::<u32>() as u32 - x.leading_zeros() - 1

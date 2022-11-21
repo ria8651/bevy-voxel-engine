@@ -1,4 +1,4 @@
-use bevy::{input::mouse::MouseMotion, prelude::*};
+use bevy::{input::mouse::MouseMotion, prelude::*, window::CursorGrabMode};
 use voxel_engine::Velocity;
 
 const SPEED: f32 = 10.0;
@@ -28,7 +28,11 @@ fn setup_character(mut windows: ResMut<Windows>) {
 
 /// Grabs/ungrabs mouse cursor
 fn toggle_grab_cursor(window: &mut Window) {
-    window.set_cursor_lock_mode(!window.cursor_locked());
+    window.set_cursor_grab_mode(match window.cursor_grab_mode() {
+        CursorGrabMode::Locked => CursorGrabMode::None,
+        CursorGrabMode::None => CursorGrabMode::Locked,
+        _ => CursorGrabMode::Locked,
+    });
     window.set_cursor_visibility(!window.cursor_visible());
 }
 
@@ -47,7 +51,7 @@ fn update_character(
 
     let (mut transform, mut velocity, mut character) = character.single_mut();
     let target_velocity;
-    if window.cursor_locked() {
+    if window.cursor_grab_mode() == CursorGrabMode::Locked {
         character.look_at = velocity.portal_rotation * character.look_at;
         character.up = velocity.portal_rotation * character.up;
 

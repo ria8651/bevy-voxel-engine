@@ -14,7 +14,7 @@ use bevy::{
     },
     prelude::*,
     render::{
-        camera::{Projection, CameraProjection},
+        camera::Projection,
         extract_component::{ExtractComponent, ExtractComponentPlugin},
         extract_resource::{ExtractResource, ExtractResourcePlugin},
         mesh::MeshVertexBufferLayout,
@@ -48,12 +48,14 @@ impl Plugin for Tracer {
         });
 
         // screen texture
-        let window = app.world.resource::<Windows>().primary();
+        // let window = app.world.resource::<Windows>().primary();
         let screen_texture = render_device.create_texture(&TextureDescriptor {
             label: None,
             size: Extent3d {
-                width: window.physical_width(),
-                height: window.physical_height(),
+                // width: window.physical_width(),
+                width: 600,
+                // height: window.physical_height(),
+                height: 600,
                 depth_or_array_layers: 2,
             },
             mip_level_count: 1,
@@ -167,7 +169,7 @@ impl Plugin for Tracer {
 }
 
 fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
-    commands.spawn().insert_bundle((
+    commands.spawn((
         meshes.add(Mesh::from(shape::Plane { size: 2.0 })),
         Transform::from_xyz(0.0, 0.0, 0.001).looking_at(Vec3::Y, Vec3::Z),
         GlobalTransform::default(),
@@ -178,6 +180,7 @@ fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
     ));
 }
 
+#[derive(Resource)]
 pub struct TraceMeta {
     pub uniform: Buffer,
     pub storage: Buffer,
@@ -186,8 +189,10 @@ pub struct TraceMeta {
     bind_group: Option<BindGroup>,
 }
 
+#[derive(Resource)]
 pub struct ShaderTimer(pub Timer);
 
+#[derive(Resource)]
 pub struct LastFrameData {
     pub last_camera: Mat4,
 }
@@ -208,6 +213,7 @@ pub struct ExtractedPortal {
     pub half_size: [i32; 4],
 }
 
+#[derive(Resource)]
 pub struct Uniforms {
     pub pallete: [PalleteEntry; 256],
     pub portals: [ExtractedPortal; 32],
@@ -233,7 +239,7 @@ pub struct Uniforms {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
+#[derive(Resource, Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct ExtractedUniforms {
     pallete: [PalleteEntry; 256],
     portals: [ExtractedPortal; 32],
@@ -406,6 +412,7 @@ fn queue_trace_bind_group(
     trace_meta.bind_group = Some(bind_group);
 }
 
+#[derive(Resource)]
 pub struct TracePipeline {
     shader: Handle<Shader>,
     mesh_pipeline: MeshPipeline,
@@ -540,15 +547,14 @@ impl<const I: usize> EntityRenderCommand for SetTraceBindGroup<I> {
 
 fn resize_system(
     mut commands: Commands,
-    resize_event: Res<Events<WindowResized>>,
+    mut resize_events: EventReader<WindowResized>,
     windows: Res<Windows>,
 ) {
     let window = windows.primary();
-    let mut reader = resize_event.get_reader();
     let mut width = 0.0;
     let mut height = 0.0;
 
-    for e in reader.iter(&resize_event) {
+    for e in resize_events.iter() {
         width = e.width * window.scale_factor() as f32;
         height = e.height * window.scale_factor() as f32;
         println!("resizing window to ({}, {})", width, height);
@@ -586,10 +592,10 @@ fn resize_prepare(
     println!("resized window to ({}, {})", resize_event.0, resize_event.1);
 }
 
-#[derive(Clone, Copy, ExtractResource)]
+#[derive(Resource, Clone, Copy, ExtractResource)]
 struct ResizeEvent(f32, f32);
 
-#[derive(Clone)]
+#[derive(Resource, Clone)]
 enum NewGH {
     Some(Arc<GH>),
     None,

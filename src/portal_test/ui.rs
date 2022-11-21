@@ -54,7 +54,7 @@ fn ui_system(
                 if ui.button("spawn particles").clicked() {
                     let mut rng = rand::thread_rng();
                     for _ in 0..10000 {
-                        commands.spawn_bundle((
+                        commands.spawn((
                             Transform::from_xyz(0.0, 0.0, 0.0),
                             Particle {
                                 material: rng.gen_range(100..104),

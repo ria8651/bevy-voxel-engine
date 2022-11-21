@@ -1,4 +1,4 @@
-use bevy::{asset::AssetServerSettings, prelude::*, render::camera::Projection};
+use bevy::{prelude::*, render::camera::Projection};
 use character::CharacterEntity;
 use concurrent_queue::ConcurrentQueue;
 use voxel_engine::{
@@ -17,23 +17,29 @@ pub struct Bullet {
     bullet_type: u32,
 }
 
+#[derive(Resource)]
 pub struct Settings {
     pub spectator: bool,
 }
 
 fn main() {
     App::new()
-        .insert_resource(AssetServerSettings {
-            watch_for_changes: true,
-            ..default()
-        })
-        .insert_resource(WindowDescriptor {
-            width: 600.0,
-            height: 600.0,
-            ..default()
-        })
         .insert_resource(Settings { spectator: false })
-        .add_plugins(DefaultPlugins)
+        .add_plugins(
+            DefaultPlugins
+                .set(AssetPlugin {
+                    watch_for_changes: true,
+                    ..default()
+                })
+                .set(WindowPlugin {
+                    window: WindowDescriptor {
+                        width: 600.0,
+                        height: 600.0,
+                        ..default()
+                    },
+                    ..default()
+                }),
+        )
         .add_plugin(VoxelWorld)
         .add_plugin(character::Character)
         .add_plugin(ui::UiPlugin)
@@ -55,7 +61,7 @@ fn shoot(
     let character = character.single();
 
     if input.just_pressed(MouseButton::Left) {
-        commands.spawn_bundle((
+        commands.spawn((
             Transform::from_translation(character.translation),
             Particle { material: 120 },
             Velocity::new(-character.local_z() * 50.0),
@@ -63,7 +69,7 @@ fn shoot(
         ));
     }
     if input.just_pressed(MouseButton::Right) {
-        commands.spawn_bundle((
+        commands.spawn((
             Transform::from_translation(character.translation),
             Particle { material: 121 },
             Velocity::new(-character.local_z() * 50.0),
@@ -76,7 +82,7 @@ fn shoot(
     }
 
     if keyboard.just_pressed(KeyCode::B) {
-        commands.spawn_bundle((
+        commands.spawn((
             Transform::from_translation(character.translation),
             Velocity::new(-character.local_z() * 10.0),
             Bullet { bullet_type: 0 },
@@ -132,7 +138,7 @@ fn spawn_portals(
                 if bullet.bullet_type == 1 {
                     commands.entity(character.portal1).despawn();
                     character.portal1 = commands
-                        .spawn_bundle((
+                        .spawn((
                             Portal {
                                 half_size: plane * 5,
                                 normal: normal,
@@ -148,7 +154,7 @@ fn spawn_portals(
                 if bullet.bullet_type == 2 {
                     commands.entity(character.portal2).despawn();
                     character.portal2 = commands
-                        .spawn_bundle((
+                        .spawn((
                             Portal {
                                 half_size: plane * 5,
                                 normal: normal,
@@ -170,7 +176,7 @@ fn spawn_portals(
 // in the world lining up with the center of the voxel world (ie 0, 0, 0 in the render world)
 fn setup(mut commands: Commands) {
     let portal1 = commands
-        .spawn_bundle((
+        .spawn((
             Portal {
                 half_size: IVec3::new(0, 0, 0),
                 normal: Vec3::new(1.0, 0.0, 0.0),
@@ -183,7 +189,7 @@ fn setup(mut commands: Commands) {
         ))
         .id();
     let portal2 = commands
-        .spawn_bundle((
+        .spawn((
             Portal {
                 half_size: IVec3::new(0, 0, 0),
                 normal: Vec3::new(1.0, 0.0, 0.0),
@@ -198,8 +204,8 @@ fn setup(mut commands: Commands) {
 
     let transform =
         Transform::from_xyz(0.1, 10.0, 0.1).looking_at(Vec3::new(0.0, 0.0, 1.0), Vec3::Y);
-    commands
-        .spawn_bundle(Camera3dBundle {
+    commands.spawn((
+        Camera3dBundle {
             transform,
             projection: Projection::Perspective(PerspectiveProjection {
                 fov: 1.48353,
@@ -208,8 +214,8 @@ fn setup(mut commands: Commands) {
                 ..Default::default()
             }),
             ..Default::default()
-        })
-        .insert_bundle((
+        },
+        (
             CharacterEntity {
                 grounded: false,
                 look_at: -transform.local_z(),
@@ -222,9 +228,10 @@ fn setup(mut commands: Commands) {
                 half_size: IVec3::new(2, 4, 2),
             },
             VoxelCamera,
-        ));
+        ),
+    ));
 
-    // commands.spawn_bundle((
+    // commands.spawn((
     //     Portal {
     //         half_size: IVec3::new(0, 9, 6),
     //         normal: Vec3::new(1.0, 0.0, 0.0),
@@ -235,7 +242,7 @@ fn setup(mut commands: Commands) {
     //     },
     //     Transform::from_xyz(3.0, 2.0, 0.0),
     // ));
-    // commands.spawn_bundle((
+    // commands.spawn((
     //     Portal {
     //         half_size: IVec3::new(6, 9, 0),
     //         normal: Vec3::new(0.0, 0.0, 1.0),
@@ -247,7 +254,7 @@ fn setup(mut commands: Commands) {
     //     Transform::from_xyz(0.0, 2.0, 3.0),
     // ));
 
-    // commands.spawn_bundle((
+    // commands.spawn((
     //     Portal {
     //         half_size: IVec3::new(0, 1, 1),
     //         normal: Vec3::new(1.0, 0.0, 0.0),
@@ -258,7 +265,7 @@ fn setup(mut commands: Commands) {
     //     },
     //     Transform::from_xyz(3.0, 5.0, 0.0),
     // ));
-    // commands.spawn_bundle((
+    // commands.spawn((
     //     Portal {
     //         half_size: IVec3::new(1, 1, 0),
     //         normal: Vec3::new(0.0, 0.0, 1.0),
@@ -270,7 +277,7 @@ fn setup(mut commands: Commands) {
     //     Transform::from_xyz(0.0, 5.0, 3.0),
     // ));
 
-    // commands.spawn_bundle((
+    // commands.spawn((
     //     Portal {
     //         half_size: IVec3::new(5, 0, 5),
     //         normal: Vec3::new(0.0, 1.0, 0.0),
@@ -281,7 +288,7 @@ fn setup(mut commands: Commands) {
     //     },
     //     Transform::from_xyz(0.0, -1.0, 0.0),
     // ));
-    // commands.spawn_bundle((
+    // commands.spawn((
     //     Portal {
     //         half_size: IVec3::new(5, 0, 5),
     //         normal: Vec3::new(0.0, -1.0, 0.0),
