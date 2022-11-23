@@ -1,4 +1,3 @@
-use super::trace::PalleteEntry;
 use bevy::prelude::*;
 
 #[derive(Clone)]
@@ -6,8 +5,11 @@ pub struct GH {
     pub levels: [u32; 8],
     pub texture_size: u32,
     pub texture_data: Vec<u8>,
-    pub pallete: [PalleteEntry; 256],
+    pub pallete: Pallete,
 }
+
+#[derive(Clone, Deref, DerefMut)]
+pub struct Pallete([[f32; 4]; 256]);
 
 const fn num_bits<T>() -> usize {
     std::mem::size_of::<T>() * 8
@@ -29,7 +31,7 @@ impl GH {
             levels,
             texture_size,
             texture_data: vec![0; (texture_size * texture_size * texture_size * 2) as usize],
-            pallete: [PalleteEntry::default(); 256],
+            pallete: Pallete([[0.0; 4]; 256]),
         }
     }
 
@@ -62,11 +64,11 @@ impl GH {
 
         let mut gh = GH::empty(size as u32);
         for i in 0..256 {
-            let value = vox.palette[i].to_le_bytes();
+            let colour = vox.palette[i];
             let mut material = Vec4::new(
-                value[0] as f32 / 255.0,
-                value[1] as f32 / 255.0,
-                value[2] as f32 / 255.0,
+                colour.r as f32 / 255.0,
+                colour.g as f32 / 255.0,
+                colour.b as f32 / 255.0,
                 0.0,
             );
 
@@ -79,9 +81,7 @@ impl GH {
                 material.w = 1.0;
             }
 
-            gh.pallete[i] = PalleteEntry {
-                colour: material.to_array(),
-            }
+            gh.pallete[i] = material.to_array();
         }
 
         for voxel in &vox.models[0].voxels {

@@ -2,3 +2,4 @@
 /web
 /traces
 trace-*
+render-graph.dot

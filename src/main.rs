@@ -1,13 +1,13 @@
-use bevy::{prelude::*, render::camera::Projection};
-use character::CharacterEntity;
-use concurrent_queue::ConcurrentQueue;
-use voxel_engine::{
+use bevy::{prelude::*, render::camera::CameraRenderGraph};
+use bevy_voxel_engine::{
     Box, BoxCollider, Edges, Particle, Portal, Velocity, VoxelCamera, VoxelWorld, VOXELS_PER_METER,
 };
+use character::CharacterEntity;
+use concurrent_queue::ConcurrentQueue;
 
 mod character;
 mod fps_counter;
-mod ui;
+// mod ui;
 
 // zero: normal bullet
 // one: orange portal bullet
@@ -23,8 +23,9 @@ pub struct Settings {
 }
 
 fn main() {
-    App::new()
-        .insert_resource(Settings { spectator: false })
+    let mut app = App::new();
+    app.insert_resource(Settings { spectator: false })
+        .insert_resource(Msaa { samples: 1 })
         .add_plugins(
             DefaultPlugins
                 .set(AssetPlugin {
@@ -42,13 +43,18 @@ fn main() {
         )
         .add_plugin(VoxelWorld)
         .add_plugin(character::Character)
-        .add_plugin(ui::UiPlugin)
+        // .add_plugin(ui::UiPlugin)
         .add_plugin(fps_counter::FpsCounter)
         .add_startup_system(setup)
         .add_system(shoot)
         .add_system(update_velocitys)
-        .add_system(spawn_portals)
-        .run();
+        .add_system(spawn_portals);
+
+    let dot = bevy_mod_debugdump::get_render_graph(&mut app);
+    std::fs::write("render-graph.dot", dot).expect("Failed to write render-graph.dot");
+    println!("Render graph written to render-graph.dot");
+
+    app.run();
 }
 
 fn shoot(
@@ -206,29 +212,26 @@ fn setup(mut commands: Commands) {
         Transform::from_xyz(0.1, 10.0, 0.1).looking_at(Vec3::new(0.0, 0.0, 1.0), Vec3::Y);
     commands.spawn((
         Camera3dBundle {
-            transform,
-            projection: Projection::Perspective(PerspectiveProjection {
-                fov: 1.48353,
-                near: 0.05,
-                far: 10000.0,
-                ..Default::default()
-            }),
-            ..Default::default()
+            transform: Transform::from_xyz(10.0, 10., -5.0).looking_at(Vec3::ZERO, Vec3::Y),
+            camera_render_graph: CameraRenderGraph::new("voxel"),
+            camera: Camera {
+                hdr: true,
+                ..default()
+            },
+            ..default()
         },
-        (
-            CharacterEntity {
-                grounded: false,
-                look_at: -transform.local_z(),
-                up: Vec3::new(0.0, 1.0, 0.0),
-                portal1,
-                portal2,
-            },
-            Velocity::new(Vec3::splat(0.0)),
-            BoxCollider {
-                half_size: IVec3::new(2, 4, 2),
-            },
-            VoxelCamera,
-        ),
+        CharacterEntity {
+            grounded: false,
+            look_at: -transform.local_z(),
+            up: Vec3::new(0.0, 1.0, 0.0),
+            portal1,
+            portal2,
+        },
+        Velocity::new(Vec3::splat(0.0)),
+        BoxCollider {
+            half_size: IVec3::new(2, 4, 2),
+        },
+        VoxelCamera,
     ));
 
     // commands.spawn((

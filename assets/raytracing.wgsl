@@ -82,7 +82,7 @@ fn get_value(pos: vec3<f32>) -> Voxel {
     }
 
     let rounded_pos = (floor(pos * f32(u.texture_size) * 0.5) + 0.5) / (f32(u.texture_size) * 0.5);
-    let data = textureLoad(texture, vec3<i32>(scaled * f32(u.texture_size)).zyx).r;
+    let data = textureLoad(voxel_world, vec3<i32>(scaled * f32(u.texture_size)).zyx).r;
     return Voxel(data, rounded_pos, u.texture_size);
 }
 

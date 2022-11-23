@@ -1,5 +1,5 @@
 use bevy::{input::mouse::MouseMotion, prelude::*, window::CursorGrabMode};
-use voxel_engine::Velocity;
+use bevy_voxel_engine::Velocity;
 
 const SPEED: f32 = 10.0;
 const SENSITIVITY: f32 = 0.004;

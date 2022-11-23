@@ -1,10 +1,14 @@
-pub use animation::VOXELS_PER_METER;
+// pub use animation::VOXELS_PER_METER;
 use bevy::prelude::*;
+use voxel_pipeline::RenderPlugin;
 
-mod animation;
-mod compute;
+pub const VOXELS_PER_METER: f32 = 4.0;
+
+// mod animation;
+// mod compute;
 mod load;
-pub mod trace;
+mod voxel_pipeline;
+// pub mod trace;
 
 #[derive(Component)]
 pub struct VoxelCamera;
@@ -59,15 +63,17 @@ pub struct VoxelWorld;
 
 impl Plugin for VoxelWorld {
     fn build(&self, app: &mut App) {
-        app.insert_resource(trace::ShaderTimer(Timer::from_seconds(
-            1000.0,
-            TimerMode::Repeating,
-        )))
-        .insert_resource(trace::LastFrameData {
-            last_camera: Mat4::default(),
-        })
-        .add_plugin(trace::Tracer)
-        .add_plugin(compute::ComputePlugin);
+        app.add_plugin(RenderPlugin);
+
+        // app.insert_resource(trace::ShaderTimer(Timer::from_seconds(
+        //     1000.0,
+        //     TimerMode::Repeating,
+        // )))
+        // .insert_resource(trace::LastFrameData {
+        //     last_camera: Mat4::default(),
+        // })
+        // .add_plugin(trace::Tracer)
+        // .add_plugin(compute::ComputePlugin);
     }
 }
 

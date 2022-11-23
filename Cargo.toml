@@ -3,20 +3,11 @@ name = "grid-hierarchy"
 version = "0.1.0"
 edition = "2021"
 
-[[bin]]
-name = "portal_test"
-path = "src/portal_test/main.rs"
-
-[lib]
-name = "voxel_engine"
-path = "src/voxel_engine/lib.rs"
-
 [dependencies]
-bevy = { version = "0.9", default-features = true, features = ["render", "x11", "filesystem_watcher"] }
+bevy = { version = "0.9", default-features = false, features = ["render", "x11", "filesystem_watcher"] }
+bevy-voxel-engine = { path = "bevy-voxel-engine" }
 bevy_egui = "0.17"
-bytemuck = "1.10"
 rand = "0.8"
-dot_vox = "4.1"
-wgpu = "0.14"
 concurrent-queue = "1.2"
 tinyfiledialogs = "3.9"
+bevy_mod_debugdump = "0.6"
