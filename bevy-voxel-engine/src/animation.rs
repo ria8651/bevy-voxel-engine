@@ -1,6 +1,6 @@
 use super::{
     compute,
-    trace::{ExtractedPortal, Uniforms},
+    voxel_pipeline::trace::{ExtractedPortal, Uniforms},
     Box, BoxCollider, Edges, Particle, Portal, Velocity,
 };
 use bevy::{prelude::*, render::renderer::RenderDevice};
@@ -236,7 +236,7 @@ pub fn insert_physics_data(
     extracted_physics_data: Res<compute::ExtractedPhysicsData>,
     compute_meta: Res<compute::ComputeMeta>,
     render_device: Res<RenderDevice>,
-    uniforms: Res<super::trace::Uniforms>,
+    uniforms: Res<Uniforms>,
 ) {
     if !uniforms.enable_compute {
         return;

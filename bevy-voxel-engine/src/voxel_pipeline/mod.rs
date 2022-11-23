@@ -8,7 +8,7 @@ use bevy::{
 };
 use self::trace::{TracePlugin, node::TraceNode};
 
-mod trace;
+pub mod trace;
 
 pub struct RenderPlugin;
 

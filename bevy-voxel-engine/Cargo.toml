@@ -9,3 +9,4 @@ edition = "2021"
 bevy = { version = "0.9", default-features = false }
 bytemuck = "1.10"
 dot_vox = "5.1"
+wgpu = "0.14"

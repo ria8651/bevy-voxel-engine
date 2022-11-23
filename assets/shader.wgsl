@@ -127,11 +127,7 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     // output_colour = (hit.pos + hit.portal_offset) * 2.0;
     // output_colour = hit.pos * 2.0;
 
-    output_colour = max(output_colour, vec3(0.0));
-    // output_colour = aces(output_colour);
-    output_colour = pow(output_colour, vec3(2.2));
-
-    output_colour = vec3(sin(in.uv.xy * 10.0), sin(u.time));
+    // output_colour = vec3(u.time);
 
     return vec4<f32>(max(output_colour, vec3(0.0)), 1.0);
 }

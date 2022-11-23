@@ -1,14 +1,11 @@
-// pub use animation::VOXELS_PER_METER;
+pub use animation::VOXELS_PER_METER;
 use bevy::prelude::*;
 use voxel_pipeline::RenderPlugin;
 
-pub const VOXELS_PER_METER: f32 = 4.0;
-
-// mod animation;
-// mod compute;
+mod animation;
+mod compute;
 mod load;
 mod voxel_pipeline;
-// pub mod trace;
 
 #[derive(Component)]
 pub struct VoxelCamera;

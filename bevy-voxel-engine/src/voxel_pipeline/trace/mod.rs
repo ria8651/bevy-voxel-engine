@@ -1,9 +1,13 @@
-use crate::load::{Pallete, GH};
+use crate::{
+    animation,
+    load::{Pallete, GH},
+    VoxelCamera,
+};
 use bevy::{
     core_pipeline::fullscreen_vertex_shader::fullscreen_shader_vertex_state,
     prelude::*,
     render::{
-        extract_resource::ExtractResource,
+        extract_resource::{ExtractResource, ExtractResourcePlugin},
         render_resource::*,
         renderer::{RenderDevice, RenderQueue},
         view::ViewTarget,
@@ -89,7 +93,16 @@ impl Plugin for TracePlugin {
             misc_float: 1.0,
         };
 
-        app.insert_resource(uniforms_struct);
+        app.insert_resource(uniforms_struct)
+            .insert_resource(ShaderTimer(Timer::from_seconds(
+                1000.0,
+                TimerMode::Repeating,
+            )))
+            .insert_resource(LastFrameData {
+                last_camera: Mat4::default(),
+            })
+            .add_plugin(ExtractResourcePlugin::<ExtractedUniforms>::default())
+            .add_system(update_uniforms);
 
         // setup custom render pipeline
         app.sub_app_mut(RenderApp)
@@ -100,7 +113,8 @@ impl Plugin for TracePlugin {
                 voxel_world,
                 grid_heierachy,
             })
-            .add_system_to_stage(RenderStage::Queue, queue_trace_pipeline);
+            .add_system_to_stage(RenderStage::Queue, queue_trace_pipeline)
+            .add_system_to_stage(RenderStage::Prepare, prepare_uniforms);
     }
 }
 
@@ -111,10 +125,10 @@ struct TracePipeline {
 }
 
 #[derive(Resource)]
-struct TraceData {
-    uniform_buffer: Buffer,
-    voxel_world: TextureView,
-    grid_heierachy: Buffer,
+pub struct TraceData {
+    pub uniform_buffer: Buffer,
+    pub voxel_world: TextureView,
+    pub grid_heierachy: Buffer,
 }
 
 #[derive(Component)]
@@ -210,13 +224,52 @@ fn queue_trace_pipeline(
     }
 }
 
-// #[derive(Resource)]
-// pub struct TraceMeta {
-//     pub uniform: Buffer,
-//     pub storage: Buffer,
-//     screen_texture_view: TextureView,
-//     pub texture_view: TextureView,
-// }
+fn update_uniforms(
+    mut uniforms: ResMut<Uniforms>,
+    windows: Res<Windows>,
+    main_cam: Query<(&Transform, &Projection), With<VoxelCamera>>,
+    mut shader_timer: ResMut<ShaderTimer>,
+    time: Res<Time>,
+    mut last_frame_data: ResMut<LastFrameData>,
+) {
+    let window = windows.primary();
+    uniforms.resolution = Vec4::new(
+        window.physical_width() as f32,
+        window.physical_height() as f32,
+        0.0,
+        0.0,
+    );
+
+    let (transform, _perspective) = main_cam.single();
+
+    let transform = Transform {
+        translation: animation::world_to_render(transform.translation, uniforms.texture_size),
+        ..*transform
+    };
+
+    uniforms.camera_inverse = transform.compute_matrix();
+    uniforms.camera = uniforms.camera_inverse.inverse();
+    uniforms.last_camera = last_frame_data.last_camera;
+    if !uniforms.freeze {
+        last_frame_data.last_camera = uniforms.camera;
+    }
+
+    shader_timer.0.tick(time.delta());
+    uniforms.time = shader_timer.0.elapsed_secs();
+    uniforms.delta_time = time.delta_seconds();
+}
+
+fn prepare_uniforms(
+    extraced_uniforms: Res<ExtractedUniforms>,
+    trace_data: ResMut<TraceData>,
+    render_queue: Res<RenderQueue>,
+) {
+    render_queue.write_buffer(
+        &trace_data.uniform_buffer,
+        0,
+        bytemuck::cast_slice(&[*extraced_uniforms.as_ref()]),
+    );
+}
 
 #[derive(Resource)]
 pub struct ShaderTimer(pub Timer);

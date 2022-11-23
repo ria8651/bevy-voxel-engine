@@ -1,4 +1,7 @@
-use super::{animation, trace};
+use crate::{
+    animation,
+    voxel_pipeline::trace::{ExtractedUniforms, TraceData},
+};
 use bevy::{
     app::CoreStage,
     prelude::*,
@@ -140,12 +143,12 @@ impl render_graph::Node for ComputeNode {
         let pipeline_cache = world.resource::<PipelineCache>();
         let pipeline = world.resource::<ComputePipeline>();
         let render_queue = world.resource::<RenderQueue>();
-        let trace_meta = world.resource::<trace::TraceMeta>();
+        let trace_data = world.resource::<TraceData>();
         let compute_meta = world.resource::<ComputeMeta>();
         let extracted_gh = world.resource::<ExtractedGH>();
         let extracted_animation_data = world.resource::<ExtractedAnimationData>();
         let extracted_physics_data = world.resource::<ExtractedPhysicsData>();
-        let uniforms = world.resource::<trace::ExtractedUniforms>();
+        let uniforms = world.resource::<ExtractedUniforms>();
 
         let mut pass = render_context
             .command_encoder
@@ -169,7 +172,7 @@ impl render_graph::Node for ComputeNode {
                         bytemuck::cast_slice(&extracted_animation_data.data),
                     );
                     render_queue.write_buffer(
-                        &trace_meta.storage,
+                        &trace_data.grid_heierachy,
                         0,
                         bytemuck::cast_slice(&vec![0u8; extracted_gh.buffer_size]),
                     );
@@ -255,10 +258,9 @@ impl FromWorld for ComputePipeline {
                         ty: BindingType::Buffer {
                             ty: BufferBindingType::Uniform,
                             has_dynamic_offset: false,
-                            min_binding_size: BufferSize::new(std::mem::size_of::<
-                                trace::ExtractedUniforms,
-                            >()
-                                as u64),
+                            min_binding_size: BufferSize::new(
+                                std::mem::size_of::<ExtractedUniforms>() as u64,
+                            ),
                         },
                         count: None,
                     },
@@ -363,7 +365,7 @@ fn queue_bind_group(
     mut commands: Commands,
     compute_pipeline: Res<ComputePipeline>,
     render_device: Res<RenderDevice>,
-    trace_meta: Res<trace::TraceMeta>,
+    trace_data: Res<TraceData>,
     compute_meta: Res<ComputeMeta>,
 ) {
     let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
@@ -372,15 +374,15 @@ fn queue_bind_group(
         entries: &[
             BindGroupEntry {
                 binding: 0,
-                resource: trace_meta.uniform.as_entire_binding(),
+                resource: trace_data.uniform_buffer.as_entire_binding(),
             },
             BindGroupEntry {
                 binding: 1,
-                resource: trace_meta.storage.as_entire_binding(),
+                resource: BindingResource::TextureView(&trace_data.voxel_world),
             },
             BindGroupEntry {
                 binding: 2,
-                resource: BindingResource::TextureView(&trace_meta.texture_view),
+                resource: trace_data.grid_heierachy.as_entire_binding(),
             },
             BindGroupEntry {
                 binding: 3,
