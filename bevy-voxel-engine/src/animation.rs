@@ -1,5 +1,5 @@
-use super::{
-    compute,
+use crate::{
+    voxel_pipeline::compute::{ComputeMeta, ExtractedAnimationData, ExtractedPhysicsData},
     voxel_pipeline::trace::{ExtractedPortal, Uniforms},
     Box, BoxCollider, Edges, Particle, Portal, Velocity,
 };
@@ -187,7 +187,7 @@ pub fn extract_animation_data(
         i += 1;
     }
 
-    commands.insert_resource(compute::ExtractedAnimationData {
+    commands.insert_resource(ExtractedAnimationData {
         data: type_buffer.finish(),
     });
 }
@@ -197,7 +197,7 @@ pub fn extract_physics_data(
         Query<(&Transform, &Velocity, Entity), Without<BoxCollider>>,
         Query<(&Transform, &Velocity, &BoxCollider, Entity)>,
     )>,
-    mut extracted_physics_data: ResMut<compute::ExtractedPhysicsData>,
+    mut extracted_physics_data: ResMut<ExtractedPhysicsData>,
 ) {
     let mut type_buffer = TypeBuffer::new();
     let mut entities = HashMap::new();
@@ -233,8 +233,8 @@ pub fn extract_physics_data(
 
 pub fn insert_physics_data(
     mut set: ParamSet<(Query<(&mut Transform, &mut Velocity, Entity)>,)>,
-    extracted_physics_data: Res<compute::ExtractedPhysicsData>,
-    compute_meta: Res<compute::ComputeMeta>,
+    extracted_physics_data: Res<ExtractedPhysicsData>,
+    compute_meta: Res<ComputeMeta>,
     render_device: Res<RenderDevice>,
     uniforms: Res<Uniforms>,
 ) {

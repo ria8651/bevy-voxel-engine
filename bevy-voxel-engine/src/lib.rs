@@ -4,7 +4,6 @@ use voxel_pipeline::RenderPlugin;
 pub use voxel_pipeline::trace::Uniforms;
 
 mod animation;
-mod compute;
 mod load;
 mod voxel_pipeline;
 
@@ -62,16 +61,6 @@ pub struct VoxelWorld;
 impl Plugin for VoxelWorld {
     fn build(&self, app: &mut App) {
         app.add_plugin(RenderPlugin);
-
-        // app.insert_resource(trace::ShaderTimer(Timer::from_seconds(
-        //     1000.0,
-        //     TimerMode::Repeating,
-        // )))
-        // .insert_resource(trace::LastFrameData {
-        //     last_camera: Mat4::default(),
-        // })
-        // .add_plugin(trace::Tracer)
-        // .add_plugin(compute::ComputePlugin);
     }
 }
 

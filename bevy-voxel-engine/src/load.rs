@@ -71,6 +71,7 @@ impl GH {
                 colour.b as f32 / 255.0,
                 0.0,
             );
+            material = material.powf(2.2);
 
             let vox_material = vox.materials[i].properties.clone();
             if vox_material["_type"] == "_emit" {

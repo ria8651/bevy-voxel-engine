@@ -3,19 +3,19 @@
 @group(0) @binding(0)
 var<uniform> u: Uniforms;
 @group(0) @binding(1)
-var<storage, read_write> gh: array<atomic<u32>>;
+var voxel_world: texture_storage_3d<r16uint, read_write>;
 @group(0) @binding(2)
-var texture: texture_storage_3d<r16uint, read_write>;
+var<storage, read_write> gh: array<atomic<u32>>;
 @group(0) @binding(3)
 var<storage, read_write> physics_data: array<u32>;
 @group(0) @binding(4)
 var<storage, read> animation_data: array<u32>;
 
-// note: raytracing.wgsl requires common.wgsl and for you to define u, gh and texture before you import it
+// note: raytracing.wgsl requires common.wgsl and for you to define u, voxel_world and gh before you import it
 #import "raytracing.wgsl"
 
 fn get_texture_value(pos: vec3<i32>) -> vec2<u32> {
-    let texture_value = textureLoad(texture, pos.zyx).r;
+    let texture_value = textureLoad(voxel_world, pos.zyx).r;
     return vec2(
         texture_value & 0xFFu,
         texture_value >> 8u,
@@ -38,20 +38,20 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
 
     // delete old animaiton data
     if ((material.y & (ANIMATION_FLAG | PORTAL_FLAG)) > 0u && rand.x < u.misc_float) {
-        textureStore(texture, pos.zyx, vec4(0u));
+        textureStore(voxel_world, pos.zyx, vec4(0u));
         return;
     }
 
     // change stuff to sand randomly
     if (material.x != 0u && rand.y < 0.01) {
-        textureStore(texture, pos.zyx, vec4(material.x | ((material.y | SAND_FLAG) << 8u)))
+        textureStore(voxel_world, pos.zyx, vec4(material.x | ((material.y | SAND_FLAG) << 8u)))
     }
 }
 
 fn write_pos(pos: vec3<i32>, material: u32, flags: u32) {
     let voxel_type = get_texture_value(pos);
     if (voxel_type.x == 0u) {
-        textureStore(texture, pos.zyx, vec4(material | (flags << 8u)));
+        textureStore(voxel_world, pos.zyx, vec4(material | (flags << 8u)));
     }
 }
 
@@ -89,7 +89,7 @@ fn automata(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
         let rand = hash(pos_time_seed + 10u);
         let new_mat = get_texture_value(pos + vec3(0, 1, 0));
         if (new_mat.x != 0u && (new_mat.y & ANIMATION_FLAG) == 0u && rand.y < 0.01) {
-            textureStore(texture, pos.zyx, vec4(43u | (material.y << 8u)));
+            textureStore(voxel_world, pos.zyx, vec4(43u | (material.y << 8u)));
         }
     }
 
@@ -97,7 +97,7 @@ fn automata(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let rand = hash(pos_time_seed + 10u);
     if (material.x == 44u && (material.y & ANIMATION_FLAG) == 0u && rand.x < 0.02) {
         // if (get_texture_value(pos + vec3(0, 1, 0)).x == 0u && rand.z < 0.1) {
-        //     textureStore(texture, (pos + vec3(0, 1, 0)).zyx, vec4(44u | (material.y << 8u)));
+        //     textureStore(voxel_world, (pos + vec3(0, 1, 0)).zyx, vec4(44u | (material.y << 8u)));
         // }
 
         // pick a random offset to check
@@ -126,7 +126,7 @@ fn automata(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
         let new_mat = get_texture_value(new_pos);
 
         if (in_texture_bounds(new_pos) && new_mat.x != 0u) {
-            textureStore(texture, new_pos.zyx, vec4(material.x | (material.y << 8u)));
+            textureStore(voxel_world, new_pos.zyx, vec4(material.x | (material.y << 8u)));
         }
     }
 
@@ -138,8 +138,8 @@ fn automata(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     //     let new_mat = get_texture_value(new_pos);
 
     //     if (in_texture_bounds(new_pos) && new_mat.x == 0u) {
-    //         textureStore(texture, new_pos.zyx, vec4(material.x | (material.y << 8u)));
-    //         textureStore(texture, pos.zyx, vec4(0u));
+    //         textureStore(voxel_world, new_pos.zyx, vec4(material.x | (material.y << 8u)));
+    //         textureStore(voxel_world, pos.zyx, vec4(0u));
     //     } else {
     //         let rand = hash(pos_time_seed);
     //         for (var i = 0; i < 4; i += 1) {
@@ -161,8 +161,8 @@ fn automata(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     //             let new_mat = get_texture_value(new_pos);
 
     //             if (in_texture_bounds(new_pos) && new_mat.x == 0u) {
-    //                 textureStore(texture, new_pos.zyx, vec4(material.x | (material.y << 8u)));
-    //                 textureStore(texture, pos.zyx, vec4(0u));
+    //                 textureStore(voxel_world, new_pos.zyx, vec4(material.x | (material.y << 8u)));
+    //                 textureStore(voxel_world, pos.zyx, vec4(0u));
     //                 break;
     //             }
     //         }

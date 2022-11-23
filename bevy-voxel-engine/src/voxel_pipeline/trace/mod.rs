@@ -1,6 +1,5 @@
 use crate::{
     animation,
-    compute::ExtractedGH,
     load::{Pallete, GH},
     LoadVoxelWorld, VoxelCamera,
 };
@@ -16,6 +15,8 @@ use bevy::{
     },
 };
 use std::sync::Arc;
+
+use super::compute::ExtractedGH;
 
 pub mod node;
 
@@ -41,7 +42,7 @@ impl Plugin for TracePlugin {
             GH::empty(32)
         };
         let buffer_size = gh.get_final_length() as usize / 8;
-        // let texture_size = gh.texture_size;
+        let texture_size = gh.texture_size;
 
         // texture
         let voxel_world = render_device.create_texture_with_data(
@@ -118,6 +119,10 @@ impl Plugin for TracePlugin {
                 uniform_buffer,
                 voxel_world,
                 grid_heierachy,
+            })
+            .insert_resource(ExtractedGH {
+                buffer_size,
+                texture_size,
             })
             .add_system_to_stage(RenderStage::Queue, queue_trace_pipeline)
             .add_system_to_stage(RenderStage::Prepare, prepare_uniforms)
