@@ -1,7 +1,8 @@
 use crate::{
     animation,
+    compute::ExtractedGH,
     load::{Pallete, GH},
-    VoxelCamera,
+    LoadVoxelWorld, VoxelCamera,
 };
 use bevy::{
     core_pipeline::fullscreen_vertex_shader::fullscreen_shader_vertex_state,
@@ -14,6 +15,7 @@ use bevy::{
         RenderApp, RenderStage,
     },
 };
+use std::sync::Arc;
 
 pub mod node;
 
@@ -101,8 +103,12 @@ impl Plugin for TracePlugin {
             .insert_resource(LastFrameData {
                 last_camera: Mat4::default(),
             })
+            .insert_resource(LoadVoxelWorld::None)
+            .insert_resource(NewGH::None)
             .add_plugin(ExtractResourcePlugin::<ExtractedUniforms>::default())
-            .add_system(update_uniforms);
+            .add_plugin(ExtractResourcePlugin::<NewGH>::default())
+            .add_system(update_uniforms)
+            .add_system(load_voxel_world);
 
         // setup custom render pipeline
         app.sub_app_mut(RenderApp)
@@ -114,7 +120,8 @@ impl Plugin for TracePlugin {
                 grid_heierachy,
             })
             .add_system_to_stage(RenderStage::Queue, queue_trace_pipeline)
-            .add_system_to_stage(RenderStage::Prepare, prepare_uniforms);
+            .add_system_to_stage(RenderStage::Prepare, prepare_uniforms)
+            .add_system_to_stage(RenderStage::Prepare, load_voxel_world_prepare);
     }
 }
 
@@ -269,6 +276,86 @@ fn prepare_uniforms(
         0,
         bytemuck::cast_slice(&[*extraced_uniforms.as_ref()]),
     );
+}
+
+fn load_voxel_world(
+    mut load_voxel_world: ResMut<LoadVoxelWorld>,
+    mut new_gh: ResMut<NewGH>,
+    mut uniforms: ResMut<Uniforms>,
+) {
+    match load_voxel_world.as_ref() {
+        LoadVoxelWorld::Empty(_) | LoadVoxelWorld::File(_) => {
+            let gh = match load_voxel_world.as_ref() {
+                LoadVoxelWorld::Empty(size) => GH::empty(*size),
+                LoadVoxelWorld::File(path) => {
+                    let file = std::fs::read(path).unwrap();
+                    GH::from_vox(&file).unwrap()
+                }
+                LoadVoxelWorld::None => unreachable!(),
+            };
+
+            uniforms.pallete = gh.pallete.clone().into();
+            uniforms.levels = gh.levels;
+            uniforms.texture_size = gh.texture_size;
+
+            *new_gh = NewGH::Some(Arc::new(gh));
+            *load_voxel_world = LoadVoxelWorld::None;
+        }
+        LoadVoxelWorld::None => {
+            *new_gh = NewGH::None;
+        }
+    }
+}
+
+fn load_voxel_world_prepare(
+    mut commands: Commands,
+    render_device: Res<RenderDevice>,
+    render_queue: Res<RenderQueue>,
+    mut trace_meta: ResMut<TraceData>,
+    new_gh: Res<NewGH>,
+) {
+    if let NewGH::Some(gh) = new_gh.as_ref() {
+        let buffer_size = gh.get_final_length() as usize / 8;
+        let texture_size = gh.texture_size;
+
+        // grid hierarchy
+        trace_meta.grid_heierachy = render_device.create_buffer_with_data(&BufferInitDescriptor {
+            contents: &vec![0; buffer_size],
+            label: None,
+            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
+        });
+
+        // voxel world
+        let voxel_world = render_device.create_texture_with_data(
+            render_queue.as_ref(),
+            &TextureDescriptor {
+                label: None,
+                size: Extent3d {
+                    width: gh.texture_size,
+                    height: gh.texture_size,
+                    depth_or_array_layers: gh.texture_size,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: TextureDimension::D3,
+                format: TextureFormat::R16Uint,
+                usage: TextureUsages::STORAGE_BINDING | TextureUsages::COPY_DST,
+            },
+            &gh.texture_data,
+        );
+        trace_meta.voxel_world = voxel_world.create_view(&TextureViewDescriptor::default());
+
+        commands.insert_resource(ExtractedGH {
+            buffer_size,
+            texture_size,
+        });
+    }
+}
+
+#[derive(Resource, ExtractResource, Clone)]
+enum NewGH {
+    Some(Arc<GH>),
+    None,
 }
 
 #[derive(Resource)]

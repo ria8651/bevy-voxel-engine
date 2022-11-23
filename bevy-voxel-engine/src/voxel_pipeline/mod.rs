@@ -1,12 +1,13 @@
+use self::trace::{node::TraceNode, TracePlugin};
 use bevy::{
-    core_pipeline::{tonemapping::TonemappingNode, upscaling::UpscalingNode},
+    core_pipeline::{tonemapping::TonemappingNode, upscaling::UpscalingNode, core_3d},
     prelude::*,
     render::{
         render_graph::{RenderGraph, SlotInfo, SlotType},
         RenderApp,
     },
+    ui::UiPassNode,
 };
-use self::trace::{TracePlugin, node::TraceNode};
 
 pub mod trace;
 
@@ -24,28 +25,24 @@ impl Plugin for RenderPlugin {
         // build custom render graph
         let mut custom_graph = RenderGraph::default();
 
-        let main = TraceNode::new(&mut render_app.world);
-        let tonemapping = TonemappingNode::new(&mut render_app.world);
-        let upscaling = UpscalingNode::new(&mut render_app.world);
         let input_node_id =
             custom_graph.set_input(vec![SlotInfo::new("view_entity", SlotType::Entity)]);
+        let main = TraceNode::new(&mut render_app.world);
+        let tonemapping = TonemappingNode::new(&mut render_app.world);
+        let ui = UiPassNode::new(&mut render_app.world);
+        let upscaling = UpscalingNode::new(&mut render_app.world);
 
         custom_graph.add_node("main", main);
         custom_graph.add_node("tonemapping", tonemapping);
+        custom_graph.add_node("ui", ui);
         custom_graph.add_node("upscaling", upscaling);
-        custom_graph
-            .add_slot_edge(input_node_id, "view_entity", "main", "view")
-            .unwrap();
-        custom_graph
-            .add_slot_edge(input_node_id, "view_entity", "tonemapping", "view")
-            .unwrap();
-        custom_graph
-            .add_slot_edge(input_node_id, "view_entity", "upscaling", "view")
-            .unwrap();
+        custom_graph.add_slot_edge(input_node_id, "view_entity", "main", "view").unwrap();
+        custom_graph.add_slot_edge(input_node_id, "view_entity", "tonemapping", "view").unwrap();
+        custom_graph.add_slot_edge(input_node_id, "view_entity", "ui", "view").unwrap();
+        custom_graph.add_slot_edge(input_node_id, "view_entity", "upscaling", "view").unwrap();
         custom_graph.add_node_edge("main", "tonemapping").unwrap();
-        custom_graph
-            .add_node_edge("tonemapping", "upscaling")
-            .unwrap();
+        custom_graph.add_node_edge("tonemapping", "ui").unwrap();
+        custom_graph.add_node_edge("ui", "upscaling").unwrap();
 
         // insert custom sub graph into the main render graph
         let mut graph = render_app.world.get_resource_mut::<RenderGraph>().unwrap();

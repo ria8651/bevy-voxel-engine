@@ -1,6 +1,7 @@
 pub use animation::VOXELS_PER_METER;
 use bevy::prelude::*;
 use voxel_pipeline::RenderPlugin;
+pub use voxel_pipeline::trace::Uniforms;
 
 mod animation;
 mod compute;
