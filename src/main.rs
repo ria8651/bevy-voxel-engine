@@ -180,11 +180,7 @@ fn spawn_portals(
 
 // world space cordinates are in terms of 4 voxels per meter with 0, 0
 // in the world lining up with the center of the voxel world (ie 0, 0, 0 in the render world)
-fn setup(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
+fn setup(mut commands: Commands) {
     let portal1 = commands
         .spawn((
             Portal {
@@ -236,13 +232,6 @@ fn setup(
         },
         VoxelCamera,
     ));
-
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-        material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
-        transform: Transform::from_xyz(0.0, 0.5, 0.0),
-        ..default()
-    });
 
     // commands.spawn((
     //     Portal {

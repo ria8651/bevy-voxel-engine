@@ -1,3 +1,8 @@
+let PORTAL_FLAG = 64u; // 0b01000000
+let ANIMATION_FLAG = 32u; // 0b00100000
+let COLLISION_FLAG = 16u; // 0b00010000
+let SAND_FLAG = 8u; // 0b00001000
+
 struct Portal {
     pos: vec3<f32>,
     other_pos: vec3<f32>,
