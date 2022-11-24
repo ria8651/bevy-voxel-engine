@@ -1,3 +1,4 @@
+use super::voxel_world::VoxelData;
 use bevy::{
     core_pipeline::{clear_color::ClearColorConfig, core_3d::Transparent3d},
     ecs::system::{
@@ -19,13 +20,10 @@ use bevy::{
             SetItemPipeline, TrackedRenderPass,
         },
         render_resource::*,
-        renderer::RenderDevice,
         view::ExtractedView,
         RenderApp, RenderStage,
     },
 };
-
-use super::trace::{ExtractedUniforms, TraceData};
 
 pub struct VoxelizationPlugin;
 
@@ -39,8 +37,7 @@ impl Plugin for VoxelizationPlugin {
             .add_render_command::<Transparent3d, DrawCustom>()
             .init_resource::<VoxelizationPipeline>()
             .init_resource::<SpecializedMeshPipelines<VoxelizationPipeline>>()
-            .add_system_to_stage(RenderStage::Queue, queue_custom)
-            .add_system_to_stage(RenderStage::Queue, queue_bind_group);
+            .add_system_to_stage(RenderStage::Queue, queue_custom);
     }
 }
 
@@ -133,57 +130,15 @@ pub struct VoxelizationPipeline {
     bind_group_layout: BindGroupLayout,
 }
 
-#[derive(Resource)]
-pub struct VoxelizationData {
-    bind_group: BindGroup,
-}
-
 impl FromWorld for VoxelizationPipeline {
     fn from_world(world: &mut World) -> Self {
         let asset_server = world.resource::<AssetServer>();
         let shader = asset_server.load("voxelization.wgsl");
 
-        let render_device = world.resource::<RenderDevice>();
-        let bind_group_layout =
-            render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-                label: Some("voxelization bind group"),
-                entries: &[
-                    BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: ShaderStages::FRAGMENT,
-                        ty: BindingType::Buffer {
-                            ty: BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: BufferSize::new(
-                                std::mem::size_of::<ExtractedUniforms>() as u64,
-                            ),
-                        },
-                        count: None,
-                    },
-                    BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: ShaderStages::FRAGMENT,
-                        ty: BindingType::StorageTexture {
-                            access: StorageTextureAccess::ReadWrite,
-                            format: TextureFormat::R16Uint,
-                            view_dimension: TextureViewDimension::D3,
-                        },
-                        count: None,
-                    },
-                    BindGroupLayoutEntry {
-                        binding: 2,
-                        visibility: ShaderStages::FRAGMENT,
-                        ty: BindingType::Buffer {
-                            ty: BufferBindingType::Storage { read_only: true },
-                            has_dynamic_offset: false,
-                            min_binding_size: BufferSize::new(4),
-                        },
-                        count: None,
-                    },
-                ],
-            });
-
         let mesh_pipeline = world.resource::<MeshPipeline>();
+
+        let voxel_world_data = world.resource::<VoxelData>();
+        let bind_group_layout = voxel_world_data.bind_group_layout.clone();
 
         VoxelizationPipeline {
             shader,
@@ -249,37 +204,10 @@ fn queue_custom(
     }
 }
 
-fn queue_bind_group(
-    mut commands: Commands,
-    render_device: Res<RenderDevice>,
-    pipeline: Res<VoxelizationPipeline>,
-    trace_data: Res<TraceData>,
-) {
-    let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
-        label: None,
-        layout: &pipeline.bind_group_layout,
-        entries: &[
-            BindGroupEntry {
-                binding: 0,
-                resource: trace_data.uniform_buffer.as_entire_binding(),
-            },
-            BindGroupEntry {
-                binding: 1,
-                resource: BindingResource::TextureView(&trace_data.voxel_world),
-            },
-            BindGroupEntry {
-                binding: 2,
-                resource: trace_data.grid_heierachy.as_entire_binding(),
-            },
-        ],
-    });
-    commands.insert_resource(VoxelizationData { bind_group });
-}
-
 struct SetVoxelizationBindGroup<const I: usize>;
 
 impl<const I: usize> EntityRenderCommand for SetVoxelizationBindGroup<I> {
-    type Param = SRes<VoxelizationData>;
+    type Param = SRes<VoxelData>;
 
     fn render<'w>(
         _view: Entity,
@@ -287,9 +215,9 @@ impl<const I: usize> EntityRenderCommand for SetVoxelizationBindGroup<I> {
         query: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
-        let voxelization_data = query.into_inner();
+        let voxel_world_data = query.into_inner();
 
-        pass.set_bind_group(I, &voxelization_data.bind_group, &[]);
+        pass.set_bind_group(I, &voxel_world_data.bind_group, &[]);
 
         RenderCommandResult::Success
     }

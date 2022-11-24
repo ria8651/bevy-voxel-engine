@@ -2,11 +2,14 @@
 #import "common.wgsl"
 
 @group(0) @binding(0)
-var<uniform> u: Uniforms;
+var<uniform> voxel_uniforms: VoxelUniforms;
 @group(0) @binding(1)
-var voxel_world: texture_storage_3d<r16uint, read>;
+var voxel_world: texture_storage_3d<r16uint, read_write>;
 @group(0) @binding(2)
-var<storage, read> gh: array<u32>;
+var<storage, read_write> gh: array<u32>;
+
+@group(1) @binding(0)
+var<uniform> trace_uniforms: TraceUniforms;
 
 // note: raytracing.wgsl requires common.wgsl and for you to define u, voxel_world and gh before you import it
 #import "raytracing.wgsl"
@@ -22,7 +25,7 @@ fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed
 
         // shadow
         var shadow = 1.0;
-        if (u.shadows != 0u) {
+        if (trace_uniforms.shadows != 0u) {
             // let rand = hash(seed) * 2.0 - 1.0;
             let rand = vec3(0.0);
             let shadow_ray = Ray(pos, -light_dir + rand * 0.1);
@@ -38,7 +41,7 @@ fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed
 }
 
 fn get_voxel(pos: vec3<f32>) -> f32 {
-    if (any(pos < vec3(0.0)) || any(pos >= vec3(f32(u.texture_size)))) {
+    if (any(pos < vec3(0.0)) || any(pos >= vec3(f32(voxel_uniforms.texture_size)))) {
         return 0.0;
     }
 
@@ -69,15 +72,15 @@ fn glmod(x: vec2<f32>, y: vec2<f32>) -> vec2<f32> {
 @fragment
 fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     // pixel jitter
-    let seed = vec3<u32>(in.position.xyz + u.time * 240.0);
+    let seed = vec3<u32>(in.position.xyz + trace_uniforms.time * 240.0);
     let jitter = vec4(hash(seed).xy - 0.5, 0.0, 0.0) / 1.1;
-    var clip_space = get_clip_space(in.position, u.resolution);
-    let aspect = u.resolution.x / u.resolution.y;
+    var clip_space = get_clip_space(in.position, trace_uniforms.resolution);
+    let aspect = trace_uniforms.resolution.x / trace_uniforms.resolution.y;
     clip_space.x = clip_space.x * aspect;
     var output_colour = vec3(0.0);
 
-    let pos = u.camera_inverse * vec4(0.0, 0.0, 0.0, 1.0);
-    let dir = u.camera_inverse * vec4(clip_space.x * u.fov, clip_space.y * u.fov, -1.0, 1.0);
+    let pos = trace_uniforms.camera_inverse * vec4(0.0, 0.0, 0.0, 1.0);
+    let dir = trace_uniforms.camera_inverse * vec4(clip_space.x * trace_uniforms.fov, clip_space.y * trace_uniforms.fov, -1.0, 1.0);
     let pos = pos.xyz;
     let dir = normalize(dir.xyz - pos);
     var ray = Ray(pos, dir);
@@ -92,7 +95,7 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
 
         // indirect lighting
         var indirect_lighting = vec3(0.0);
-        if (u.indirect_lighting != 0u) {
+        if (trace_uniforms.indirect_lighting != 0u) {
             // raytraced indirect lighting
             let indirect_dir = cosine_hemisphere(hit.normal, seed + 10u);
             let indirect_hit = shoot_ray(Ray(hit.pos, indirect_dir), 0.0, 0u);
@@ -104,7 +107,7 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
             }
         } else {
             // aproximate indirect with ambient and voxel ao
-            let texture_coords = (hit.pos * 0.5 + 0.5) * f32(u.texture_size);
+            let texture_coords = (hit.pos * 0.5 + 0.5) * f32(voxel_uniforms.texture_size);
             let ao = voxel_ao(texture_coords, hit.normal.zxy, hit.normal.yzx);
             let uv = glmod(vec2(dot(hit.normal * texture_coords.yzx, vec3(1.0)), dot(hit.normal * texture_coords.zxy, vec3(1.0))), vec2(1.0));
 
@@ -147,14 +150,14 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
         output_colour = skybox(ray.dir, 10.0);
     }
 
-    if (u.freeze == 0u) {
+    if (trace_uniforms.freeze == 0u) {
         // store colour for next frame
         // let texture_pos = vec2<i32>(frag_pos.xy);
         // textureStore(screen_texture, texture_pos, 0, vec4(output_colour.rgb, samples));
         // textureStore(screen_texture, texture_pos, 1, vec4(hit.pos + hit.portal_offset, 0.0));
     }
 
-    if (u.show_ray_steps != 0u) {
+    if (trace_uniforms.show_ray_steps != 0u) {
         output_colour = vec3<f32>(f32(steps) / 100.0);
     }
 

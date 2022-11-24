@@ -1,6 +1,6 @@
 use bevy::{prelude::*, render::camera::CameraRenderGraph};
 use bevy_voxel_engine::{
-    Box, BoxCollider, Edges, Particle, Portal, Velocity, VoxelCamera, VoxelWorld, VOXELS_PER_METER,
+    Box, BoxCollider, Edges, Particle, Portal, Velocity, VoxelCamera, BevyVoxelEnginePlugin, VOXELS_PER_METER,
 };
 use character::CharacterEntity;
 use concurrent_queue::ConcurrentQueue;
@@ -41,7 +41,7 @@ fn main() {
                     ..default()
                 }),
         )
-        .add_plugin(VoxelWorld)
+        .add_plugin(BevyVoxelEnginePlugin)
         .add_plugin(character::Character)
         .add_plugin(ui::UiPlugin)
         .add_plugin(fps_counter::FpsCounter)

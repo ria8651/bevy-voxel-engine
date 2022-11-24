@@ -2,7 +2,7 @@ use super::character::CharacterEntity;
 use super::{Bullet, Particle, Settings, Velocity};
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext, EguiPlugin};
-use bevy_voxel_engine::{LoadVoxelWorld, Uniforms};
+use bevy_voxel_engine::{LoadVoxelWorld, TraceUniforms};
 use egui::Slider;
 use rand::Rng;
 
@@ -17,7 +17,7 @@ impl Plugin for UiPlugin {
 fn ui_system(
     mut commands: Commands,
     mut egui_context: ResMut<EguiContext>,
-    mut uniforms: ResMut<Uniforms>,
+    mut uniforms: ResMut<TraceUniforms>,
     mut settings: ResMut<Settings>,
     particle_query: Query<Entity, (With<Velocity>, Without<CharacterEntity>)>,
     mut load_voxel_world: ResMut<LoadVoxelWorld>,

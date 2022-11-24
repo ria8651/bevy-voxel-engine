@@ -2,11 +2,6 @@ fn get_value_index(index: u32) -> bool {
     return ((gh[index / 32u] >> (index % 32u)) & 1u) != 0u;
 }
 
-// return vec2(
-//     texture_value & 0xFFu,
-//     texture_value >> 8u,
-// );
-
 struct Voxel {
     data: u32,
     pos: vec3<f32>,
@@ -16,14 +11,14 @@ struct Voxel {
 fn get_value(pos: vec3<f32>) -> Voxel {
     let scaled = pos * 0.5 + 0.5;
 
-    let size0 = u.levels[0][0];
-    let size1 = u.levels[0][1];
-    let size2 = u.levels[0][2];
-    let size3 = u.levels[0][3];
-    let size4 = u.levels[1][0];
-    let size5 = u.levels[1][1];
-    let size6 = u.levels[1][2];
-    let size7 = u.levels[1][3];
+    let size0 = voxel_uniforms.levels[0][0];
+    let size1 = voxel_uniforms.levels[0][1];
+    let size2 = voxel_uniforms.levels[0][2];
+    let size3 = voxel_uniforms.levels[0][3];
+    let size4 = voxel_uniforms.levels[1][0];
+    let size5 = voxel_uniforms.levels[1][1];
+    let size6 = voxel_uniforms.levels[1][2];
+    let size7 = voxel_uniforms.levels[1][3];
 
     let scaled0 = vec3<u32>(scaled * f32(size0));
     let scaled1 = vec3<u32>(scaled * f32(size1));
@@ -34,14 +29,14 @@ fn get_value(pos: vec3<f32>) -> Voxel {
     let scaled6 = vec3<u32>(scaled * f32(size6));
     let scaled7 = vec3<u32>(scaled * f32(size7));
 
-    let state0 = get_value_index(u.offsets[0][0] + scaled0.x * size0 * size0 + scaled0.y * size0 + scaled0.z);
-    let state1 = get_value_index(u.offsets[0][1] + scaled1.x * size1 * size1 + scaled1.y * size1 + scaled1.z);
-    let state2 = get_value_index(u.offsets[0][2] + scaled2.x * size2 * size2 + scaled2.y * size2 + scaled2.z);
-    let state3 = get_value_index(u.offsets[0][3] + scaled3.x * size3 * size3 + scaled3.y * size3 + scaled3.z);
-    let state4 = get_value_index(u.offsets[1][0] + scaled4.x * size4 * size4 + scaled4.y * size4 + scaled4.z);
-    let state5 = get_value_index(u.offsets[1][1] + scaled5.x * size5 * size5 + scaled5.y * size5 + scaled5.z);
-    let state6 = get_value_index(u.offsets[1][2] + scaled6.x * size6 * size6 + scaled6.y * size6 + scaled6.z);
-    let state7 = get_value_index(u.offsets[1][3] + scaled7.x * size7 * size7 + scaled7.y * size7 + scaled7.z);
+    let state0 = get_value_index(voxel_uniforms.offsets[0][0] + scaled0.x * size0 * size0 + scaled0.y * size0 + scaled0.z);
+    let state1 = get_value_index(voxel_uniforms.offsets[0][1] + scaled1.x * size1 * size1 + scaled1.y * size1 + scaled1.z);
+    let state2 = get_value_index(voxel_uniforms.offsets[0][2] + scaled2.x * size2 * size2 + scaled2.y * size2 + scaled2.z);
+    let state3 = get_value_index(voxel_uniforms.offsets[0][3] + scaled3.x * size3 * size3 + scaled3.y * size3 + scaled3.z);
+    let state4 = get_value_index(voxel_uniforms.offsets[1][0] + scaled4.x * size4 * size4 + scaled4.y * size4 + scaled4.z);
+    let state5 = get_value_index(voxel_uniforms.offsets[1][1] + scaled5.x * size5 * size5 + scaled5.y * size5 + scaled5.z);
+    let state6 = get_value_index(voxel_uniforms.offsets[1][2] + scaled6.x * size6 * size6 + scaled6.y * size6 + scaled6.z);
+    let state7 = get_value_index(voxel_uniforms.offsets[1][3] + scaled7.x * size7 * size7 + scaled7.y * size7 + scaled7.z);
 
     if (!state0 && size0 != 0u) {
         let rounded_pos = ((vec3<f32>(scaled0) + 0.5) / f32(size0)) * 2.0 - 1.0;
@@ -76,9 +71,9 @@ fn get_value(pos: vec3<f32>) -> Voxel {
         return Voxel(0u, rounded_pos, size7);
     }
 
-    let rounded_pos = (floor(pos * f32(u.texture_size) * 0.5) + 0.5) / (f32(u.texture_size) * 0.5);
-    let data = textureLoad(voxel_world, vec3<i32>(scaled * f32(u.texture_size)).zyx).r;
-    return Voxel(data, rounded_pos, u.texture_size);
+    let rounded_pos = (floor(pos * f32(voxel_uniforms.texture_size) * 0.5) + 0.5) / (f32(voxel_uniforms.texture_size) * 0.5);
+    let data = textureLoad(voxel_world, vec3<i32>(scaled * f32(voxel_uniforms.texture_size)).zyx).r;
+    return Voxel(data, rounded_pos, voxel_uniforms.texture_size);
 }
 
 struct HitInfo {
@@ -99,7 +94,7 @@ let IDENTITY = mat3x3<f32>(
 );
 
 fn intersect_scene(r: Ray, steps: u32) -> HitInfo {
-    if (u.skybox != 0u) {
+    if (trace_uniforms.skybox != 0u) {
         // // pillar
         // let t = ray_box_dist(r, vec3(-1.0), vec3(1.0, -10000.0, 1.0)).x;
         // if (t != 0.0) {
@@ -177,8 +172,8 @@ fn shoot_ray(r: Ray, physics_distance: f32, flags: u32) -> HitInfo {
         // portals
         let should_portal_skip = ((voxel.data >> 8u) & PORTAL_FLAG) > 0u;
         if (should_portal_skip) {
-            let portal = u.portals[i32(voxel.data & 0xFFu)];
-            let voxel_size = 2.0 / f32(u.texture_size);
+            let portal = voxel_uniforms.portals[i32(voxel.data & 0xFFu)];
+            let voxel_size = 2.0 / f32(voxel_uniforms.texture_size);
 
             let intersection = ray_plane(Ray(pos, dir), portal.pos, portal.normal);
             if (all(abs(intersection - portal.pos) < vec3(voxel_size) * (vec3<f32>(portal.half_size) + 0.5)) && all(intersection != vec3(0.0))) {
@@ -249,5 +244,5 @@ fn shoot_ray(r: Ray, physics_distance: f32, flags: u32) -> HitInfo {
         steps = steps + 1u;
     }
 
-    return HitInfo(true, voxel.data, u.materials[voxel.data & 0xFFu], tcpotr + normal * 0.000004, portal_offset, normal, rot, steps);
+    return HitInfo(true, voxel.data, voxel_uniforms.materials[voxel.data & 0xFFu], tcpotr + normal * 0.000004, portal_offset, normal, rot, steps);
 }

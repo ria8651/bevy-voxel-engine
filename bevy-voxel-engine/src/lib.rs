@@ -1,7 +1,7 @@
 pub use animation::VOXELS_PER_METER;
 use bevy::prelude::*;
 use voxel_pipeline::RenderPlugin;
-pub use voxel_pipeline::trace::Uniforms;
+pub use voxel_pipeline::trace::TraceUniforms;
 
 mod animation;
 mod load;
@@ -56,9 +56,9 @@ pub struct BoxCollider {
     pub half_size: IVec3,
 }
 
-pub struct VoxelWorld;
+pub struct BevyVoxelEnginePlugin;
 
-impl Plugin for VoxelWorld {
+impl Plugin for BevyVoxelEnginePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(RenderPlugin);
     }

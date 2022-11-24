@@ -1,14 +1,17 @@
 #import "common.wgsl"
 
 @group(0) @binding(0)
-var<uniform> u: Uniforms;
+var<uniform> voxel_uniforms: VoxelUniforms;
 @group(0) @binding(1)
 var voxel_world: texture_storage_3d<r16uint, read_write>;
 @group(0) @binding(2)
 var<storage, read_write> gh: array<atomic<u32>>;
-@group(0) @binding(3)
+
+@group(1) @binding(0)
+var<uniform> trace_uniforms: TraceUniforms;
+@group(1) @binding(1)
 var<storage, read_write> physics_data: array<u32>;
-@group(0) @binding(4)
+@group(1) @binding(2)
 var<storage, read> animation_data: array<u32>;
 
 // note: raytracing.wgsl requires common.wgsl and for you to define u, voxel_world and gh before you import it
@@ -25,19 +28,19 @@ fn get_texture_value(pos: vec3<i32>) -> vec2<u32> {
 let VOXELS_PER_METER: f32 = 4.0;
 
 fn in_texture_bounds(pos: vec3<i32>) -> bool {
-    return all(pos >= vec3(0)) && all(pos < vec3(i32(u.texture_size)));
+    return all(pos >= vec3(0)) && all(pos < vec3(i32(voxel_uniforms.texture_size)));
 }
 
 @compute @workgroup_size(4, 4, 4)
 fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let pos = vec3(i32(invocation_id.x), i32(invocation_id.y), i32(invocation_id.z));
-    let seed = vec3<u32>(vec3<f32>(pos) + u.time * 240.0);
+    let seed = vec3<u32>(vec3<f32>(pos) + trace_uniforms.time * 240.0);
     let rand = hash(seed);
 
     let material = get_texture_value(pos);
 
     // delete old animaiton data
-    if ((material.y & (ANIMATION_FLAG | PORTAL_FLAG)) > 0u && rand.x < u.misc_float) {
+    if ((material.y & (ANIMATION_FLAG | PORTAL_FLAG)) > 0u && rand.x < trace_uniforms.misc_float) {
         textureStore(voxel_world, pos.zyx, vec4(0u));
         return;
     }
@@ -59,20 +62,20 @@ fn write_pos(pos: vec3<i32>, material: u32, flags: u32) {
 fn automata(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let pos = vec3(i32(invocation_id.x), i32(invocation_id.y), i32(invocation_id.z));
     let pos_seed = vec3<u32>(vec3<f32>(pos));
-    let pos_time_seed = vec3<u32>(vec3<f32>(pos) + u.time * 240.0);
+    let pos_time_seed = vec3<u32>(vec3<f32>(pos) + trace_uniforms.time * 240.0);
 
     let material = get_texture_value(pos);
 
     // grass
     let pos_rand = hash(pos_seed + 100u);
-    if (material.x == 44u && (material.y & ANIMATION_FLAG) == 0u && hash(pos_seed + 50u).x >= 0.5 && u.misc_bool != 1u) {
+    if (material.x == 44u && (material.y & ANIMATION_FLAG) == 0u && hash(pos_seed + 50u).x >= 0.5 && trace_uniforms.misc_bool != 1u) {
         for (var i = 1; i < 4 + i32(pos_rand.y * 3.0 - 0.5); i += 1) {
             let i = f32(i);
 
             let offset = vec3(
-                3.0 * snoise(vec3<f32>(pos) / 50.0 + u.time * 0.3) - 0.5, 
+                3.0 * snoise(vec3<f32>(pos) / 50.0 + trace_uniforms.time * 0.3) - 0.5, 
                 i, 
-                3.0 * snoise(vec3<f32>(pos) / 50.0 + u.time * 0.3) - 0.5
+                3.0 * snoise(vec3<f32>(pos) / 50.0 + trace_uniforms.time * 0.3) - 0.5
             );
 
             let new_pos = vec3<f32>(pos) + vec3(
@@ -178,8 +181,8 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let pos = vec3(i32(invocation_id.x), i32(invocation_id.y), i32(invocation_id.z));
     let index = pos.x * dispatch_size * dispatch_size + pos.y * dispatch_size + pos.z + 1;
 
-    let wtr = VOXELS_PER_METER * 2.0 / f32(u.texture_size); // world to render ratio
-    let rtw = f32(u.texture_size) / (VOXELS_PER_METER * 2.0); // render to world ratio
+    let wtr = VOXELS_PER_METER * 2.0 / f32(voxel_uniforms.texture_size); // world to render ratio
+    let rtw = f32(voxel_uniforms.texture_size) / (VOXELS_PER_METER * 2.0); // render to world ratio
 
     if (index <= header_len) {
         let data_index = i32(u32(physics_data[index]) & 0x00FFFFFFu);
@@ -203,7 +206,7 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
             // step point by ray
             if (any(abs(velocity) > vec3(0.0001))) {
                 let direction = Ray(world_pos * wtr, normalize(velocity));
-                let distance = length(velocity) * u.delta_time * wtr;
+                let distance = length(velocity) * trace_uniforms.delta_time * wtr;
                 let hit = shoot_ray(direction, distance, COLLISION_FLAG);
                 portal_rotation = hit.rot;
                 world_pos = hit.pos * rtw;
@@ -220,7 +223,7 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
             // player
             if (any(abs(velocity) > vec3(0.01))) {
                 let direction = normalize(velocity);
-                let distance = length(velocity) * u.delta_time * wtr;
+                let distance = length(velocity) * trace_uniforms.delta_time * wtr;
 
                 let size = vec3(
                     bitcast<i32>(physics_data[data_index + 18]),
@@ -272,8 +275,8 @@ fn update_physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                 }
 
                 if (any(abs(velocity) > vec3(0.01))) {
-                    let direction = normalize(velocity * u.delta_time);
-                    let distance = length(velocity) * u.delta_time * wtr;
+                    let direction = normalize(velocity * trace_uniforms.delta_time);
+                    let distance = length(velocity) * trace_uniforms.delta_time * wtr;
                     let hit = shoot_ray(Ray(world_pos * wtr, direction), distance, 1u);
                     portal_rotation = hit.rot;
                     velocity = hit.rot * velocity;
@@ -393,32 +396,32 @@ fn rebuild_gh(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let material = get_texture_value(pos);
     if (material.x != 0u || (material.y & PORTAL_FLAG) > 0u) {
         // set bits in grid hierarchy
-        let size0 = u.levels[0][0];
-        let size1 = u.levels[0][1];
-        let size2 = u.levels[0][2];
-        let size3 = u.levels[0][3];
-        let size4 = u.levels[1][0];
-        let size5 = u.levels[1][1];
-        let size6 = u.levels[1][2];
-        let size7 = u.levels[1][3];
+        let size0 = voxel_uniforms.levels[0][0];
+        let size1 = voxel_uniforms.levels[0][1];
+        let size2 = voxel_uniforms.levels[0][2];
+        let size3 = voxel_uniforms.levels[0][3];
+        let size4 = voxel_uniforms.levels[1][0];
+        let size5 = voxel_uniforms.levels[1][1];
+        let size6 = voxel_uniforms.levels[1][2];
+        let size7 = voxel_uniforms.levels[1][3];
 
-        let pos0 = (vec3<u32>(pos) * size0) / u.texture_size;
-        let pos1 = (vec3<u32>(pos) * size1) / u.texture_size;
-        let pos2 = (vec3<u32>(pos) * size2) / u.texture_size;
-        let pos3 = (vec3<u32>(pos) * size3) / u.texture_size;
-        let pos4 = (vec3<u32>(pos) * size4) / u.texture_size;
-        let pos5 = (vec3<u32>(pos) * size5) / u.texture_size;
-        let pos6 = (vec3<u32>(pos) * size6) / u.texture_size;
-        let pos7 = (vec3<u32>(pos) * size7) / u.texture_size;
+        let pos0 = (vec3<u32>(pos) * size0) / voxel_uniforms.texture_size;
+        let pos1 = (vec3<u32>(pos) * size1) / voxel_uniforms.texture_size;
+        let pos2 = (vec3<u32>(pos) * size2) / voxel_uniforms.texture_size;
+        let pos3 = (vec3<u32>(pos) * size3) / voxel_uniforms.texture_size;
+        let pos4 = (vec3<u32>(pos) * size4) / voxel_uniforms.texture_size;
+        let pos5 = (vec3<u32>(pos) * size5) / voxel_uniforms.texture_size;
+        let pos6 = (vec3<u32>(pos) * size6) / voxel_uniforms.texture_size;
+        let pos7 = (vec3<u32>(pos) * size7) / voxel_uniforms.texture_size;
 
-        let index0 = u.offsets[0][0] + pos0.x * size0 * size0 + pos0.y * size0 + pos0.z;
-        let index1 = u.offsets[0][1] + pos1.x * size1 * size1 + pos1.y * size1 + pos1.z;
-        let index2 = u.offsets[0][2] + pos2.x * size2 * size2 + pos2.y * size2 + pos2.z;
-        let index3 = u.offsets[0][3] + pos3.x * size3 * size3 + pos3.y * size3 + pos3.z;
-        let index4 = u.offsets[1][0] + pos4.x * size4 * size4 + pos4.y * size4 + pos4.z;
-        let index5 = u.offsets[1][1] + pos5.x * size5 * size5 + pos5.y * size5 + pos5.z;
-        let index6 = u.offsets[1][2] + pos6.x * size6 * size6 + pos6.y * size6 + pos6.z;
-        let index7 = u.offsets[1][3] + pos7.x * size7 * size7 + pos7.y * size7 + pos7.z;
+        let index0 = voxel_uniforms.offsets[0][0] + pos0.x * size0 * size0 + pos0.y * size0 + pos0.z;
+        let index1 = voxel_uniforms.offsets[0][1] + pos1.x * size1 * size1 + pos1.y * size1 + pos1.z;
+        let index2 = voxel_uniforms.offsets[0][2] + pos2.x * size2 * size2 + pos2.y * size2 + pos2.z;
+        let index3 = voxel_uniforms.offsets[0][3] + pos3.x * size3 * size3 + pos3.y * size3 + pos3.z;
+        let index4 = voxel_uniforms.offsets[1][0] + pos4.x * size4 * size4 + pos4.y * size4 + pos4.z;
+        let index5 = voxel_uniforms.offsets[1][1] + pos5.x * size5 * size5 + pos5.y * size5 + pos5.z;
+        let index6 = voxel_uniforms.offsets[1][2] + pos6.x * size6 * size6 + pos6.y * size6 + pos6.z;
+        let index7 = voxel_uniforms.offsets[1][3] + pos7.x * size7 * size7 + pos7.y * size7 + pos7.z;
 
         if (size0 != 0u) {
             set_value_index(index0);

@@ -1,7 +1,5 @@
-use crate::{
-    animation,
-    voxel_pipeline::trace::{ExtractedUniforms, TraceData},
-};
+use super::{voxel_world::VoxelData, trace::{TraceData, ExtractedUniforms}};
+use crate::animation;
 use bevy::{
     app::CoreStage,
     prelude::*,
@@ -97,9 +95,11 @@ pub struct ComputePipeline {
 impl FromWorld for ComputePipeline {
     fn from_world(world: &mut World) -> Self {
         let render_device = world.resource::<RenderDevice>();
+        let voxel_data = world.resource::<VoxelData>();
+
         let compute_bind_group_layout =
             render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-                label: None,
+                label: Some("compute bind group layout"),
                 entries: &[
                     BindGroupLayoutEntry {
                         binding: 0,
@@ -116,35 +116,15 @@ impl FromWorld for ComputePipeline {
                     BindGroupLayoutEntry {
                         binding: 1,
                         visibility: ShaderStages::COMPUTE,
-                        ty: BindingType::StorageTexture {
-                            access: StorageTextureAccess::ReadWrite,
-                            format: TextureFormat::R16Uint,
-                            view_dimension: TextureViewDimension::D3,
+                        ty: BindingType::Buffer {
+                            ty: BufferBindingType::Storage { read_only: false },
+                            has_dynamic_offset: false,
+                            min_binding_size: BufferSize::new(4),
                         },
                         count: None,
                     },
                     BindGroupLayoutEntry {
                         binding: 2,
-                        visibility: ShaderStages::COMPUTE,
-                        ty: BindingType::Buffer {
-                            ty: BufferBindingType::Storage { read_only: false },
-                            has_dynamic_offset: false,
-                            min_binding_size: BufferSize::new(4),
-                        },
-                        count: None,
-                    },
-                    BindGroupLayoutEntry {
-                        binding: 3,
-                        visibility: ShaderStages::COMPUTE,
-                        ty: BindingType::Buffer {
-                            ty: BufferBindingType::Storage { read_only: false },
-                            has_dynamic_offset: false,
-                            min_binding_size: BufferSize::new(4),
-                        },
-                        count: None,
-                    },
-                    BindGroupLayoutEntry {
-                        binding: 4,
                         visibility: ShaderStages::COMPUTE,
                         ty: BindingType::Buffer {
                             ty: BufferBindingType::Storage { read_only: true },
@@ -155,6 +135,7 @@ impl FromWorld for ComputePipeline {
                     },
                 ],
             });
+        let voxel_bind_group_layout = voxel_data.bind_group_layout.clone();
 
         let compute_shader = world.resource::<AssetServer>().load("compute.wgsl");
 
@@ -162,35 +143,50 @@ impl FromWorld for ComputePipeline {
 
         let update_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
             label: Some(Cow::from("update_pipeline")),
-            layout: Some(vec![compute_bind_group_layout.clone()]),
+            layout: Some(vec![
+                voxel_bind_group_layout.clone(),
+                compute_bind_group_layout.clone(),
+            ]),
             shader: compute_shader.clone(),
             shader_defs: vec![],
             entry_point: Cow::from("update"),
         });
         let automata_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
             label: Some(Cow::from("automata_pipeline")),
-            layout: Some(vec![compute_bind_group_layout.clone()]),
+            layout: Some(vec![
+                voxel_bind_group_layout.clone(),
+                compute_bind_group_layout.clone(),
+            ]),
             shader: compute_shader.clone(),
             shader_defs: vec![],
             entry_point: Cow::from("automata"),
         });
         let physics_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
             label: Some(Cow::from("physics_pipeline")),
-            layout: Some(vec![compute_bind_group_layout.clone()]),
+            layout: Some(vec![
+                voxel_bind_group_layout.clone(),
+                compute_bind_group_layout.clone(),
+            ]),
             shader: compute_shader.clone(),
             shader_defs: vec![],
             entry_point: Cow::from("update_physics"),
         });
         let animation_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
             label: Some(Cow::from("animation_pipeline")),
-            layout: Some(vec![compute_bind_group_layout.clone()]),
+            layout: Some(vec![
+                voxel_bind_group_layout.clone(),
+                compute_bind_group_layout.clone(),
+            ]),
             shader: compute_shader.clone(),
             shader_defs: vec![],
             entry_point: Cow::from("update_animation"),
         });
         let rebuild_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
             label: Some(Cow::from("rebuild_pipeline")),
-            layout: Some(vec![compute_bind_group_layout.clone()]),
+            layout: Some(vec![
+                voxel_bind_group_layout.clone(),
+                compute_bind_group_layout.clone(),
+            ]),
             shader: compute_shader.clone(),
             shader_defs: vec![],
             entry_point: Cow::from("rebuild_gh"),
@@ -207,15 +203,15 @@ impl FromWorld for ComputePipeline {
     }
 }
 
-#[derive(Resource)]
+#[derive(Resource, Deref, DerefMut)]
 struct ComputeBindGroup(BindGroup);
 
 fn queue_bind_group(
     mut commands: Commands,
     compute_pipeline: Res<ComputePipeline>,
     render_device: Res<RenderDevice>,
-    trace_data: Res<TraceData>,
     compute_meta: Res<ComputeMeta>,
+    trace_data: Res<TraceData>,
 ) {
     let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
         label: None,
@@ -227,18 +223,10 @@ fn queue_bind_group(
             },
             BindGroupEntry {
                 binding: 1,
-                resource: BindingResource::TextureView(&trace_data.voxel_world),
-            },
-            BindGroupEntry {
-                binding: 2,
-                resource: trace_data.grid_heierachy.as_entire_binding(),
-            },
-            BindGroupEntry {
-                binding: 3,
                 resource: compute_meta.physics_data.as_entire_binding(),
             },
             BindGroupEntry {
-                binding: 4,
+                binding: 2,
                 resource: compute_meta.animation_data.as_entire_binding(),
             },
         ],

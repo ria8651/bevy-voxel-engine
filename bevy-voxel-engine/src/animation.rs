@@ -1,6 +1,9 @@
 use crate::{
-    voxel_pipeline::compute::{ComputeMeta, ExtractedAnimationData, ExtractedPhysicsData},
-    voxel_pipeline::trace::{ExtractedPortal, Uniforms},
+    voxel_pipeline::trace::{ExtractedPortal, TraceUniforms},
+    voxel_pipeline::{
+        compute::{ComputeMeta, ExtractedAnimationData, ExtractedPhysicsData},
+        voxel_world::VoxelUniforms,
+    },
     Box, BoxCollider, Edges, Particle, Portal, Velocity,
 };
 use bevy::{prelude::*, render::renderer::RenderDevice};
@@ -91,11 +94,11 @@ pub fn extract_animation_data(
     portal_query: Query<(&Transform, &Portal)>,
     edges_query: Query<(&Transform, &Edges)>,
     boxes_query: Query<(&Transform, &Box)>,
-    mut uniforms: ResMut<Uniforms>,
+    mut voxel_uniforms: ResMut<VoxelUniforms>,
 ) {
     let mut type_buffer = TypeBuffer::new();
 
-    let voxel_world_size = uniforms.texture_size;
+    let voxel_world_size = voxel_uniforms.texture_size;
 
     // add particles
     for (transform, particle) in particle_query.iter() {
@@ -139,7 +142,7 @@ pub fn extract_animation_data(
     }
 
     // grab all the poratls in pairs
-    uniforms.portals = [ExtractedPortal::default(); 32];
+    voxel_uniforms.portals = [ExtractedPortal::default(); 32];
     let mut i = 0;
     let mut first: Option<(&Transform, &Portal)> = None;
     for (transform, portal) in portal_query.iter() {
@@ -150,15 +153,15 @@ pub fn extract_animation_data(
             let first_normal = first.1.normal;
             let second_normal = second.1.normal;
 
-            let voxel_size = 2.0 / uniforms.texture_size as f32;
-            let first_pos = world_to_render(first.0.translation, uniforms.texture_size)
+            let voxel_size = 2.0 / voxel_uniforms.texture_size as f32;
+            let first_pos = world_to_render(first.0.translation, voxel_uniforms.texture_size)
                 + voxel_size / 2.0
                 - first_normal * voxel_size / 2.0;
-            let second_pos = world_to_render(second.0.translation, uniforms.texture_size)
+            let second_pos = world_to_render(second.0.translation, voxel_uniforms.texture_size)
                 + voxel_size / 2.0
                 - second_normal * voxel_size / 2.0;
 
-            uniforms.portals[i - 1] = ExtractedPortal {
+            voxel_uniforms.portals[i - 1] = ExtractedPortal {
                 pos: [first_pos.x, first_pos.y, first_pos.z, 0.0],
                 other_pos: [second_pos.x, second_pos.y, second_pos.z, 0.0],
                 normal: [first_normal.x, first_normal.y, first_normal.z, 0.0],
@@ -170,7 +173,7 @@ pub fn extract_animation_data(
                     0,
                 ],
             };
-            uniforms.portals[i] = ExtractedPortal {
+            voxel_uniforms.portals[i] = ExtractedPortal {
                 pos: [second_pos.x, second_pos.y, second_pos.z, 0.0],
                 other_pos: [first_pos.x, first_pos.y, first_pos.z, 0.0],
                 normal: [second_normal.x, second_normal.y, second_normal.z, 0.0],
@@ -236,7 +239,7 @@ pub fn insert_physics_data(
     extracted_physics_data: Res<ExtractedPhysicsData>,
     compute_meta: Res<ComputeMeta>,
     render_device: Res<RenderDevice>,
-    uniforms: Res<Uniforms>,
+    uniforms: Res<TraceUniforms>,
 ) {
     if !uniforms.enable_compute {
         return;

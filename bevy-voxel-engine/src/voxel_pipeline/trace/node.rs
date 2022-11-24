@@ -1,4 +1,6 @@
-use super::{TracePipeline, ViewTracePipeline, TraceData};
+use crate::voxel_pipeline::voxel_world::VoxelData;
+
+use super::{TraceData, TracePipeline, ViewTracePipeline};
 use bevy::{
     core_pipeline::clear_color::ClearColorConfig,
     prelude::*,
@@ -45,8 +47,9 @@ impl render_graph::Node for TraceNode {
     ) -> Result<(), render_graph::NodeRunError> {
         let view_entity = graph.get_input_entity("view")?;
         let pipeline_cache = world.resource::<PipelineCache>();
-        let pipeline_resources = world.resource::<TracePipeline>();
-        let trace_data = world.resource::<TraceData>();
+        let voxel_data = world.get_resource::<VoxelData>().unwrap();
+        let trace_pipeline = world.get_resource::<TracePipeline>().unwrap();
+        let trace_data = world.get_resource::<TraceData>().unwrap();
 
         let (target, pipeline, camera_3d) = match self.query.get_manual(world, view_entity) {
             Ok(result) => result,
@@ -62,25 +65,15 @@ impl render_graph::Node for TraceNode {
             .render_device
             .create_bind_group(&BindGroupDescriptor {
                 label: None,
-                layout: &pipeline_resources.bind_group,
-                entries: &[
-                    BindGroupEntry {
-                        binding: 0,
-                        resource: trace_data.uniform_buffer.as_entire_binding(),
-                    },
-                    BindGroupEntry {
-                        binding: 1,
-                        resource: BindingResource::TextureView(&trace_data.voxel_world),
-                    },
-                    BindGroupEntry {
-                        binding: 2,
-                        resource: trace_data.grid_heierachy.as_entire_binding(),
-                    },
-                ],
+                layout: &trace_pipeline.trace_bind_group_layout,
+                entries: &[BindGroupEntry {
+                    binding: 0,
+                    resource: trace_data.uniform_buffer.as_entire_binding(),
+                }],
             });
 
         let pass_descriptor = RenderPassDescriptor {
-            label: Some("main_pass"),
+            label: Some("trace pass"),
             color_attachments: &[Some(target.get_color_attachment(Operations {
                 load: match camera_3d.clear_color {
                     ClearColorConfig::Default => {
@@ -98,8 +91,10 @@ impl render_graph::Node for TraceNode {
             .command_encoder
             .begin_render_pass(&pass_descriptor);
 
+        render_pass.set_bind_group(0, &voxel_data.bind_group, &[]);
+        render_pass.set_bind_group(1, &bind_group, &[]);
+
         render_pass.set_pipeline(pipeline);
-        render_pass.set_bind_group(0, &bind_group, &[]);
         render_pass.draw(0..3, 0..1);
 
         Ok(())

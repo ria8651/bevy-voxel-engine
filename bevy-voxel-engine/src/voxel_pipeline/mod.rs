@@ -1,6 +1,7 @@
 use self::{
     compute::{node::ComputeNode, ComputePlugin},
     trace::{node::TraceNode, TracePlugin},
+    voxel_world::VoxelWorldPlugin,
     voxelization::VoxelizationPlugin,
 };
 use bevy::{
@@ -15,13 +16,15 @@ use bevy::{
 
 pub mod compute;
 pub mod trace;
+pub mod voxel_world;
 pub mod voxelization;
 
 pub struct RenderPlugin;
 
 impl Plugin for RenderPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(TracePlugin)
+        app.add_plugin(VoxelWorldPlugin)
+            .add_plugin(TracePlugin)
             .add_plugin(ComputePlugin)
             .add_plugin(VoxelizationPlugin);
 

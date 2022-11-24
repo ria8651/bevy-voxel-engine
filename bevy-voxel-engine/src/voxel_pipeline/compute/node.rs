@@ -3,15 +3,15 @@ use crate::voxel_pipeline::{
         ComputeBindGroup, ComputeMeta, ComputePipeline, ExtractedAnimationData, ExtractedGH,
         ExtractedPhysicsData,
     },
-    trace::{ExtractedUniforms, TraceData},
+    trace::ExtractedUniforms, voxel_world::VoxelData,
 };
 use bevy::{
     prelude::*,
     render::{
         render_graph::{self},
         render_resource::*,
+        renderer::RenderContext,
         renderer::RenderQueue,
-        renderer::{RenderContext},
     },
 };
 
@@ -62,11 +62,11 @@ impl render_graph::Node for ComputeNode {
         render_context: &mut RenderContext,
         world: &World,
     ) -> Result<(), render_graph::NodeRunError> {
-        let texture_bind_group = &world.resource::<ComputeBindGroup>().0;
+        let voxel_data = world.resource::<VoxelData>();
+        let compute_bind_group = world.resource::<ComputeBindGroup>();
         let pipeline_cache = world.resource::<PipelineCache>();
         let pipeline = world.resource::<ComputePipeline>();
         let render_queue = world.resource::<RenderQueue>();
-        let trace_data = world.resource::<TraceData>();
         let compute_meta = world.resource::<ComputeMeta>();
         let extracted_gh = world.resource::<ExtractedGH>();
         let extracted_animation_data = world.resource::<ExtractedAnimationData>();
@@ -77,7 +77,8 @@ impl render_graph::Node for ComputeNode {
             .command_encoder
             .begin_compute_pass(&ComputePassDescriptor::default());
 
-        pass.set_bind_group(0, texture_bind_group, &[]);
+        pass.set_bind_group(0, &voxel_data.bind_group, &[]);
+        pass.set_bind_group(1, compute_bind_group, &[]);
 
         // select the pipeline based on the current state
         match self.state {
@@ -95,7 +96,7 @@ impl render_graph::Node for ComputeNode {
                         bytemuck::cast_slice(&extracted_animation_data.data),
                     );
                     render_queue.write_buffer(
-                        &trace_data.grid_heierachy,
+                        &voxel_data.grid_heierachy,
                         0,
                         bytemuck::cast_slice(&vec![0u8; extracted_gh.buffer_size]),
                     );
