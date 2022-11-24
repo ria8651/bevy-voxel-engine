@@ -132,7 +132,7 @@ fn intersect_scene(r: Ray, steps: u32) -> HitInfo {
         let hit = ray_plane(r, vec3(0.0, -1.0, 0.0), normal);
         if (any(hit != vec3(0.0))) {
             let pos = hit + normal * 0.000002;
-            let colour = vec3(150.0, 200.0, 83.0) / 255.0;
+            let colour = vec3(113.0, 129.0, 44.0) / 255.0;
             return HitInfo(true, 0u, vec4(colour, 0.0), pos, vec3(0.0), normal, IDENTITY, steps);
         }
     }
@@ -164,6 +164,10 @@ fn shoot_ray(r: Ray, physics_distance: f32, flags: u32) -> HitInfo {
         pos = r.pos + dir * dist;
         distance += dist;
     }
+
+    // let voxel = get_value(pos);
+    // let normal = trunc(pos * 1.00001);
+    // return HitInfo(true, voxel.data, u.materials[voxel.data & 0xFFu], pos + normal * 0.000004, vec3(0.0), normal, IDENTITY, 10u);
 
     var r_sign = sign(dir);
     var tcpotr = pos; // the current position of the ray

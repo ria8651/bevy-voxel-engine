@@ -17,30 +17,53 @@ let light_colour = vec3<f32>(1.0, 1.0, 1.0);
 fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed: vec3<u32>) -> vec3<f32> {
     var lighting = vec3(0.0);
     if (material.a == 0.0) {
-        // ambient
-        var ambient = vec3(0.0);
-        if (!(u.indirect_lighting != 0u)) {
-            ambient = vec3(0.3);
-        }
-
         // diffuse
         let diffuse = max(dot(normal, -normalize(light_dir)), 0.0);
 
         // shadow
         var shadow = 1.0;
         if (u.shadows != 0u) {
-            let rand = hash(seed) * 2.0 - 1.0;
-            // let rand = vec3(0.0);
+            // let rand = hash(seed) * 2.0 - 1.0;
+            let rand = vec3(0.0);
             let shadow_ray = Ray(pos, -light_dir + rand * 0.1);
             let shadow_hit = shoot_ray(shadow_ray, 0.0, 0u);
             shadow = f32(!shadow_hit.hit);
         }
 
-        lighting = ambient + diffuse * shadow * light_colour;
+        lighting = diffuse * shadow * light_colour;
     } else {
         lighting = vec3(1.0);
     }
     return lighting;
+}
+
+fn get_voxel(pos: vec3<f32>) -> f32 {
+    if (any(pos < vec3(0.0)) || any(pos >= vec3(f32(u.texture_size)))) {
+        return 0.0;
+    }
+
+    let voxel = textureLoad(voxel_world, vec3<i32>(pos.zyx));
+    return min(f32(voxel.r & 0xFFu), 1.0);
+}
+
+// https://www.shadertoy.com/view/ldl3DS
+fn vertex_ao(side: vec2<f32>, corner: f32) -> f32 {
+    return (side.x + side.y + max(corner, side.x * side.y)) / 3.0;
+}
+fn voxel_ao(pos: vec3<f32>, d1: vec3<f32>, d2: vec3<f32>) -> vec4<f32> {
+    let side = vec4(get_voxel(pos + d1), get_voxel(pos + d2), get_voxel(pos - d1), get_voxel(pos - d2));
+    let corner = vec4(get_voxel(pos + d1 + d2), get_voxel(pos - d1 + d2), get_voxel(pos - d1 - d2), get_voxel(pos + d1 - d2));
+
+    var ao: vec4<f32>;
+    ao.x = vertex_ao(side.xy, corner.x);
+    ao.y = vertex_ao(side.yz, corner.y);
+    ao.z = vertex_ao(side.zw, corner.z);
+    ao.w = vertex_ao(side.wx, corner.w);
+
+    return 1.0 - ao;
+}
+fn glmod(x: vec2<f32>, y: vec2<f32>) -> vec2<f32> {
+    return x - y * floor(x / y);
 }
 
 @fragment
@@ -70,18 +93,29 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
         // indirect lighting
         var indirect_lighting = vec3(0.0);
         if (u.indirect_lighting != 0u) {
+            // raytraced indirect lighting
             let indirect_dir = cosine_hemisphere(hit.normal, seed + 10u);
             let indirect_hit = shoot_ray(Ray(hit.pos, indirect_dir), 0.0, 0u);
             if (indirect_hit.hit) {
                 indirect_lighting = calculate_direct(indirect_hit.material, indirect_hit.pos, indirect_hit.normal, seed + 20u);
             } else {
-                indirect_lighting = vec3<f32>(0.3);
+                indirect_lighting = vec3(0.3);
                 // indirect_lighting = skybox(indirect_dir, 10.0);
             }
+        } else {
+            // aproximate indirect with ambient and voxel ao
+            let texture_coords = (hit.pos * 0.5 + 0.5) * f32(u.texture_size);
+            let ao = voxel_ao(texture_coords, hit.normal.zxy, hit.normal.yzx);
+            let uv = glmod(vec2(dot(hit.normal * texture_coords.yzx, vec3(1.0)), dot(hit.normal * texture_coords.zxy, vec3(1.0))), vec2(1.0));
+
+            let interpolated_ao = mix(mix(ao.z, ao.w, uv.x), mix(ao.y, ao.x, uv.x), uv.y);
+            let interpolated_ao = pow(interpolated_ao, 1.0 / 3.0);
+
+            indirect_lighting = vec3(interpolated_ao * 0.25);
         }
 
         // final blend
-        output_colour = (direct_lighting + indirect_lighting) * hit.material.rgb;
+        output_colour = (indirect_lighting + direct_lighting) * hit.material.rgb;
 
         // // reprojection
         // let last_frame_clip_space = u.last_camera * vec4<f32>(hit.pos + hit.portal_offset, 1.0);

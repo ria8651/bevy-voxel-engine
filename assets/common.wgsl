@@ -56,7 +56,7 @@ fn cosine_hemisphere(n: vec3<f32>, seed: vec3<u32>) -> vec3<f32> {
     let theta = 2.0 * pi * u.y;
  
     let  b = normalize(cross(n, vec3<f32>(0.0, 1.0, 1.0)));
-	let  t = cross(b, n);
+    let  t = cross(b, n);
     
     return normalize(r * sin(theta) * b + sqrt(1.0 - u.x) * n + r * cos(theta) * t);
 }
@@ -98,56 +98,6 @@ fn ray_plane(r: Ray, pos: vec3<f32>, normal: vec3<f32>) -> vec3<f32> {
 fn in_bounds(v: vec3<f32>) -> bool {
     let s = step(vec3<f32>(-1.0), v) - step(vec3<f32>(1.0), v);
     return (s.x * s.y * s.z) > 0.5;
-}
-
-// filmic tonemapping
-fn filmic(x: vec3<f32>) -> vec3<f32> {
-    var x1: vec3<f32>;
-    var X: vec3<f32>;
-    var result: vec3<f32>;
-
-    x1 = x;
-    let e5: vec3<f32> = x1;
-    let e11: vec3<f32> = x1;
-    X = max(vec3<f32>(0.0), (e11 - vec3<f32>(0.004000000189989805)));
-    let e17: vec3<f32> = X;
-    let e19: vec3<f32> = X;
-    let e25: vec3<f32> = X;
-    let e27: vec3<f32> = X;
-    result = ((e17 * ((6.199999809265137 * e19) + vec3<f32>(0.5))) / ((e25 * ((6.199999809265137 * e27) + vec3<f32>(1.7000000476837158))) + vec3<f32>(0.05999999865889549)));
-    let e41: vec3<f32> = result;
-    return pow(e41, vec3<f32>(2.200000047683716));
-}
-
-// aces tonemapping
-fn aces(x: vec3<f32>) -> vec3<f32> {
-    var x1: vec3<f32>;
-    var a: f32 = 2.51;
-    var b: f32 = 0.03;
-    var c: f32 = 2.43;
-    var d: f32 = 0.59;
-    var e: f32 = 0.14;
-
-    x1 = x;
-    let e13: vec3<f32> = x1;
-    let e14: f32 = a;
-    let e15: vec3<f32> = x1;
-    let e17: f32 = b;
-    let e21: vec3<f32> = x1;
-    let e22: f32 = c;
-    let e23: vec3<f32> = x1;
-    let e25: f32 = d;
-    let e29: f32 = e;
-    let e35: vec3<f32> = x1;
-    let e36: f32 = a;
-    let e37: vec3<f32> = x1;
-    let e39: f32 = b;
-    let e43: vec3<f32> = x1;
-    let e44: f32 = c;
-    let e45: vec3<f32> = x1;
-    let e47: f32 = d;
-    let e51: f32 = e;
-    return clamp(((e35 * ((e36 * e37) + vec3<f32>(e39))) / ((e43 * ((e44 * e45) + vec3<f32>(e47))) + vec3<f32>(e51))), vec3<f32>(0.0), vec3<f32>(1.0));
 }
 
 fn skybox(dir: vec3<f32>, time_of_day: f32) -> vec3<f32> {
@@ -339,106 +289,6 @@ fn create_rot_mat(axis: vec3<f32>, angle: f32) -> mat3x3<f32> {
     let e116: f32 = c;
     return mat3x3<f32>(vec3<f32>((((e19 * e20.x) * e23.x) + e26), (((e28 * e29.x) * e32.y) - (e35.z * e37)), (((e40 * e41.z) * e44.x) + (e47.y * e49))), vec3<f32>((((e52 * e53.x) * e56.y) + (e59.z * e61)), (((e64 * e65.y) * e68.y) + e71), (((e73 * e74.y) * e77.z) - (e80.x * e82))), vec3<f32>((((e85 * e86.z) * e89.x) - (e92.y * e94)), (((e97 * e98.y) * e101.z) + (e104.x * e106)), (((e109 * e110.z) * e113.z) + e116)));
 }
-
-// let DEPOLARIZATION_FACTOR: f32 = 0.035;
-// let MIE_COEFFICIENT: f32 = 0.005;
-// let MIE_DIRECTIONAL_G: f32 = 0.8;
-// let MIE_K_COEFFICIENT: vec3<f32> = vec3<f32>(0.686, 0.678, 0.666);
-// let MIE_V: f32 = 4.0;
-// let MIE_ZENITH_LENGTH: f32 = 1.25e3;
-// let NUM_MOLECULES: f32 = 2.542e25;
-// let PRIMARIES: vec3<f32> = vec3<f32>(6.8e-7, 5.5e-7, 4.5e-7);
-// let RAYLEIGH: f32 = 1.0;
-// let RAYLEIGH_ZENITH_LENGTH: f32 = 8.4e3;
-// let REFRACTIVE_INDEX: f32 = 1.0003;
-// let SUN_ANGULAR_DIAMETER_DEGREES: f32 = 0.0093333;
-// let SUN_INTENSITY_FACTOR: f32 = 1000.0;
-// let SUN_INTENSITY_FALLOFF_STEEPNESS: f32 = 1.5;
-// let TURBIDITY: f32 = 2.0;
-// let PI: f32 = 3.141592653589793;
-
-// fn total_rayleigh(lambda: vec3<f32>) -> vec3<f32> {
-//     return (8.0 * pow(PI, 3.0)
-//         * pow(pow(REFRACTIVE_INDEX, 2.0) - 1.0, 2.0)
-//         * (6.0 + 3.0 * DEPOLARIZATION_FACTOR))
-//         / (3.0 * NUM_MOLECULES * pow(lambda, vec3(4.0)) * (6.0 - 7.0 * DEPOLARIZATION_FACTOR));
-// }
-
-// fn total_mie(lambda: vec3<f32>, k: vec3<f32>, t: f32) -> vec3<f32> {
-//     let c = 0.2 * t * 10e-18;
-//     return vec3(0.434 * c * PI * pow((2.0 * PI) / lambda, vec3(MIE_V - 2.0)) * k);
-// }
-
-// fn rayleigh_phase(cos_theta: f32) -> f32 {
-//     return (3.0 / (16.0 * PI)) * (1.0 + pow(cos_theta, 2.0));
-// }
-
-// fn henyey_greenstein_phase(cos_theta: f32, g: f32) -> f32 {
-//     return (1.0 / (4.0 * PI)) * ((1.0 - pow(g, 2.0))) / pow(1.0 - 2.0 * g * cos_theta + pow(g, 2.0), 1.5);
-// }
-
-// fn sun_intensity(zenith_angle_cos: f32) -> f32 {
-//     let cutoff_angle = PI / 1.95; // Earth shadow hack
-//     return SUN_INTENSITY_FACTOR
-//         * max(0.0,
-//             1.0 - exp(-((cutoff_angle - acos(zenith_angle_cos))
-//                 / SUN_INTENSITY_FALLOFF_STEEPNESS))
-//         );
-// }
-
-// fn saturate(x: f32) -> f32 {
-//     return clamp(x, 0.0, 1.0);
-// }
-
-// fn sky(dir: vec3<f32>, sun_position: vec3<f32>) -> vec3<f32> {
-//     let up = vec3(0.0, 1.0, 0.0);
-//     let sunfade = 1.0 - exp(1.0 - saturate(sun_position.y / 450000.0));
-//     let rayleigh_coefficient = RAYLEIGH - (1.0 * (1.0 - sunfade));
-//     let beta_r = total_rayleigh(PRIMARIES) * rayleigh_coefficient;
-
-//     // Mie coefficient
-//     let beta_m = total_mie(PRIMARIES, MIE_K_COEFFICIENT, TURBIDITY) * MIE_COEFFICIENT;
-
-//     // Optical length, cutoff angle at 90 to avoid singularity
-//     let zenith_angle = acos(max(dot(up, dir), 0.0));
-//     let denom = cos(zenith_angle) + 0.15 * pow(93.885 - ((zenith_angle * 180.0) / PI), -1.253);
-
-//     let s_r = RAYLEIGH_ZENITH_LENGTH / denom;
-//     let s_m = MIE_ZENITH_LENGTH / denom;
-
-//     // Combined extinction factor
-//     let fex = exp(-(beta_r * s_r + beta_m * s_m));
-
-//     // In-scattering
-//     let sun_direction = normalize(sun_position);
-//     let cos_theta = dot(dir, sun_direction);
-//     let beta_r_theta = beta_r * rayleigh_phase(cos_theta * 0.5 + 0.5);
-
-//     let beta_m_theta = beta_m * henyey_greenstein_phase(cos_theta, MIE_DIRECTIONAL_G);
-//     let sun_e = sun_intensity(dot(sun_direction, up));
-//     var lin = pow(
-//         sun_e * ((beta_r_theta + beta_m_theta) / (beta_r + beta_m)) * (vec3(1.0) - fex),
-//         vec3(1.5)
-//     );
-
-//     let t = saturate(pow(1.0 - dot(up, sun_direction), 5.0));
-//     lin *= vec3(1.0) * (vec3(1.0) - t) + pow(
-//             sun_e * ((beta_r_theta + beta_m_theta) / (beta_r + beta_m)) * fex,
-//             vec3(0.5),
-//         ) * t;
-
-//     // Composition + solar disc
-//     let sun_angular_diameter_cos = cos(SUN_ANGULAR_DIAMETER_DEGREES);
-//     let sundisk = smoothstep(
-//         sun_angular_diameter_cos,
-//         sun_angular_diameter_cos + 0.00002,
-//         cos_theta,
-//     );
-//     var l0 = 0.1 * fex;
-//     l0 = l0 + sun_e * 19000.0 * fex * sundisk;
-
-//     return lin + l0;
-// }
 
 // #reigon simplex noise
 fn mod289_(x: vec3<f32>) -> vec3<f32> {
