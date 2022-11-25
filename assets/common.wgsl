@@ -3,6 +3,8 @@ let ANIMATION_FLAG = 32u; // 0b00100000
 let COLLISION_FLAG = 16u; // 0b00010000
 let SAND_FLAG = 8u; // 0b00001000
 
+let VOXELS_PER_METER: f32 = 4.0;
+
 struct Portal {
     pos: vec3<f32>,
     other_pos: vec3<f32>,

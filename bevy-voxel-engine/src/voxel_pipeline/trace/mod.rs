@@ -1,5 +1,5 @@
-use super::voxel_world::{VoxelUniforms, VoxelData};
-use crate::{animation, load::Pallete, LoadVoxelWorld, VoxelCamera};
+use super::voxel_world::{VoxelData, VoxelUniforms};
+use crate::{load::Pallete, LoadVoxelWorld, VoxelCamera, physics};
 use bevy::{
     core_pipeline::fullscreen_vertex_shader::fullscreen_shader_vertex_state,
     prelude::*,
@@ -120,20 +120,18 @@ impl FromWorld for TracePipeline {
             .resource::<RenderDevice>()
             .create_bind_group_layout(&BindGroupLayoutDescriptor {
                 label: Some("trace bind group layout"),
-                entries: &[
-                    BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: ShaderStages::FRAGMENT,
-                        ty: BindingType::Buffer {
-                            ty: BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: BufferSize::new(
-                                std::mem::size_of::<ExtractedUniforms>() as u64,
-                            ),
-                        },
-                        count: None,
+                entries: &[BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: BufferSize::new(
+                            std::mem::size_of::<ExtractedUniforms>() as u64
+                        ),
                     },
-                ],
+                    count: None,
+                }],
             });
 
         let asset_server = render_world.get_resource::<AssetServer>().unwrap();
@@ -180,7 +178,7 @@ fn update_uniforms(
     let (transform, _perspective) = main_cam.single();
 
     let transform = Transform {
-        translation: animation::world_to_render(
+        translation: physics::world_to_render(
             transform.translation,
             voxel_world_uniforms.texture_size,
         ),

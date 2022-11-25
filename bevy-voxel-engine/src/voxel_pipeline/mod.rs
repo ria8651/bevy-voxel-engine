@@ -1,5 +1,5 @@
 use self::{
-    compute::{node::ComputeNode, ComputePlugin},
+    compute::{clear::ClearNode, ComputeResourcesPlugin, rebuild::RebuildNode, automata::AutomataNode, physics::PhysicsNode},
     trace::{node::TraceNode, TracePlugin},
     voxel_world::VoxelWorldPlugin,
     voxelization::VoxelizationPlugin,
@@ -8,6 +8,7 @@ use bevy::{
     core_pipeline::{tonemapping::TonemappingNode, upscaling::UpscalingNode},
     prelude::*,
     render::{
+        main_graph::node::CAMERA_DRIVER,
         render_graph::{RenderGraph, SlotInfo, SlotType},
         RenderApp,
     },
@@ -18,7 +19,6 @@ pub mod compute;
 pub mod trace;
 pub mod voxel_world;
 pub mod voxelization;
-// pub mod clear;
 
 pub struct RenderPlugin;
 
@@ -26,8 +26,8 @@ impl Plugin for RenderPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(VoxelWorldPlugin)
             .add_plugin(TracePlugin)
-            .add_plugin(ComputePlugin)
-            .add_plugin(VoxelizationPlugin);
+            .add_plugin(VoxelizationPlugin)
+            .add_plugin(ComputeResourcesPlugin);
 
         let render_app = match app.get_sub_app_mut(RenderApp) {
             Ok(render_app) => render_app,
@@ -36,9 +36,10 @@ impl Plugin for RenderPlugin {
 
         // build voxel render graph
         let mut voxel_graph = RenderGraph::default();
-
         let input_node_id =
             voxel_graph.set_input(vec![SlotInfo::new("view_entity", SlotType::Entity)]);
+
+        // voxel render graph
         let main = TraceNode::new(&mut render_app.world);
         let tonemapping = TonemappingNode::new(&mut render_app.world);
         let ui = UiPassNode::new(&mut render_app.world);
@@ -64,27 +65,24 @@ impl Plugin for RenderPlugin {
         voxel_graph.add_node_edge("tonemapping", "ui").unwrap();
         voxel_graph.add_node_edge("ui", "upscaling").unwrap();
 
-        // build voxelization render graph
-        // let mut voxelization_graph = RenderGraph::default();
-
-        // let voxelization = VoxelizationNode::new(&mut render_app.world);
-        // let input_node_id =
-        //     voxelization_graph.set_input(vec![SlotInfo::new("view_entity", SlotType::Entity)]);
-
-        // voxelization_graph.add_node("voxelization", voxelization);
-        // voxelization_graph
-        //     .add_slot_edge(input_node_id, "view_entity", "voxelization", "view")
-        //     .unwrap();
-
-        // insert custom sub graph into the main render graph
+        // voxel render graph compute
+        let rebuild = RebuildNode;
+        let physics = PhysicsNode;
+        voxel_graph.add_node("rebuild", rebuild);
+        voxel_graph.add_node("physics", physics);
+        voxel_graph.add_node_edge("rebuild", "physics").unwrap();
+        voxel_graph.add_node_edge("physics", "main").unwrap();
+        
+        // main graph compute
         let mut graph = render_app.world.resource_mut::<RenderGraph>();
-        graph.add_sub_graph("voxel", voxel_graph);
-        // graph.add_sub_graph("voxelization", voxelization_graph);
+        let clear = ClearNode;
+        let automata = AutomataNode;
+        graph.add_node("clear", clear);
+        graph.add_node("automata", automata);        
+        graph.add_node_edge("clear", "automata").unwrap();
+        graph.add_node_edge("automata", CAMERA_DRIVER).unwrap();
 
-        // add compute node before camera driver
-        graph.add_node("compute", ComputeNode);
-        graph
-            .add_node_edge("compute", bevy::render::main_graph::node::CAMERA_DRIVER)
-            .unwrap();
+        // insert the voxel graph into the main render graph
+        graph.add_sub_graph("voxel", voxel_graph);
     }
 }

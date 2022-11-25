@@ -1,10 +1,11 @@
-pub use animation::VOXELS_PER_METER;
 use bevy::prelude::*;
-use voxel_pipeline::RenderPlugin;
+use physics::PhysicsPlugin;
+pub use physics::VOXELS_PER_METER;
 pub use voxel_pipeline::trace::TraceUniforms;
+use voxel_pipeline::RenderPlugin;
 
-mod animation;
 mod load;
+mod physics;
 mod voxel_pipeline;
 
 #[derive(Component)]
@@ -60,7 +61,7 @@ pub struct BevyVoxelEnginePlugin;
 
 impl Plugin for BevyVoxelEnginePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(RenderPlugin);
+        app.add_plugin(PhysicsPlugin).add_plugin(RenderPlugin);
     }
 }
 
