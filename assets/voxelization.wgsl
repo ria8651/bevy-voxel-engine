@@ -50,14 +50,19 @@ fn write_pos(pos: vec3<i32>, material: u32, flags: u32) {
 
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    let texture_pos = in.pos;
-    let texture_pos = vec3<i32>(
-        i32(texture_pos.x), 
-        i32(f32(voxel_uniforms.texture_size) * texture_pos.z), 
-        i32(texture_pos.y)
-    );
+    // let texture_pos = in.pos;
+    // let texture_pos = vec3<i32>(
+    //     i32(texture_pos.x), 
+    //     i32(f32(voxel_uniforms.texture_size) * texture_pos.z), 
+    //     i32(texture_pos.y)
+    // );
 
-    write_pos(texture_pos, 10u, COLLISION_FLAG | ANIMATION_FLAG);
+    let clip_space_xy = vec2(1.0, -1.0) * (2.0 * in.pos.xy / f32(voxel_uniforms.texture_size) - 1.0);
+    let clip_space = vec4(clip_space_xy, in.pos.z, 1.0);
+    let world = view.inverse_view_proj * clip_space;
+    let texture_pos = VOXELS_PER_METER * (world.xyz / world.w) + vec3(f32(voxel_uniforms.texture_size) / 2.0);
+
+    write_pos(vec3<i32>(texture_pos), 10u, COLLISION_FLAG | ANIMATION_FLAG);
 
     return vec4<f32>(vec3(0.0, 1.0, 0.0), 1.0);
 }

@@ -33,8 +33,7 @@ impl Plugin for VoxelizationPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(ExtractComponentPlugin::<VoxelizationMaterial>::default())
             .add_startup_system(setup)
-            .add_system(update_cameras)
-            .add_system(update);
+            .add_system(update_cameras);
 
         app.sub_app_mut(RenderApp)
             .add_render_command::<Transparent3d, DrawCustom>()
@@ -52,7 +51,6 @@ struct VoxelizationCamera;
 
 fn setup(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
     mut images: ResMut<Assets<Image>>,
 ) {
     // image that is the size of the render world to create the correct ammount of fragments
@@ -78,32 +76,35 @@ fn setup(
     let image_handle = images.add(image);
     commands.insert_resource(VoxelizationImage(image_handle.clone()));
 
-    commands.spawn((
-        Camera3dBundle {
-            camera: Camera {
-                priority: -1,
-                target: RenderTarget::Image(image_handle.clone()),
+    // priorities of -3, -2 and -1 so that they are rendered before the main pass
+    for i in 0..3 {
+        commands.spawn((
+            Camera3dBundle {
+                camera: Camera {
+                    priority: -3 + i,
+                    target: RenderTarget::Image(image_handle.clone()),
+                    ..default()
+                },
+                camera_3d: Camera3d {
+                    clear_color: ClearColorConfig::None,
+                    ..default()
+                },
                 ..default()
             },
-            camera_3d: Camera3d {
-                clear_color: ClearColorConfig::None,
-                ..default()
-            },
-            ..default()
-        },
-        VoxelizationCamera,
-    ));
+            VoxelizationCamera,
+        ));
+    }
 
-    commands.spawn((
-        meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-        Transform::from_xyz(0.0, 0.0, 0.0)
-            .looking_at(Vec3::splat(1.0), Vec3::Y)
-            .with_scale(Vec3::splat(10.0)),
-        GlobalTransform::default(),
-        VoxelizationMaterial,
-        Visibility::default(),
-        ComputedVisibility::default(),
-    ));
+    // commands.spawn((
+    //     meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
+    //     Transform::from_xyz(0.0, 0.0, 0.0)
+    //         .looking_at(Vec3::splat(1.0), Vec3::Y)
+    //         .with_scale(Vec3::splat(10.0)),
+    //     GlobalTransform::default(),
+    //     VoxelizationMaterial,
+    //     Visibility::default(),
+    //     ComputedVisibility::default(),
+    // ));
 }
 
 fn update_cameras(
@@ -116,9 +117,11 @@ fn update_cameras(
     if voxelization_image.size().x as u32 != voxel_uniforms.texture_size {
         // update cameras
         info!(
-            "Updating voxelization cameras to {}",
+            "Updating {} voxelization cameras to as resolution of {}",
+            voxelization_cameras.iter().len(),
             voxel_uniforms.texture_size
         );
+        let mut i = 0;
         for (mut transform, mut projection) in voxelization_cameras.iter_mut() {
             // resize image
             let size = voxel_uniforms.texture_size;
@@ -129,7 +132,12 @@ fn update_cameras(
             });
 
             // update camera
-            *transform = Transform::from_translation(Vec3::ZERO).looking_at(Vec3::Y, Vec3::Z);
+            *transform = match i {
+                0 => Transform::from_translation(Vec3::ZERO).looking_at(Vec3::X, Vec3::Y),
+                1 => Transform::from_translation(Vec3::ZERO).looking_at(Vec3::Y, Vec3::Z),
+                2 => Transform::from_translation(Vec3::ZERO).looking_at(Vec3::Z, Vec3::Y),
+                _ => panic!("Too many voxelization cameras"),
+            };
 
             let side = size as f32 / VOXELS_PER_METER / 2.0;
             *projection = Projection::Orthographic(OrthographicProjection {
@@ -143,20 +151,13 @@ fn update_cameras(
                 ..default()
             });
 
-            // Transform::from_translation(Vec3::new(0.0, 10.0, 0.0)).looking_at(Vec3::ZERO, Vec3::Z);
+            i += 1;
         }
     }
 }
 
-fn update(time: Res<Time>, mut cube: Query<&mut Transform, With<VoxelizationMaterial>>) {
-    for mut transform in cube.iter_mut() {
-        transform.rotate_x(1.5 * time.delta_seconds());
-        transform.rotate_z(1.3 * time.delta_seconds());
-    }
-}
-
-#[derive(Component)]
-struct VoxelizationMaterial;
+#[derive(Component, Default)]
+pub struct VoxelizationMaterial;
 
 impl ExtractComponent for VoxelizationMaterial {
     type Query = Read<VoxelizationMaterial>;

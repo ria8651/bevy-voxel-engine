@@ -1,6 +1,8 @@
 use bevy::{prelude::*, render::camera::CameraRenderGraph};
+use bevy_obj::*;
 use bevy_voxel_engine::{
-    Box, BoxCollider, Edges, Particle, Portal, Velocity, VoxelCamera, BevyVoxelEnginePlugin, VOXELS_PER_METER,
+    BevyVoxelEnginePlugin, Box, BoxCollider, Edges, Particle, Portal, Velocity, VoxelCamera,
+    VoxelizationBundle, VOXELS_PER_METER,
 };
 use character::CharacterEntity;
 use concurrent_queue::ConcurrentQueue;
@@ -41,11 +43,13 @@ fn main() {
                     ..default()
                 }),
         )
+        .add_plugin(ObjPlugin)
         .add_plugin(BevyVoxelEnginePlugin)
         .add_plugin(character::Character)
         .add_plugin(ui::UiPlugin)
         .add_plugin(fps_counter::FpsCounter)
         .add_startup_system(setup)
+        .add_system(update)
         .add_system(shoot)
         .add_system(update_velocitys)
         .add_system(spawn_portals);
@@ -55,6 +59,83 @@ fn main() {
     println!("Render graph written to render-graph.dot");
 
     app.run();
+}
+
+// world space cordinates are in terms of 4 voxels per meter with 0, 0
+// in the world lining up with the center of the voxel world (ie 0, 0, 0 in the render world)
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let portal1 = commands
+        .spawn((
+            Portal {
+                half_size: IVec3::new(0, 0, 0),
+                normal: Vec3::new(1.0, 0.0, 0.0),
+            },
+            Edges {
+                material: 120,
+                half_size: IVec3::new(0, 0, 0),
+            },
+            Transform::from_xyz(0.0, 1000.0, 0.0),
+        ))
+        .id();
+    let portal2 = commands
+        .spawn((
+            Portal {
+                half_size: IVec3::new(0, 0, 0),
+                normal: Vec3::new(1.0, 0.0, 0.0),
+            },
+            Edges {
+                material: 121,
+                half_size: IVec3::new(0, 0, 0),
+            },
+            Transform::from_xyz(0.0, 1000.0, 0.0),
+        ))
+        .id();
+
+    // character
+    let character_transform = Transform::from_xyz(10.0, 10.0, -5.0).looking_at(Vec3::ZERO, Vec3::Y);
+    commands.spawn((
+        Camera3dBundle {
+            transform: character_transform,
+            camera_render_graph: CameraRenderGraph::new("voxel"),
+            camera: Camera {
+                hdr: true,
+                ..default()
+            },
+            ..default()
+        },
+        CharacterEntity {
+            grounded: false,
+            look_at: -character_transform.local_z(),
+            up: Vec3::new(0.0, 1.0, 0.0),
+            portal1,
+            portal2,
+        },
+        Velocity::new(Vec3::splat(0.0)),
+        BoxCollider {
+            half_size: IVec3::new(2, 4, 2),
+        },
+        VoxelCamera,
+    ));
+
+    // voxelized mesh
+    commands.spawn((
+        VoxelizationBundle {
+            mesh_handle: asset_server.load("models/suzanne.obj"),
+            transform: Transform::from_scale(Vec3::splat(5.0)).looking_at(Vec3::Z, Vec3::Y),
+            ..Default::default()
+        },
+        Suzanne,
+    ));
+}
+
+#[derive(Component)]
+struct Suzanne;
+
+fn update(time: Res<Time>, mut cube: Query<&mut Transform, With<Suzanne>>) {
+    for mut transform in cube.iter_mut() {
+        transform.rotate_x(1.5 * time.delta_seconds());
+        transform.rotate_z(1.3 * time.delta_seconds());
+    }
 }
 
 fn shoot(
@@ -178,127 +259,73 @@ fn spawn_portals(
     }
 }
 
-// world space cordinates are in terms of 4 voxels per meter with 0, 0
-// in the world lining up with the center of the voxel world (ie 0, 0, 0 in the render world)
-fn setup(mut commands: Commands) {
-    let portal1 = commands
-        .spawn((
-            Portal {
-                half_size: IVec3::new(0, 0, 0),
-                normal: Vec3::new(1.0, 0.0, 0.0),
-            },
-            Edges {
-                material: 120,
-                half_size: IVec3::new(0, 0, 0),
-            },
-            Transform::from_xyz(0.0, 1000.0, 0.0),
-        ))
-        .id();
-    let portal2 = commands
-        .spawn((
-            Portal {
-                half_size: IVec3::new(0, 0, 0),
-                normal: Vec3::new(1.0, 0.0, 0.0),
-            },
-            Edges {
-                material: 121,
-                half_size: IVec3::new(0, 0, 0),
-            },
-            Transform::from_xyz(0.0, 1000.0, 0.0),
-        ))
-        .id();
+// fn spawn_world_portals() {
+// commands.spawn((
+//     Portal {
+//         half_size: IVec3::new(0, 9, 6),
+//         normal: Vec3::new(1.0, 0.0, 0.0),
+//     },
+//     Edges {
+//         material: 23,
+//         half_size: IVec3::new(0, 10, 7),
+//     },
+//     Transform::from_xyz(3.0, 2.0, 0.0),
+// ));
+// commands.spawn((
+//     Portal {
+//         half_size: IVec3::new(6, 9, 0),
+//         normal: Vec3::new(0.0, 0.0, 1.0),
+//     },
+//     Edges {
+//         material: 22,
+//         half_size: IVec3::new(7, 10, 0),
+//     },
+//     Transform::from_xyz(0.0, 2.0, 3.0),
+// ));
 
-    let transform = Transform::from_xyz(10.0, 10.0, -5.0).looking_at(Vec3::ZERO, Vec3::Y);
-    commands.spawn((
-        Camera3dBundle {
-            transform: transform,
-            camera_render_graph: CameraRenderGraph::new("voxel"),
-            camera: Camera {
-                hdr: true,
-                ..default()
-            },
-            ..default()
-        },
-        CharacterEntity {
-            grounded: false,
-            look_at: -transform.local_z(),
-            up: Vec3::new(0.0, 1.0, 0.0),
-            portal1,
-            portal2,
-        },
-        Velocity::new(Vec3::splat(0.0)),
-        BoxCollider {
-            half_size: IVec3::new(2, 4, 2),
-        },
-        VoxelCamera,
-    ));
+// commands.spawn((
+//     Portal {
+//         half_size: IVec3::new(0, 1, 1),
+//         normal: Vec3::new(1.0, 0.0, 0.0),
+//     },
+//     Edges {
+//         material: 23,
+//         half_size: IVec3::new(0, 2, 2),
+//     },
+//     Transform::from_xyz(3.0, 5.0, 0.0),
+// ));
+// commands.spawn((
+//     Portal {
+//         half_size: IVec3::new(1, 1, 0),
+//         normal: Vec3::new(0.0, 0.0, 1.0),
+//     },
+//     Edges {
+//         material: 22,
+//         half_size: IVec3::new(2, 2, 0),
+//     },
+//     Transform::from_xyz(0.0, 5.0, 3.0),
+// ));
 
-    // commands.spawn((
-    //     Portal {
-    //         half_size: IVec3::new(0, 9, 6),
-    //         normal: Vec3::new(1.0, 0.0, 0.0),
-    //     },
-    //     Edges {
-    //         material: 23,
-    //         half_size: IVec3::new(0, 10, 7),
-    //     },
-    //     Transform::from_xyz(3.0, 2.0, 0.0),
-    // ));
-    // commands.spawn((
-    //     Portal {
-    //         half_size: IVec3::new(6, 9, 0),
-    //         normal: Vec3::new(0.0, 0.0, 1.0),
-    //     },
-    //     Edges {
-    //         material: 22,
-    //         half_size: IVec3::new(7, 10, 0),
-    //     },
-    //     Transform::from_xyz(0.0, 2.0, 3.0),
-    // ));
-
-    // commands.spawn((
-    //     Portal {
-    //         half_size: IVec3::new(0, 1, 1),
-    //         normal: Vec3::new(1.0, 0.0, 0.0),
-    //     },
-    //     Edges {
-    //         material: 23,
-    //         half_size: IVec3::new(0, 2, 2),
-    //     },
-    //     Transform::from_xyz(3.0, 5.0, 0.0),
-    // ));
-    // commands.spawn((
-    //     Portal {
-    //         half_size: IVec3::new(1, 1, 0),
-    //         normal: Vec3::new(0.0, 0.0, 1.0),
-    //     },
-    //     Edges {
-    //         material: 22,
-    //         half_size: IVec3::new(2, 2, 0),
-    //     },
-    //     Transform::from_xyz(0.0, 5.0, 3.0),
-    // ));
-
-    // commands.spawn((
-    //     Portal {
-    //         half_size: IVec3::new(5, 0, 5),
-    //         normal: Vec3::new(0.0, 1.0, 0.0),
-    //     },
-    //     Edges {
-    //         material: 22,
-    //         half_size: IVec3::new(6, 0, 6),
-    //     },
-    //     Transform::from_xyz(0.0, -1.0, 0.0),
-    // ));
-    // commands.spawn((
-    //     Portal {
-    //         half_size: IVec3::new(5, 0, 5),
-    //         normal: Vec3::new(0.0, -1.0, 0.0),
-    //     },
-    //     Edges {
-    //         material: 22,
-    //         half_size: IVec3::new(6, 0, 6),
-    //     },
-    //     Transform::from_xyz(0.0, 7.0, 0.0),
-    // ));
-}
+// commands.spawn((
+//     Portal {
+//         half_size: IVec3::new(5, 0, 5),
+//         normal: Vec3::new(0.0, 1.0, 0.0),
+//     },
+//     Edges {
+//         material: 22,
+//         half_size: IVec3::new(6, 0, 6),
+//     },
+//     Transform::from_xyz(0.0, -1.0, 0.0),
+// ));
+// commands.spawn((
+//     Portal {
+//         half_size: IVec3::new(5, 0, 5),
+//         normal: Vec3::new(0.0, -1.0, 0.0),
+//     },
+//     Edges {
+//         material: 22,
+//         half_size: IVec3::new(6, 0, 6),
+//     },
+//     Transform::from_xyz(0.0, 7.0, 0.0),
+// ));
+// }

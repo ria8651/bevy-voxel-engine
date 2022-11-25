@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use physics::PhysicsPlugin;
 pub use physics::VOXELS_PER_METER;
 pub use voxel_pipeline::trace::TraceUniforms;
-use voxel_pipeline::RenderPlugin;
+use voxel_pipeline::{RenderPlugin, voxelization::VoxelizationMaterial};
 
 mod load;
 mod physics;
@@ -55,6 +55,16 @@ impl Velocity {
 #[derive(Component)]
 pub struct BoxCollider {
     pub half_size: IVec3,
+}
+
+#[derive(Bundle, Default)]
+pub struct VoxelizationBundle {
+    pub mesh_handle: Handle<Mesh>,
+    pub voxelization_material: VoxelizationMaterial,
+    pub transform: Transform,
+    pub global_transform: GlobalTransform,
+    pub visibility: Visibility,
+    pub computed_visibility: ComputedVisibility,
 }
 
 pub struct BevyVoxelEnginePlugin;
