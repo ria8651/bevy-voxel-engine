@@ -45,12 +45,16 @@ impl GH {
         offsets
     }
 
-    pub fn get_final_length(&self) -> u32 {
+    pub fn get_buffer_size_from_levels(levels: &[u32; 8]) -> usize {
         let mut length = 0;
         for i in 0..8 {
-            length += self.levels[i] * self.levels[i] * self.levels[i];
+            length += levels[i] * levels[i] * levels[i];
         }
-        length
+        length as usize / 8
+    }
+
+    pub fn get_buffer_size(&self) -> usize {
+        Self::get_buffer_size_from_levels(&self.levels)
     }
 
     pub fn from_vox(file: &[u8]) -> Result<GH, String> {

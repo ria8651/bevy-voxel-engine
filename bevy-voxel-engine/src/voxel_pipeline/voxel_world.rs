@@ -1,7 +1,4 @@
-use super::{
-    compute::ExtractedGH,
-    trace::{ExtractedPortal, PalleteEntry},
-};
+use super::trace::{ExtractedPortal, PalleteEntry};
 use crate::{load::GH, LoadVoxelWorld};
 use bevy::{
     prelude::*,
@@ -35,7 +32,7 @@ impl Plugin for VoxelWorldPlugin {
         } else {
             GH::empty(32)
         };
-        let buffer_size = gh.get_final_length() as usize / 8;
+        let buffer_size = gh.get_buffer_size();
         let texture_size = gh.texture_size;
         let offsets = gh.get_offsets();
 
@@ -65,11 +62,6 @@ impl Plugin for VoxelWorldPlugin {
             label: None,
             usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
         });
-
-        println!(
-            "buffer_size: {}",
-            std::mem::size_of::<VoxelUniforms>() as u64
-        );
 
         let bind_group_layout =
             render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
@@ -150,12 +142,9 @@ impl Plugin for VoxelWorldPlugin {
                 bind_group_layout,
                 bind_group,
             })
-            .insert_resource(ExtractedGH {
-                buffer_size,
-                texture_size,
-            })
             .add_system_to_stage(RenderStage::Prepare, prepare_uniforms)
-            .add_system_to_stage(RenderStage::Prepare, load_voxel_world_prepare);
+            .add_system_to_stage(RenderStage::Prepare, load_voxel_world_prepare)
+            .add_system_to_stage(RenderStage::Queue, queue_bind_group);
     }
 }
 
@@ -227,15 +216,13 @@ fn load_voxel_world(
 }
 
 fn load_voxel_world_prepare(
-    mut commands: Commands,
     mut voxel_data: ResMut<VoxelData>,
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
     new_gh: Res<NewGH>,
 ) {
     if let NewGH::Some(gh) = new_gh.as_ref() {
-        let buffer_size = gh.get_final_length() as usize / 8;
-        let texture_size = gh.texture_size;
+        let buffer_size = gh.get_buffer_size();
 
         // grid hierarchy
         voxel_data.grid_heierachy = render_device.create_buffer_with_data(&BufferInitDescriptor {
@@ -263,36 +250,27 @@ fn load_voxel_world_prepare(
             &gh.texture_data,
         );
         voxel_data.voxel_world = voxel_world.create_view(&TextureViewDescriptor::default());
-
-        commands.insert_resource(ExtractedGH {
-            buffer_size,
-            texture_size,
-        });
     }
 }
 
-// fn queue_bind_group(
-//     mut commands: Commands,
-//     render_device: Res<RenderDevice>,
-//     voxel_world_data: ResMut<VoxelData>,
-// ) {
-//     let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
-//         label: None,
-//         layout: &voxel_world_data.bind_group_layout,
-//         entries: &[
-//             BindGroupEntry {
-//                 binding: 0,
-//                 resource: voxel_world_data.uniform_buffer.as_entire_binding(),
-//             },
-//             BindGroupEntry {
-//                 binding: 1,
-//                 resource: BindingResource::TextureView(&voxel_world_data.voxel_world),
-//             },
-//             BindGroupEntry {
-//                 binding: 2,
-//                 resource: voxel_world_data.grid_heierachy.as_entire_binding(),
-//             },
-//         ],
-//     });
-//     voxel_world_data.bind_group = bind_group;
-// }
+fn queue_bind_group(render_device: Res<RenderDevice>, mut voxel_data: ResMut<VoxelData>) {
+    let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
+        label: None,
+        layout: &voxel_data.bind_group_layout,
+        entries: &[
+            BindGroupEntry {
+                binding: 0,
+                resource: voxel_data.uniform_buffer.as_entire_binding(),
+            },
+            BindGroupEntry {
+                binding: 1,
+                resource: BindingResource::TextureView(&voxel_data.voxel_world),
+            },
+            BindGroupEntry {
+                binding: 2,
+                resource: voxel_data.grid_heierachy.as_entire_binding(),
+            },
+        ],
+    });
+    voxel_data.bind_group = bind_group;
+}

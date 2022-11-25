@@ -77,12 +77,6 @@ pub struct ComputeMeta {
 }
 
 #[derive(Resource)]
-pub struct ExtractedGH {
-    pub buffer_size: usize,
-    pub texture_size: u32,
-}
-
-#[derive(Resource)]
 pub struct ComputePipeline {
     compute_bind_group_layout: BindGroupLayout,
     update_pipeline: CachedComputePipelineId,

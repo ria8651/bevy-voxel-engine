@@ -18,6 +18,7 @@ pub mod compute;
 pub mod trace;
 pub mod voxel_world;
 pub mod voxelization;
+// pub mod clear;
 
 pub struct RenderPlugin;
 
@@ -81,7 +82,7 @@ impl Plugin for RenderPlugin {
         // graph.add_sub_graph("voxelization", voxelization_graph);
 
         // add compute node before camera driver
-        graph.add_node("compute", ComputeNode::default());
+        graph.add_node("compute", ComputeNode);
         graph
             .add_node_edge("compute", bevy::render::main_graph::node::CAMERA_DRIVER)
             .unwrap();
