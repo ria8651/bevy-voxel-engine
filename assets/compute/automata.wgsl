@@ -109,39 +109,39 @@ fn automata(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let material = get_texture_value(pos);
 
     // sand
-    // if (material.x != 0u && (material.y & ANIMATION_FLAG) == 0u) { // (material.y & SAND_FLAG) > 0u 
-    //     let new_pos = pos + vec3(0, -1, 0);
-    //     let new_mat = get_texture_value(new_pos);
+    if (material.x != 0u && (material.y & ANIMATION_FLAG) == 0u && (material.y & SAND_FLAG) > 0u) {
+        let new_pos = pos + vec3(0, -1, 0);
+        let new_mat = get_texture_value(new_pos);
 
-    //     if (in_texture_bounds(new_pos) && new_mat.x == 0u) {
-    //         textureStore(voxel_world, new_pos.zyx, vec4(material.x | (material.y << 8u)));
-    //         textureStore(voxel_world, pos.zyx, vec4(0u));
-    //     } else {
-    //         let rand = hash(pos_time_seed);
-    //         for (var i = 0; i < 4; i += 1) {
-    //             // start in a random direction
-    //             i = (i + i32(4.0 * rand.x)) % 4;
+        if (in_texture_bounds(new_pos) && new_mat.x == 0u) {
+            textureStore(voxel_world, new_pos.zyx, vec4(material.x | (material.y << 8u)));
+            textureStore(voxel_world, pos.zyx, vec4(0u));
+        } else {
+            let rand = hash(pos_time_seed);
+            for (var i = 0; i < 4; i += 1) {
+                // start in a random direction
+                i = (i + i32(4.0 * rand.x)) % 4;
 
-    //             var offset: vec3<i32>;
-    //             if (i == 0) {
-    //                 offset = vec3(1, -1, 0);
-    //             } else if (i == 1) {
-    //                 offset = vec3(-1, -1, 0);
-    //             } else if (i == 2) {
-    //                 offset = vec3(0, -1, 1);
-    //             } else if (i == 3) {
-    //                 offset = vec3(0, -1, -1);
-    //             }
+                var offset: vec3<i32>;
+                if (i == 0) {
+                    offset = vec3(1, -1, 0);
+                } else if (i == 1) {
+                    offset = vec3(-1, -1, 0);
+                } else if (i == 2) {
+                    offset = vec3(0, -1, 1);
+                } else if (i == 3) {
+                    offset = vec3(0, -1, -1);
+                }
 
-    //             let new_pos = pos + offset;
-    //             let new_mat = get_texture_value(new_pos);
+                let new_pos = pos + offset;
+                let new_mat = get_texture_value(new_pos);
 
-    //             if (in_texture_bounds(new_pos) && new_mat.x == 0u) {
-    //                 textureStore(voxel_world, new_pos.zyx, vec4(material.x | (material.y << 8u)));
-    //                 textureStore(voxel_world, pos.zyx, vec4(0u));
-    //                 break;
-    //             }
-    //         }
-    //     }
-    // }
+                if (in_texture_bounds(new_pos) && new_mat.x == 0u) {
+                    textureStore(voxel_world, new_pos.zyx, vec4(material.x | (material.y << 8u)));
+                    textureStore(voxel_world, pos.zyx, vec4(0u));
+                    break;
+                }
+            }
+        }
+    }
 }

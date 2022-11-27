@@ -33,6 +33,11 @@ var voxel_world: texture_storage_3d<r16uint, read_write>;
 @group(2) @binding(2)
 var<storage, read> gh: array<u32>;
 
+@group(3) @binding(0)
+var material_texture: texture_2d<f32>;
+@group(3) @binding(1)
+var material_sampler: sampler;
+
 fn get_texture_value(pos: vec3<i32>) -> vec2<u32> {
     let texture_value = textureLoad(voxel_world, pos.zyx).r;
     return vec2(
@@ -62,7 +67,10 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let world = view.inverse_view_proj * clip_space;
     let texture_pos = VOXELS_PER_METER * (world.xyz / world.w) + vec3(f32(voxel_uniforms.texture_size) / 2.0);
 
-    write_pos(vec3<i32>(texture_pos), 10u, COLLISION_FLAG | ANIMATION_FLAG);
+    let texture_value = textureSample(material_texture, material_sampler, vec2(in.uv.xy));
+    let material = max(u32(texture_value.r * 255.0), 1u);
+
+    write_pos(vec3<i32>(texture_pos), material, COLLISION_FLAG | ANIMATION_FLAG);
 
     return vec4<f32>(vec3(0.0, 1.0, 0.0), 1.0);
 }

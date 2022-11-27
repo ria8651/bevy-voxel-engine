@@ -2,7 +2,7 @@ use bevy::{prelude::*, render::camera::CameraRenderGraph};
 use bevy_obj::*;
 use bevy_voxel_engine::{
     BevyVoxelEnginePlugin, Box, BoxCollider, Edges, Particle, Portal, Velocity, VoxelCamera,
-    VoxelizationBundle, VOXELS_PER_METER,
+    VoxelizationBundle, VoxelizationMaterial, VOXELS_PER_METER,
 };
 use character::CharacterEntity;
 use concurrent_queue::ConcurrentQueue;
@@ -121,6 +121,9 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((
         VoxelizationBundle {
             mesh_handle: asset_server.load("models/suzanne.obj"),
+            voxelization_material: VoxelizationMaterial {
+                texture: asset_server.load("models/suzanne.png"),
+            },
             transform: Transform::from_scale(Vec3::splat(5.0)).looking_at(Vec3::Z, Vec3::Y),
             ..Default::default()
         },

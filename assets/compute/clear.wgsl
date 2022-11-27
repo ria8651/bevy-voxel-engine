@@ -33,9 +33,4 @@ fn clear(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
         textureStore(voxel_world, pos.zyx, vec4(0u));
         return;
     }
-
-    // change stuff to sand randomly
-    if (material.x != 0u && rand.y < 0.01) {
-        textureStore(voxel_world, pos.zyx, vec4(material.x | ((material.y | SAND_FLAG) << 8u)))
-    }
 }

@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 use physics::PhysicsPlugin;
 pub use physics::VOXELS_PER_METER;
-pub use voxel_pipeline::trace::TraceUniforms;
-use voxel_pipeline::{RenderPlugin, voxelization::VoxelizationMaterial};
+use voxel_pipeline::RenderPlugin;
+pub use voxel_pipeline::{trace::TraceUniforms, voxelization::VoxelizationMaterial};
 
 mod load;
 mod physics;

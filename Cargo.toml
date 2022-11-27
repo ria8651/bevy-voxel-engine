@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = { version = "0.9", default-features = false, features = ["render", "x11", "filesystem_watcher"] }
+bevy = { version = "0.9", default-features = false, features = ["render", "x11", "filesystem_watcher", "png"] }
 bevy-voxel-engine = { path = "bevy-voxel-engine" }
 bevy_egui = "0.17"
 rand = "0.8"
