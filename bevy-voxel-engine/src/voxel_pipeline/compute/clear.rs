@@ -1,5 +1,5 @@
 use super::ComputeData;
-use crate::voxel_pipeline::voxel_world::{VoxelData, VoxelUniforms};
+use crate::{voxel_pipeline::voxel_world::{VoxelData, VoxelUniforms}, RenderGraphSettings};
 use bevy::{
     prelude::*,
     render::{
@@ -47,6 +47,11 @@ impl render_graph::Node for ClearNode {
         let voxel_uniforms = world.resource::<VoxelUniforms>();
         let pipeline_cache = world.resource::<PipelineCache>();
         let dispatch_size = voxel_uniforms.texture_size / 4;
+        let render_graph_settings = world.get_resource::<RenderGraphSettings>().unwrap();
+
+        if !render_graph_settings.clear {
+            return Ok(());
+        }
 
         let pipeline = match pipeline_cache.get_compute_pipeline(world.resource::<Pipeline>().0) {
             Some(pipeline) => pipeline,

@@ -1,4 +1,7 @@
-use crate::{voxel_pipeline::voxel_world::{VoxelData, VoxelUniforms}, load::GH};
+use crate::{
+    load::GH,
+    voxel_pipeline::voxel_world::{VoxelData, VoxelUniforms}, RenderGraphSettings,
+};
 use bevy::{
     prelude::*,
     render::{
@@ -46,6 +49,11 @@ impl render_graph::Node for RebuildNode {
         let render_queue = world.resource::<RenderQueue>();
         let dispatch_size = voxel_uniforms.texture_size / 4;
         let gh_size = GH::get_buffer_size_from_levels(&voxel_uniforms.levels);
+        let render_graph_settings = world.get_resource::<RenderGraphSettings>().unwrap();
+
+        if !render_graph_settings.rebuild {
+            return Ok(());
+        }
 
         let pipeline = match pipeline_cache.get_compute_pipeline(world.resource::<Pipeline>().0) {
             Some(pipeline) => pipeline,

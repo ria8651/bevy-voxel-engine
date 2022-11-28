@@ -34,7 +34,6 @@ struct TraceUniforms {
     accumulation_frames: f32,
     fov: f32,
     freeze: u32,
-    enanble_compute: u32,
     skybox: u32,
     misc_bool: u32,
     misc_float: f32,

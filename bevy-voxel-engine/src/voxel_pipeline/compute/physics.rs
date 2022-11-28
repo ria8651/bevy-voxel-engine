@@ -1,5 +1,5 @@
 use super::{ComputeData, ExtractedPhysicsData};
-use crate::voxel_pipeline::voxel_world::VoxelData;
+use crate::{voxel_pipeline::voxel_world::VoxelData, RenderGraphSettings};
 use bevy::{
     prelude::*,
     render::{
@@ -47,6 +47,11 @@ impl render_graph::Node for PhysicsNode {
         let pipeline_cache = world.resource::<PipelineCache>();
         let render_queue = world.resource::<RenderQueue>();
         let extracted_physics_data = world.resource::<ExtractedPhysicsData>();
+        let render_graph_settings = world.get_resource::<RenderGraphSettings>().unwrap();
+
+        if !render_graph_settings.physics {
+            return Ok(());
+        }
 
         let pipeline = match pipeline_cache.get_compute_pipeline(world.resource::<Pipeline>().0) {
             Some(pipeline) => pipeline,

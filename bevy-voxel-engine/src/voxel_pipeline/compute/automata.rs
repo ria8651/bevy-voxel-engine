@@ -1,5 +1,8 @@
 use super::ComputeData;
-use crate::voxel_pipeline::voxel_world::{VoxelData, VoxelUniforms};
+use crate::{
+    voxel_pipeline::voxel_world::{VoxelData, VoxelUniforms},
+    RenderGraphSettings,
+};
 use bevy::{
     prelude::*,
     render::{
@@ -19,7 +22,9 @@ impl FromWorld for Pipeline {
     fn from_world(world: &mut World) -> Self {
         let voxel_bind_group_layout = world.resource::<VoxelData>().bind_group_layout.clone();
         let compute_bind_group_layout = world.resource::<ComputeData>().bind_group_layout.clone();
-        let shader = world.resource::<AssetServer>().load("compute/automata.wgsl");
+        let shader = world
+            .resource::<AssetServer>()
+            .load("compute/automata.wgsl");
 
         let mut pipeline_cache = world.resource_mut::<PipelineCache>();
 
@@ -47,6 +52,11 @@ impl render_graph::Node for AutomataNode {
         let voxel_uniforms = world.resource::<VoxelUniforms>();
         let pipeline_cache = world.resource::<PipelineCache>();
         let dispatch_size = voxel_uniforms.texture_size / 4;
+        let render_graph_settings = world.get_resource::<RenderGraphSettings>().unwrap();
+
+        if !render_graph_settings.automata {
+            return Ok(());
+        }
 
         let pipeline = match pipeline_cache.get_compute_pipeline(world.resource::<Pipeline>().0) {
             Some(pipeline) => pipeline,

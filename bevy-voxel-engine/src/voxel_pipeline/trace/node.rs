@@ -1,6 +1,5 @@
-use crate::voxel_pipeline::voxel_world::VoxelData;
-
 use super::{TraceData, TracePipeline, ViewTracePipeline};
+use crate::voxel_pipeline::{voxel_world::VoxelData, RenderGraphSettings};
 use bevy::{
     core_pipeline::clear_color::ClearColorConfig,
     prelude::*,
@@ -50,6 +49,11 @@ impl render_graph::Node for TraceNode {
         let voxel_data = world.get_resource::<VoxelData>().unwrap();
         let trace_pipeline = world.get_resource::<TracePipeline>().unwrap();
         let trace_data = world.get_resource::<TraceData>().unwrap();
+        let render_graph_settings = world.get_resource::<RenderGraphSettings>().unwrap();
+
+        if !render_graph_settings.trace {
+            return Ok(());
+        }
 
         let (target, pipeline, camera_3d) = match self.query.get_manual(world, view_entity) {
             Ok(result) => result,

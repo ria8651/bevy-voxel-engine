@@ -51,7 +51,7 @@ fn get_voxel(pos: vec3<f32>) -> f32 {
 
 // https://www.shadertoy.com/view/ldl3DS
 fn vertex_ao(side: vec2<f32>, corner: f32) -> f32 {
-    return (side.x + side.y + max(corner, side.x * side.y)) / 3.0;
+    return (side.x + side.y + max(corner, side.x * side.y)) / 3.1;
 }
 fn voxel_ao(pos: vec3<f32>, d1: vec3<f32>, d2: vec3<f32>) -> vec4<f32> {
     let side = vec4(get_voxel(pos + d1), get_voxel(pos + d2), get_voxel(pos - d1), get_voxel(pos - d2));
@@ -102,7 +102,7 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
             if (indirect_hit.hit) {
                 indirect_lighting = calculate_direct(indirect_hit.material, indirect_hit.pos, indirect_hit.normal, seed + 20u);
             } else {
-                indirect_lighting = vec3(0.3);
+                indirect_lighting = vec3(0.2);
                 // indirect_lighting = skybox(indirect_dir, 10.0);
             }
         } else {
@@ -114,7 +114,7 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
             let interpolated_ao = mix(mix(ao.z, ao.w, uv.x), mix(ao.y, ao.x, uv.x), uv.y);
             let interpolated_ao = pow(interpolated_ao, 1.0 / 3.0);
 
-            indirect_lighting = vec3(interpolated_ao * 0.25);
+            indirect_lighting = vec3(interpolated_ao * 0.3);
         }
 
         // final blend

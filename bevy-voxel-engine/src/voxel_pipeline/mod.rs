@@ -1,5 +1,8 @@
 use self::{
-    compute::{clear::ClearNode, ComputeResourcesPlugin, rebuild::RebuildNode, automata::AutomataNode, physics::PhysicsNode},
+    compute::{
+        automata::AutomataNode, clear::ClearNode, physics::PhysicsNode, rebuild::RebuildNode,
+        ComputeResourcesPlugin,
+    },
     trace::{node::TraceNode, TracePlugin},
     voxel_world::VoxelWorldPlugin,
     voxelization::VoxelizationPlugin,
@@ -8,6 +11,7 @@ use bevy::{
     core_pipeline::{tonemapping::TonemappingNode, upscaling::UpscalingNode},
     prelude::*,
     render::{
+        extract_resource::{ExtractResource, ExtractResourcePlugin},
         main_graph::node::CAMERA_DRIVER,
         render_graph::{RenderGraph, SlotInfo, SlotType},
         RenderApp,
@@ -24,7 +28,9 @@ pub struct RenderPlugin;
 
 impl Plugin for RenderPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(VoxelWorldPlugin)
+        app.insert_resource(RenderGraphSettings::default())
+            .add_plugin(ExtractResourcePlugin::<RenderGraphSettings>::default())
+            .add_plugin(VoxelWorldPlugin)
             .add_plugin(TracePlugin)
             .add_plugin(VoxelizationPlugin)
             .add_plugin(ComputeResourcesPlugin);
@@ -40,17 +46,17 @@ impl Plugin for RenderPlugin {
             voxel_graph.set_input(vec![SlotInfo::new("view_entity", SlotType::Entity)]);
 
         // voxel render graph
-        let main = TraceNode::new(&mut render_app.world);
+        let trace = TraceNode::new(&mut render_app.world);
         let tonemapping = TonemappingNode::new(&mut render_app.world);
         let ui = UiPassNode::new(&mut render_app.world);
         let upscaling = UpscalingNode::new(&mut render_app.world);
 
-        voxel_graph.add_node("main", main);
+        voxel_graph.add_node("trace", trace);
         voxel_graph.add_node("tonemapping", tonemapping);
         voxel_graph.add_node("ui", ui);
         voxel_graph.add_node("upscaling", upscaling);
         voxel_graph
-            .add_slot_edge(input_node_id, "view_entity", "main", "view")
+            .add_slot_edge(input_node_id, "view_entity", "trace", "view")
             .unwrap();
         voxel_graph
             .add_slot_edge(input_node_id, "view_entity", "tonemapping", "view")
@@ -61,7 +67,7 @@ impl Plugin for RenderPlugin {
         voxel_graph
             .add_slot_edge(input_node_id, "view_entity", "upscaling", "view")
             .unwrap();
-        voxel_graph.add_node_edge("main", "tonemapping").unwrap();
+        voxel_graph.add_node_edge("trace", "tonemapping").unwrap();
         voxel_graph.add_node_edge("tonemapping", "ui").unwrap();
         voxel_graph.add_node_edge("ui", "upscaling").unwrap();
 
@@ -71,18 +77,41 @@ impl Plugin for RenderPlugin {
         voxel_graph.add_node("rebuild", rebuild);
         voxel_graph.add_node("physics", physics);
         voxel_graph.add_node_edge("rebuild", "physics").unwrap();
-        voxel_graph.add_node_edge("physics", "main").unwrap();
-        
+        voxel_graph.add_node_edge("physics", "trace").unwrap();
+
         // main graph compute
         let mut graph = render_app.world.resource_mut::<RenderGraph>();
         let clear = ClearNode;
         let automata = AutomataNode;
         graph.add_node("clear", clear);
-        graph.add_node("automata", automata);        
+        graph.add_node("automata", automata);
         graph.add_node_edge("clear", "automata").unwrap();
         graph.add_node_edge("automata", CAMERA_DRIVER).unwrap();
 
         // insert the voxel graph into the main render graph
         graph.add_sub_graph("voxel", voxel_graph);
+    }
+}
+
+#[derive(Resource, Clone, ExtractResource)]
+pub struct RenderGraphSettings {
+    pub clear: bool,
+    pub automata: bool,
+    pub voxelization: bool,
+    pub rebuild: bool,
+    pub physics: bool,
+    pub trace: bool,
+}
+
+impl Default for RenderGraphSettings {
+    fn default() -> Self {
+        Self {
+            clear: true,
+            automata: true,
+            voxelization: true,
+            rebuild: true,
+            physics: true,
+            trace: true,
+        }
     }
 }

@@ -1,6 +1,5 @@
-use crate::VOXELS_PER_METER;
-
 use super::voxel_world::{VoxelData, VoxelUniforms};
+use crate::{RenderGraphSettings, VOXELS_PER_METER};
 use bevy::{
     core_pipeline::{clear_color::ClearColorConfig, core_3d::Transparent3d},
     ecs::system::{
@@ -268,7 +267,12 @@ fn queue_custom(
     render_meshes: Res<RenderAssets<Mesh>>,
     material_meshes: Query<(Entity, &MeshUniform, &Handle<Mesh>), With<VoxelizationMaterial>>,
     mut views: Query<(&ExtractedView, &mut RenderPhase<Transparent3d>)>,
+    render_graph_settings: Res<RenderGraphSettings>,
 ) {
+    if !render_graph_settings.voxelization {
+        return;
+    }
+
     let draw_custom = transparent_3d_draw_functions
         .read()
         .get_id::<DrawCustom>()

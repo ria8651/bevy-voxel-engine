@@ -1,6 +1,5 @@
 use crate::{
-    voxel_pipeline::{compute::ExtractedPhysicsData, trace::TraceUniforms},
-    BoxCollider, Velocity,
+    voxel_pipeline::compute::ExtractedPhysicsData, BoxCollider, RenderGraphSettings, Velocity,
 };
 use bevy::{prelude::*, render::renderer::RenderDevice, utils::HashMap};
 
@@ -58,9 +57,9 @@ pub fn insert_physics_data(
     mut set: ParamSet<(Query<(&mut Transform, &mut Velocity, Entity)>,)>,
     extracted_physics_data: Res<ExtractedPhysicsData>,
     render_device: Res<RenderDevice>,
-    uniforms: Res<TraceUniforms>,
+    render_graph_settings: Res<RenderGraphSettings>,
 ) {
-    if !uniforms.enable_compute {
+    if !render_graph_settings.physics {
         return;
     }
 

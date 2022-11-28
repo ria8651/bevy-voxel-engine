@@ -33,7 +33,6 @@ impl Plugin for TracePlugin {
             accumulation_frames: 1.0,
             fov: 1.0,
             freeze: false,
-            enable_compute: true,
             skybox: true,
             misc_bool: false,
             misc_float: 1.0,
@@ -257,7 +256,6 @@ pub struct TraceUniforms {
     pub accumulation_frames: f32,
     pub fov: f32,
     pub freeze: bool,
-    pub enable_compute: bool,
     pub skybox: bool,
     pub misc_bool: bool,
     pub misc_float: f32,
@@ -278,11 +276,10 @@ pub struct ExtractedUniforms {
     accumulation_frames: f32,
     fov: f32,
     freeze: u32,
-    pub enable_compute: u32,
     skybox: u32,
     misc_bool: u32,
     misc_float: f32,
-    padding: [u32; 0],
+    padding: [u32; 1],
 }
 
 impl ExtractResource for ExtractedUniforms {
@@ -302,11 +299,10 @@ impl ExtractResource for ExtractedUniforms {
             accumulation_frames: uniforms.accumulation_frames,
             fov: uniforms.fov,
             freeze: uniforms.freeze as u32,
-            enable_compute: uniforms.enable_compute as u32,
             skybox: uniforms.skybox as u32,
             misc_bool: uniforms.misc_bool as u32,
             misc_float: uniforms.misc_float,
-            padding: [0; 0],
+            padding: [0; 1],
         }
     }
 }

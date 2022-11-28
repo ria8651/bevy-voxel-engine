@@ -2,7 +2,7 @@ use super::character::CharacterEntity;
 use super::{Bullet, Particle, Settings, Velocity};
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext, EguiPlugin};
-use bevy_voxel_engine::{LoadVoxelWorld, TraceUniforms};
+use bevy_voxel_engine::{LoadVoxelWorld, RenderGraphSettings, TraceUniforms};
 use egui::Slider;
 use rand::Rng;
 
@@ -21,6 +21,7 @@ fn ui_system(
     mut settings: ResMut<Settings>,
     particle_query: Query<Entity, (With<Velocity>, Without<CharacterEntity>)>,
     mut load_voxel_world: ResMut<LoadVoxelWorld>,
+    mut render_graph_settings: ResMut<RenderGraphSettings>,
 ) {
     egui::Window::new("Settings")
         .anchor(egui::Align2::RIGHT_TOP, [-5.0, 5.0])
@@ -50,7 +51,6 @@ fn ui_system(
                 ui.checkbox(&mut uniforms.freeze, "Freeze");
             });
             ui.collapsing("Compute", |ui| {
-                ui.checkbox(&mut uniforms.enable_compute, "Enable compute");
                 if ui.button("spawn particles").clicked() {
                     let mut rng = rand::thread_rng();
                     for _ in 0..10000 {
@@ -78,6 +78,14 @@ fn ui_system(
                     }
                 }
                 ui.label(format!("Particle count: {}", particle_query.iter().count()));
+            });
+            ui.collapsing("Passes", |ui| {
+                ui.checkbox(&mut render_graph_settings.clear, "clear");
+                ui.checkbox(&mut render_graph_settings.automata, "automata");
+                ui.checkbox(&mut render_graph_settings.voxelization, "voxelization");
+                ui.checkbox(&mut render_graph_settings.rebuild, "rebuild");
+                ui.checkbox(&mut render_graph_settings.physics, "physics");
+                ui.checkbox(&mut render_graph_settings.trace, "trace");
             });
             ui.checkbox(&mut settings.spectator, "Spectator mode");
             ui.checkbox(&mut uniforms.misc_bool, "Misc bool");

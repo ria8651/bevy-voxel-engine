@@ -29,7 +29,7 @@ fn clear(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let material = get_texture_value(pos);
 
     // delete old animaiton data
-    if ((material.y & (ANIMATION_FLAG | PORTAL_FLAG)) > 0u && rand.x < trace_uniforms.misc_float) {
+    if ((material.y & (ANIMATION_FLAG | PORTAL_FLAG)) > 0u) {
         textureStore(voxel_world, pos.zyx, vec4(0u));
         return;
     }
