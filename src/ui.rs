@@ -40,10 +40,6 @@ fn ui_system(
                 ui.checkbox(&mut uniforms.shadows, "Shadows");
                 ui.checkbox(&mut uniforms.skybox, "Skybox");
                 ui.add(
-                    Slider::new(&mut uniforms.accumulation_frames, 1.0..=100.0)
-                        .text("Accumulation frames"),
-                );
-                ui.add(
                     Slider::new(&mut uniforms.fov, 0.1..=10.0)
                         .text("Fov")
                         .logarithmic(true),

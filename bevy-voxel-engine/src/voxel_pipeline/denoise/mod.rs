@@ -19,8 +19,12 @@ impl Plugin for DenoisePlugin {
 #[derive(Resource)]
 struct DenoisePipeline {
     bind_group_layout: BindGroupLayout,
+    pass_data_bind_group_layout: BindGroupLayout,
     pipeline_id: CachedRenderPipelineId,
     uniform_buffer: Buffer,
+    pass_1_data: Buffer,
+    pass_2_data: Buffer,
+    pass_3_data: Buffer,
 }
 
 #[derive(Component)]
@@ -48,21 +52,11 @@ impl FromWorld for DenoisePipeline {
                     BindGroupLayoutEntry {
                         binding: 1,
                         visibility: ShaderStages::FRAGMENT,
-                        ty: BindingType::Texture {
-                            sample_type: TextureSampleType::Float { filterable: false },
-                            view_dimension: TextureViewDimension::D2,
-                            multisampled: false,
-                        },
-                        count: None,
-                    },
-                    BindGroupLayoutEntry {
-                        binding: 2,
-                        visibility: ShaderStages::FRAGMENT,
                         ty: BindingType::Sampler(SamplerBindingType::NonFiltering),
                         count: None,
                     },
                     BindGroupLayoutEntry {
-                        binding: 3,
+                        binding: 2,
                         visibility: ShaderStages::FRAGMENT,
                         ty: BindingType::StorageTexture {
                             access: StorageTextureAccess::ReadWrite,
@@ -72,12 +66,41 @@ impl FromWorld for DenoisePipeline {
                         count: None,
                     },
                     BindGroupLayoutEntry {
-                        binding: 4,
+                        binding: 3,
                         visibility: ShaderStages::FRAGMENT,
                         ty: BindingType::StorageTexture {
                             access: StorageTextureAccess::ReadWrite,
                             format: TextureFormat::Rgba16Float,
                             view_dimension: TextureViewDimension::D2,
+                        },
+                        count: None,
+                    },
+                ],
+            });
+        let pass_data_bind_group_layout = render_world
+            .resource::<RenderDevice>()
+            .create_bind_group_layout(&BindGroupLayoutDescriptor {
+                label: Some("denoise bind group layout"),
+                entries: &[
+                    BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Buffer {
+                            ty: BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: BufferSize::new(
+                                std::mem::size_of::<PassData>() as u64
+                            ),
+                        },
+                        count: None,
+                    },
+                    BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Texture {
+                            sample_type: TextureSampleType::Float { filterable: false },
+                            view_dimension: TextureViewDimension::D2,
+                            multisampled: false,
                         },
                         count: None,
                     },
@@ -89,7 +112,10 @@ impl FromWorld for DenoisePipeline {
 
         let pipeline_descriptor = RenderPipelineDescriptor {
             label: Some("denoise pipeline".into()),
-            layout: Some(vec![bind_group_layout.clone()]),
+            layout: Some(vec![
+                bind_group_layout.clone(),
+                pass_data_bind_group_layout.clone(),
+            ]),
             vertex: fullscreen_shader_vertex_state(),
             fragment: Some(FragmentState {
                 shader: shader,
@@ -117,10 +143,56 @@ impl FromWorld for DenoisePipeline {
                 usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
             });
 
+        let pass_1_data = PassData::new(1.0);
+        let pass_2_data = PassData::new(2.0);
+        let pass_3_data = PassData::new(4.0);
+
+        let pass_1_data = render_world
+            .resource::<RenderDevice>()
+            .create_buffer_with_data(&BufferInitDescriptor {
+                label: Some("denoise pass data uniform buffer"),
+                contents: bytemuck::bytes_of(&pass_1_data),
+                usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+            });
+        let pass_2_data = render_world
+            .resource::<RenderDevice>()
+            .create_buffer_with_data(&BufferInitDescriptor {
+                label: Some("denoise pass data uniform buffer"),
+                contents: bytemuck::bytes_of(&pass_2_data),
+                usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+            });
+        let pass_3_data = render_world
+            .resource::<RenderDevice>()
+            .create_buffer_with_data(&BufferInitDescriptor {
+                label: Some("denoise pass data uniform buffer"),
+                contents: bytemuck::bytes_of(&pass_3_data),
+                usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+            });
+
         DenoisePipeline {
             bind_group_layout,
+            pass_data_bind_group_layout,
             pipeline_id,
             uniform_buffer,
+            pass_1_data,
+            pass_2_data,
+            pass_3_data,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+struct PassData {
+    denoise_strength: f32,
+    _padding: [u32; 3],
+}
+
+impl PassData {
+    fn new(denoise_strength: f32) -> Self {
+        Self {
+            denoise_strength,
+            _padding: [0; 3],
         }
     }
 }

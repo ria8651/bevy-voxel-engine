@@ -1,4 +1,5 @@
 use super::{super::RenderGraphSettings, DenoisePipeline};
+use crate::voxel_pipeline::trace::ExtractedUniforms;
 use bevy::{
     prelude::*,
     render::{
@@ -45,9 +46,10 @@ impl render_graph::Node for DenoiseNode {
         let position = graph.get_input_texture("position")?;
         let pipeline_cache = world.resource::<PipelineCache>();
         let denoise_pipeline = world.resource::<DenoisePipeline>();
+        let trace_uniforms = world.resource::<ExtractedUniforms>();
         let render_graph_settings = world.get_resource::<RenderGraphSettings>().unwrap();
 
-        if !render_graph_settings.denoise {
+        if !render_graph_settings.denoise || trace_uniforms.indirect_lighting == 0 {
             return Ok(());
         }
 
@@ -81,24 +83,71 @@ impl render_graph::Node for DenoiseNode {
                     },
                     BindGroupEntry {
                         binding: 1,
-                        resource: BindingResource::TextureView(source),
-                    },
-                    BindGroupEntry {
-                        binding: 2,
                         resource: BindingResource::Sampler(&sampler),
                     },
                     BindGroupEntry {
-                        binding: 3,
+                        binding: 2,
                         resource: BindingResource::TextureView(&normal),
                     },
                     BindGroupEntry {
-                        binding: 4,
+                        binding: 3,
                         resource: BindingResource::TextureView(&position),
                     },
                 ],
             });
+        let pass_1_bind_group =
+            render_context
+                .render_device
+                .create_bind_group(&BindGroupDescriptor {
+                    label: None,
+                    layout: &denoise_pipeline.pass_data_bind_group_layout,
+                    entries: &[
+                        BindGroupEntry {
+                            binding: 0,
+                            resource: denoise_pipeline.pass_1_data.as_entire_binding(),
+                        },
+                        BindGroupEntry {
+                            binding: 1,
+                            resource: BindingResource::TextureView(source),
+                        },
+                    ],
+                });
+        let pass_2_bind_group =
+            render_context
+                .render_device
+                .create_bind_group(&BindGroupDescriptor {
+                    label: None,
+                    layout: &denoise_pipeline.pass_data_bind_group_layout,
+                    entries: &[
+                        BindGroupEntry {
+                            binding: 0,
+                            resource: denoise_pipeline.pass_2_data.as_entire_binding(),
+                        },
+                        BindGroupEntry {
+                            binding: 1,
+                            resource: BindingResource::TextureView(destination),
+                        },
+                    ],
+                });
+        let pass_3_bind_group =
+            render_context
+                .render_device
+                .create_bind_group(&BindGroupDescriptor {
+                    label: None,
+                    layout: &denoise_pipeline.pass_data_bind_group_layout,
+                    entries: &[
+                        BindGroupEntry {
+                            binding: 0,
+                            resource: denoise_pipeline.pass_3_data.as_entire_binding(),
+                        },
+                        BindGroupEntry {
+                            binding: 1,
+                            resource: BindingResource::TextureView(source),
+                        },
+                    ],
+                });
 
-        let pass_descriptor = RenderPassDescriptor {
+        let destination_descriptor = RenderPassDescriptor {
             label: Some("denoise pass"),
             color_attachments: &[Some(RenderPassColorAttachment {
                 view: destination,
@@ -110,14 +159,49 @@ impl render_graph::Node for DenoiseNode {
             })],
             depth_stencil_attachment: None,
         };
+        let source_descriptor = RenderPassDescriptor {
+            label: Some("denoise pass"),
+            color_attachments: &[Some(RenderPassColorAttachment {
+                view: source,
+                resolve_target: None,
+                ops: Operations {
+                    load: LoadOp::Load,
+                    store: true,
+                },
+            })],
+            depth_stencil_attachment: None,
+        };
 
-        let mut render_pass = render_context
-            .command_encoder
-            .begin_render_pass(&pass_descriptor);
+        {
+            let mut render_pass = render_context
+                .command_encoder
+                .begin_render_pass(&destination_descriptor);
 
-        render_pass.set_pipeline(pipeline);
-        render_pass.set_bind_group(0, &bind_group, &[]);
-        render_pass.draw(0..3, 0..1);
+            render_pass.set_pipeline(pipeline);
+            render_pass.set_bind_group(0, &bind_group, &[]);
+            render_pass.set_bind_group(1, &pass_1_bind_group, &[]);
+            render_pass.draw(0..3, 0..1);
+        }
+        {
+            let mut render_pass = render_context
+                .command_encoder
+                .begin_render_pass(&source_descriptor);
+
+            render_pass.set_pipeline(pipeline);
+            render_pass.set_bind_group(0, &bind_group, &[]);
+            render_pass.set_bind_group(1, &pass_2_bind_group, &[]);
+            render_pass.draw(0..3, 0..1);
+        }
+        {
+            let mut render_pass = render_context
+                .command_encoder
+                .begin_render_pass(&destination_descriptor);
+
+            render_pass.set_pipeline(pipeline);
+            render_pass.set_bind_group(0, &bind_group, &[]);
+            render_pass.set_bind_group(1, &pass_3_bind_group, &[]);
+            render_pass.draw(0..3, 0..1);
+        }
 
         Ok(())
     }

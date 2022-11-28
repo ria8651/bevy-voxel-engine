@@ -30,8 +30,12 @@ fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed
         // shadow
         var shadow = 1.0;
         if (trace_uniforms.shadows != 0u) {
-            // let rand = hash(seed) * 2.0 - 1.0;
-            let rand = vec3(0.0);
+            var rand = vec3(0.0);
+            if (trace_uniforms.indirect_lighting != 0u) {
+                rand = hash(seed) * 2.0 - 1.0;
+            } else {
+                rand = vec3(0.0);
+            }
             let shadow_ray = Ray(pos, -light_dir + rand * 0.1);
             let shadow_hit = shoot_ray(shadow_ray, 0.0, 0u);
             shadow = f32(!shadow_hit.hit);
@@ -39,7 +43,7 @@ fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed
 
         lighting = diffuse * shadow * light_colour;
     } else {
-        lighting = vec3(1.0);
+        lighting = vec3(material.rgb);
     }
     return lighting;
 }

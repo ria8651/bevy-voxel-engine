@@ -299,7 +299,7 @@ pub struct ExtractedUniforms {
     time: f32,
     delta_time: f32,
     show_ray_steps: u32,
-    indirect_lighting: u32,
+    pub indirect_lighting: u32,
     shadows: u32,
     accumulation_frames: f32,
     fov: f32,

@@ -126,7 +126,7 @@ impl Default for RenderGraphSettings {
     fn default() -> Self {
         Self {
             clear: true,
-            automata: true,
+            automata: false,
             voxelization: true,
             rebuild: true,
             physics: true,
