@@ -31,7 +31,7 @@ struct TraceUniforms {
     show_ray_steps: u32,
     indirect_lighting: u32,
     shadows: u32,
-    accumulation_frames: f32,
+    samples: u32,
     fov: f32,
     freeze: u32,
     skybox: u32,

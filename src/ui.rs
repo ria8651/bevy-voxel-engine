@@ -37,6 +37,11 @@ fn ui_system(
             ui.collapsing("Rendering", |ui| {
                 ui.checkbox(&mut uniforms.show_ray_steps, "Show ray steps");
                 ui.checkbox(&mut uniforms.indirect_lighting, "Indirect lighting");
+                ui.add(
+                    Slider::new(&mut uniforms.samples, 1..=8)
+                        .text("Samples")
+                        .logarithmic(true),
+                );
                 ui.checkbox(&mut uniforms.shadows, "Shadows");
                 ui.checkbox(&mut uniforms.skybox, "Skybox");
                 ui.add(

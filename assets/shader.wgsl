@@ -21,7 +21,7 @@ var position_attachment: texture_storage_2d<rgba16float, read_write>;
 let light_dir = vec3<f32>(0.8, -1.0, 0.8);
 let light_colour = vec3<f32>(1.0, 1.0, 1.0);
 
-fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed: vec3<u32>) -> vec3<f32> {
+fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed: vec3<u32>, shadow_samples: u32) -> vec3<f32> {
     var lighting = vec3(0.0);
     if (material.a == 0.0) {
         // diffuse
@@ -30,15 +30,18 @@ fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed
         // shadow
         var shadow = 1.0;
         if (trace_uniforms.shadows != 0u) {
-            var rand = vec3(0.0);
             if (trace_uniforms.indirect_lighting != 0u) {
-                rand = hash(seed) * 2.0 - 1.0;
+                for (var i = 0u; i < shadow_samples; i += 1u) {
+                    let rand = hash(seed + i) * 2.0 - 1.0;
+                    let shadow_ray = Ray(pos, -light_dir + rand * 0.1);
+                    let shadow_hit = shoot_ray(shadow_ray, 0.0, 0u);
+                    shadow -= f32(shadow_hit.hit) / f32(shadow_samples);
+                }
             } else {
-                rand = vec3(0.0);
+                let shadow_ray = Ray(pos, -light_dir);
+                let shadow_hit = shoot_ray(shadow_ray, 0.0, 0u);
+                shadow = f32(!shadow_hit.hit);
             }
-            let shadow_ray = Ray(pos, -light_dir + rand * 0.1);
-            let shadow_hit = shoot_ray(shadow_ray, 0.0, 0u);
-            shadow = f32(!shadow_hit.hit);
         }
 
         lighting = diffuse * shadow * light_colour;
@@ -80,7 +83,7 @@ fn glmod(x: vec2<f32>, y: vec2<f32>) -> vec2<f32> {
 @fragment
 fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     // pixel jitter
-    let seed = vec3<u32>(in.position.xyz + trace_uniforms.time * 240.0);
+    let seed = vec3<u32>(in.position.xyz) * 100u + u32(trace_uniforms.time * 120.0);
     let jitter = vec4(hash(seed).xy - 0.5, 0.0, 0.0) / 1.1;
     var clip_space = get_clip_space(in.position, trace_uniforms.resolution);
     let aspect = trace_uniforms.resolution.x / trace_uniforms.resolution.y;
@@ -99,19 +102,23 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     var samples = 0.0;
     if (hit.hit) {
         // direct lighting
-        let direct_lighting = calculate_direct(hit.material, hit.pos, hit.normal, seed + 15u);
+        let direct_lighting = calculate_direct(hit.material, hit.pos, hit.normal, seed + 1u, trace_uniforms.samples);
 
         // indirect lighting
         var indirect_lighting = vec3(0.0);
         if (trace_uniforms.indirect_lighting != 0u) {
             // raytraced indirect lighting
-            let indirect_dir = cosine_hemisphere(hit.normal, seed + 10u);
-            let indirect_hit = shoot_ray(Ray(hit.pos, indirect_dir), 0.0, 0u);
-            if (indirect_hit.hit) {
-                indirect_lighting = calculate_direct(indirect_hit.material, indirect_hit.pos, indirect_hit.normal, seed + 20u);
-            } else {
-                indirect_lighting = vec3(0.2);
-                // indirect_lighting = skybox(indirect_dir, 10.0);
+            for (var i = 0u; i < trace_uniforms.samples; i += 1u) {
+                let indirect_dir = cosine_hemisphere(hit.normal, seed + i);
+                let indirect_hit = shoot_ray(Ray(hit.pos, indirect_dir), 0.0, 0u);
+                var lighting = vec3(0.0);
+                if (indirect_hit.hit) {
+                    lighting = calculate_direct(indirect_hit.material, indirect_hit.pos, indirect_hit.normal, seed + 3u, 1u);
+                } else {
+                    lighting = vec3(0.2);
+                    // lighting = skybox(indirect_dir, 10.0);
+                }
+                indirect_lighting += lighting / f32(trace_uniforms.samples);
             }
         } else {
             // aproximate indirect with ambient and voxel ao
