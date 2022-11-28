@@ -1,5 +1,5 @@
 use super::voxel_world::{VoxelData, VoxelUniforms};
-use crate::{load::Pallete, LoadVoxelWorld, VoxelCamera, physics};
+use crate::{load::Pallete, physics, LoadVoxelWorld, VoxelCamera};
 use bevy::{
     core_pipeline::fullscreen_vertex_shader::fullscreen_shader_vertex_state,
     prelude::*,
@@ -11,8 +11,9 @@ use bevy::{
         RenderApp, RenderStage,
     },
 };
+pub use node::TraceNode;
 
-pub mod node;
+mod node;
 
 pub struct TracePlugin;
 
@@ -20,24 +21,7 @@ impl Plugin for TracePlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         let render_device = app.world.resource::<RenderDevice>();
 
-        let uniforms_struct = TraceUniforms {
-            resolution: Vec4::default(),
-            last_camera: Mat4::default(),
-            camera: Mat4::default(),
-            camera_inverse: Mat4::default(),
-            time: 0.0,
-            delta_time: 1.0 / 120.0,
-            show_ray_steps: false,
-            indirect_lighting: false,
-            shadows: true,
-            accumulation_frames: 1.0,
-            fov: 1.0,
-            freeze: false,
-            skybox: true,
-            misc_bool: false,
-            misc_float: 1.0,
-        };
-
+        let uniforms_struct = TraceUniforms::default();
         let uniform_buffer = render_device.create_buffer(&BufferDescriptor {
             label: None,
             size: std::mem::size_of::<ExtractedUniforms>() as u64,
@@ -119,18 +103,40 @@ impl FromWorld for TracePipeline {
             .resource::<RenderDevice>()
             .create_bind_group_layout(&BindGroupLayoutDescriptor {
                 label: Some("trace bind group layout"),
-                entries: &[BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::FRAGMENT,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: BufferSize::new(
-                            std::mem::size_of::<ExtractedUniforms>() as u64
-                        ),
+                entries: &[
+                    BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Buffer {
+                            ty: BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: BufferSize::new(
+                                std::mem::size_of::<ExtractedUniforms>() as u64,
+                            ),
+                        },
+                        count: None,
                     },
-                    count: None,
-                }],
+                    BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::StorageTexture {
+                            access: StorageTextureAccess::ReadWrite,
+                            format: TextureFormat::Rgba8Unorm,
+                            view_dimension: TextureViewDimension::D2,
+                        },
+                        count: None,
+                    },
+                    BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::StorageTexture {
+                            access: StorageTextureAccess::ReadWrite,
+                            format: TextureFormat::Rgba16Float,
+                            view_dimension: TextureViewDimension::D2,
+                        },
+                        count: None,
+                    },
+                ],
             });
 
         let asset_server = render_world.get_resource::<AssetServer>().unwrap();
@@ -259,6 +265,28 @@ pub struct TraceUniforms {
     pub skybox: bool,
     pub misc_bool: bool,
     pub misc_float: f32,
+}
+
+impl Default for TraceUniforms {
+    fn default() -> Self {
+        Self {
+            resolution: Vec4::default(),
+            last_camera: Mat4::default(),
+            camera: Mat4::default(),
+            camera_inverse: Mat4::default(),
+            time: 0.0,
+            delta_time: 1.0 / 120.0,
+            show_ray_steps: false,
+            indirect_lighting: true,
+            shadows: true,
+            accumulation_frames: 1.0,
+            fov: 1.0,
+            freeze: false,
+            skybox: true,
+            misc_bool: false,
+            misc_float: 1.0,
+        }
+    }
 }
 
 #[repr(C)]

@@ -1,10 +1,13 @@
 use super::{TraceData, TracePipeline, ViewTracePipeline};
-use crate::voxel_pipeline::{voxel_world::VoxelData, RenderGraphSettings};
+use crate::voxel_pipeline::{
+    attachments::RenderAttachments, voxel_world::VoxelData, RenderGraphSettings,
+};
 use bevy::{
     core_pipeline::clear_color::ClearColorConfig,
     prelude::*,
     render::{
-        render_graph::{self, SlotInfo, SlotType},
+        render_asset::RenderAssets,
+        render_graph::{self, SlotInfo, SlotType, SlotValue},
         render_resource::*,
         view::{ExtractedView, ViewTarget},
     },
@@ -16,6 +19,7 @@ pub struct TraceNode {
             &'static ViewTarget,
             &'static ViewTracePipeline,
             &'static Camera3d,
+            &'static RenderAttachments,
         ),
         With<ExtractedView>,
     >,
@@ -34,6 +38,13 @@ impl render_graph::Node for TraceNode {
         vec![SlotInfo::new("view", SlotType::Entity)]
     }
 
+    fn output(&self) -> Vec<SlotInfo> {
+        vec![
+            SlotInfo::new("normal", SlotType::TextureView),
+            SlotInfo::new("position", SlotType::TextureView),
+        ]
+    }
+
     fn update(&mut self, world: &mut World) {
         self.query.update_archetypes(world);
     }
@@ -49,32 +60,56 @@ impl render_graph::Node for TraceNode {
         let voxel_data = world.get_resource::<VoxelData>().unwrap();
         let trace_pipeline = world.get_resource::<TracePipeline>().unwrap();
         let trace_data = world.get_resource::<TraceData>().unwrap();
+        let gpu_images = world.get_resource::<RenderAssets<Image>>().unwrap();
         let render_graph_settings = world.get_resource::<RenderGraphSettings>().unwrap();
 
         if !render_graph_settings.trace {
             return Ok(());
         }
 
-        let (target, pipeline, camera_3d) = match self.query.get_manual(world, view_entity) {
-            Ok(result) => result,
-            Err(_) => return Ok(()),
-        };
+        let (target, pipeline, camera_3d, render_attachments) =
+            match self.query.get_manual(world, view_entity) {
+                Ok(result) => result,
+                Err(_) => return Ok(()),
+            };
 
         let pipeline = match pipeline_cache.get_render_pipeline(pipeline.0) {
             Some(pipeline) => pipeline,
             None => return Ok(()),
         };
 
+        let normal = gpu_images.get(&render_attachments.normal).unwrap();
+        let position = gpu_images.get(&render_attachments.position).unwrap();
+
         let bind_group = render_context
             .render_device
             .create_bind_group(&BindGroupDescriptor {
                 label: None,
                 layout: &trace_pipeline.trace_bind_group_layout,
-                entries: &[BindGroupEntry {
-                    binding: 0,
-                    resource: trace_data.uniform_buffer.as_entire_binding(),
-                }],
+                entries: &[
+                    BindGroupEntry {
+                        binding: 0,
+                        resource: trace_data.uniform_buffer.as_entire_binding(),
+                    },
+                    BindGroupEntry {
+                        binding: 1,
+                        resource: BindingResource::TextureView(&normal.texture_view),
+                    },
+                    BindGroupEntry {
+                        binding: 2,
+                        resource: BindingResource::TextureView(&position.texture_view),
+                    },
+                ],
             });
+
+        let normal = normal.texture_view.clone();
+        let position = position.texture_view.clone();
+        graph
+            .set_output("normal", SlotValue::TextureView(normal))
+            .unwrap();
+        graph
+            .set_output("position", SlotValue::TextureView(position))
+            .unwrap();
 
         let pass_descriptor = RenderPassDescriptor {
             label: Some("trace pass"),

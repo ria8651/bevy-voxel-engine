@@ -10,6 +10,10 @@ var<storage, read_write> gh: array<u32>;
 
 @group(1) @binding(0)
 var<uniform> trace_uniforms: TraceUniforms;
+@group(1) @binding(1)
+var normal_attachment: texture_storage_2d<rgba8unorm, read_write>;
+@group(1) @binding(2)
+var position_attachment: texture_storage_2d<rgba16float, read_write>;
 
 // note: raytracing.wgsl requires common.wgsl and for you to define u, voxel_world and gh before you import it
 #import "raytracing.wgsl"
@@ -166,5 +170,7 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
 
     // output_colour = vec3(u.time);
 
+    textureStore(normal_attachment, vec2<i32>(in.uv * trace_uniforms.resolution), vec4(hit.normal * 0.5 + 0.5, 0.0));
+    textureStore(position_attachment, vec2<i32>(in.uv * trace_uniforms.resolution), vec4(hit.pos, 0.0));
     return vec4<f32>(max(output_colour, vec3(0.0)), 1.0);
 }

@@ -1,9 +1,11 @@
 use self::{
+    attachments::AttachmentsPlugin,
     compute::{
         automata::AutomataNode, clear::ClearNode, physics::PhysicsNode, rebuild::RebuildNode,
         ComputeResourcesPlugin,
     },
-    trace::{node::TraceNode, TracePlugin},
+    denoise::{DenoiseNode, DenoisePlugin},
+    trace::{TraceNode, TracePlugin},
     voxel_world::VoxelWorldPlugin,
     voxelization::VoxelizationPlugin,
 };
@@ -19,7 +21,9 @@ use bevy::{
     ui::UiPassNode,
 };
 
+pub mod attachments;
 pub mod compute;
+pub mod denoise;
 pub mod trace;
 pub mod voxel_world;
 pub mod voxelization;
@@ -30,10 +34,12 @@ impl Plugin for RenderPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(RenderGraphSettings::default())
             .add_plugin(ExtractResourcePlugin::<RenderGraphSettings>::default())
+            .add_plugin(AttachmentsPlugin)
             .add_plugin(VoxelWorldPlugin)
             .add_plugin(TracePlugin)
             .add_plugin(VoxelizationPlugin)
-            .add_plugin(ComputeResourcesPlugin);
+            .add_plugin(ComputeResourcesPlugin)
+            .add_plugin(DenoisePlugin);
 
         let render_app = match app.get_sub_app_mut(RenderApp) {
             Ok(render_app) => render_app,
@@ -47,16 +53,21 @@ impl Plugin for RenderPlugin {
 
         // voxel render graph
         let trace = TraceNode::new(&mut render_app.world);
+        let denoise = DenoiseNode::new(&mut render_app.world);
         let tonemapping = TonemappingNode::new(&mut render_app.world);
         let ui = UiPassNode::new(&mut render_app.world);
         let upscaling = UpscalingNode::new(&mut render_app.world);
 
         voxel_graph.add_node("trace", trace);
+        voxel_graph.add_node("denoise", denoise);
         voxel_graph.add_node("tonemapping", tonemapping);
         voxel_graph.add_node("ui", ui);
         voxel_graph.add_node("upscaling", upscaling);
         voxel_graph
             .add_slot_edge(input_node_id, "view_entity", "trace", "view")
+            .unwrap();
+        voxel_graph
+            .add_slot_edge(input_node_id, "view_entity", "denoise", "view")
             .unwrap();
         voxel_graph
             .add_slot_edge(input_node_id, "view_entity", "tonemapping", "view")
@@ -67,9 +78,16 @@ impl Plugin for RenderPlugin {
         voxel_graph
             .add_slot_edge(input_node_id, "view_entity", "upscaling", "view")
             .unwrap();
-        voxel_graph.add_node_edge("trace", "tonemapping").unwrap();
+        voxel_graph.add_node_edge("trace", "denoise").unwrap();
+        voxel_graph.add_node_edge("denoise", "tonemapping").unwrap();
         voxel_graph.add_node_edge("tonemapping", "ui").unwrap();
         voxel_graph.add_node_edge("ui", "upscaling").unwrap();
+        voxel_graph
+            .add_slot_edge("trace", "normal", "denoise", "normal")
+            .unwrap();
+        voxel_graph
+            .add_slot_edge("trace", "position", "denoise", "position")
+            .unwrap();
 
         // voxel render graph compute
         let rebuild = RebuildNode;
@@ -101,6 +119,7 @@ pub struct RenderGraphSettings {
     pub rebuild: bool,
     pub physics: bool,
     pub trace: bool,
+    pub denoise: bool,
 }
 
 impl Default for RenderGraphSettings {
@@ -112,6 +131,7 @@ impl Default for RenderGraphSettings {
             rebuild: true,
             physics: true,
             trace: true,
+            denoise: true,
         }
     }
 }

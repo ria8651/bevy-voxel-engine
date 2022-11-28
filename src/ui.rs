@@ -86,6 +86,7 @@ fn ui_system(
                 ui.checkbox(&mut render_graph_settings.rebuild, "rebuild");
                 ui.checkbox(&mut render_graph_settings.physics, "physics");
                 ui.checkbox(&mut render_graph_settings.trace, "trace");
+                ui.checkbox(&mut render_graph_settings.denoise, "denoise");
             });
             ui.checkbox(&mut settings.spectator, "Spectator mode");
             ui.checkbox(&mut uniforms.misc_bool, "Misc bool");
