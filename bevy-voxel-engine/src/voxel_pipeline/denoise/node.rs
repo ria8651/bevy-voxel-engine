@@ -1,4 +1,4 @@
-use super::{super::RenderGraphSettings, DenoisePipeline};
+use super::{super::RenderGraphSettings, DenoisePipeline, PassData};
 use crate::voxel_pipeline::trace::ExtractedUniforms;
 use bevy::{
     prelude::*,
@@ -104,7 +104,7 @@ impl render_graph::Node for DenoiseNode {
                     entries: &[
                         BindGroupEntry {
                             binding: 0,
-                            resource: denoise_pipeline.pass_1_data.as_entire_binding(),
+                            resource: denoise_pipeline.pass_data.binding().unwrap(),
                         },
                         BindGroupEntry {
                             binding: 1,
@@ -121,7 +121,7 @@ impl render_graph::Node for DenoiseNode {
                     entries: &[
                         BindGroupEntry {
                             binding: 0,
-                            resource: denoise_pipeline.pass_2_data.as_entire_binding(),
+                            resource: denoise_pipeline.pass_data.binding().unwrap(),
                         },
                         BindGroupEntry {
                             binding: 1,
@@ -138,7 +138,7 @@ impl render_graph::Node for DenoiseNode {
                     entries: &[
                         BindGroupEntry {
                             binding: 0,
-                            resource: denoise_pipeline.pass_3_data.as_entire_binding(),
+                            resource: denoise_pipeline.pass_data.binding().unwrap(),
                         },
                         BindGroupEntry {
                             binding: 1,
@@ -172,6 +172,8 @@ impl render_graph::Node for DenoiseNode {
             depth_stencil_attachment: None,
         };
 
+        let offset_size = std::mem::size_of::<PassData>() as u32;
+
         {
             let mut render_pass = render_context
                 .command_encoder
@@ -179,7 +181,7 @@ impl render_graph::Node for DenoiseNode {
 
             render_pass.set_pipeline(pipeline);
             render_pass.set_bind_group(0, &bind_group, &[]);
-            render_pass.set_bind_group(1, &pass_1_bind_group, &[]);
+            render_pass.set_bind_group(1, &pass_1_bind_group, &[0]);
             render_pass.draw(0..3, 0..1);
         }
         {
@@ -189,7 +191,7 @@ impl render_graph::Node for DenoiseNode {
 
             render_pass.set_pipeline(pipeline);
             render_pass.set_bind_group(0, &bind_group, &[]);
-            render_pass.set_bind_group(1, &pass_2_bind_group, &[]);
+            render_pass.set_bind_group(1, &pass_2_bind_group, &[offset_size]);
             render_pass.draw(0..3, 0..1);
         }
         {
@@ -199,7 +201,7 @@ impl render_graph::Node for DenoiseNode {
 
             render_pass.set_pipeline(pipeline);
             render_pass.set_bind_group(0, &bind_group, &[]);
-            render_pass.set_bind_group(1, &pass_3_bind_group, &[]);
+            render_pass.set_bind_group(1, &pass_3_bind_group, &[2 * offset_size]);
             render_pass.draw(0..3, 0..1);
         }
 

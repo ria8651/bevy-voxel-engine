@@ -83,7 +83,7 @@ fn glmod(x: vec2<f32>, y: vec2<f32>) -> vec2<f32> {
 @fragment
 fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     // pixel jitter
-    let seed = vec3<u32>(in.position.xyz) * 100u + u32(trace_uniforms.time * 120.0);
+    let seed = vec3<u32>(in.position.xyy) * 100u + u32(trace_uniforms.time * 120.0) * 15236u;
     let jitter = vec4(hash(seed).xy - 0.5, 0.0, 0.0) / 1.1;
     var clip_space = get_clip_space(in.position, trace_uniforms.resolution);
     let aspect = trace_uniforms.resolution.x / trace_uniforms.resolution.y;

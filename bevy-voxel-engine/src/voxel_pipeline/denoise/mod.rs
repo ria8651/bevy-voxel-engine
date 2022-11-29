@@ -1,7 +1,12 @@
 use bevy::{
     core_pipeline::fullscreen_vertex_shader::fullscreen_shader_vertex_state,
     prelude::*,
-    render::{render_resource::*, renderer::RenderDevice, view::ViewTarget, RenderApp},
+    render::{
+        render_resource::{*},
+        renderer::{RenderDevice, RenderQueue},
+        view::ViewTarget,
+        RenderApp,
+    },
 };
 pub use node::DenoiseNode;
 
@@ -22,9 +27,7 @@ struct DenoisePipeline {
     pass_data_bind_group_layout: BindGroupLayout,
     pipeline_id: CachedRenderPipelineId,
     uniform_buffer: Buffer,
-    pass_1_data: Buffer,
-    pass_2_data: Buffer,
-    pass_3_data: Buffer,
+    pass_data: DynamicUniformBuffer<PassData>,
 }
 
 #[derive(Component)]
@@ -87,7 +90,7 @@ impl FromWorld for DenoisePipeline {
                         visibility: ShaderStages::FRAGMENT,
                         ty: BindingType::Buffer {
                             ty: BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
+                            has_dynamic_offset: true,
                             min_binding_size: BufferSize::new(
                                 std::mem::size_of::<PassData>() as u64
                             ),
@@ -143,56 +146,42 @@ impl FromWorld for DenoisePipeline {
                 usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
             });
 
-        let pass_1_data = PassData::new(1.0);
-        let pass_2_data = PassData::new(2.0);
-        let pass_3_data = PassData::new(4.0);
-
-        let pass_1_data = render_world
-            .resource::<RenderDevice>()
-            .create_buffer_with_data(&BufferInitDescriptor {
-                label: Some("denoise pass data uniform buffer"),
-                contents: bytemuck::bytes_of(&pass_1_data),
-                usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-            });
-        let pass_2_data = render_world
-            .resource::<RenderDevice>()
-            .create_buffer_with_data(&BufferInitDescriptor {
-                label: Some("denoise pass data uniform buffer"),
-                contents: bytemuck::bytes_of(&pass_2_data),
-                usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-            });
-        let pass_3_data = render_world
-            .resource::<RenderDevice>()
-            .create_buffer_with_data(&BufferInitDescriptor {
-                label: Some("denoise pass data uniform buffer"),
-                contents: bytemuck::bytes_of(&pass_3_data),
-                usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-            });
+        let mut pass_data = DynamicUniformBuffer::default();
+        pass_data.push(PassData::new(1.0));
+        pass_data.push(PassData::new(2.0));
+        pass_data.push(PassData::new(4.0));
+        pass_data.write_buffer(
+            render_world.resource::<RenderDevice>(),
+            render_world.resource::<RenderQueue>(),
+        );
 
         DenoisePipeline {
             bind_group_layout,
             pass_data_bind_group_layout,
             pipeline_id,
             uniform_buffer,
-            pass_1_data,
-            pass_2_data,
-            pass_3_data,
+            pass_data,
         }
     }
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Clone, Copy, ShaderType)]
 struct PassData {
     denoise_strength: f32,
-    _padding: [u32; 3],
+    padding1: u32,
+    padding2: u32,
+    padding3: u32,
+    padding4: [UVec4; 15],
 }
-
 impl PassData {
     fn new(denoise_strength: f32) -> Self {
         Self {
             denoise_strength,
-            _padding: [0; 3],
+            padding1: 0,
+            padding2: 0,
+            padding3: 0,
+            padding4: [UVec4::ZERO; 15],
         }
     }
 }
