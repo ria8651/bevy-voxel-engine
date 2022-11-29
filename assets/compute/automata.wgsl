@@ -7,8 +7,13 @@ var voxel_world: texture_storage_3d<r16uint, read_write>;
 @group(0) @binding(2)
 var<storage, read_write> gh: array<atomic<u32>>;
 
+struct ComputeUniforms {
+    time: f32,
+    delta_time: f32,
+}
+
 @group(1) @binding(0)
-var<uniform> trace_uniforms: TraceUniforms;
+var<uniform> compute_uniforms: ComputeUniforms;
 @group(1) @binding(1)
 var<storage, read_write> physics_data: array<u32>;
 
@@ -35,20 +40,20 @@ fn write_pos(pos: vec3<i32>, material: u32, flags: u32) {
 fn automata(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let pos = vec3(i32(invocation_id.x), i32(invocation_id.y), i32(invocation_id.z));
     let pos_seed = vec3<u32>(vec3<f32>(pos));
-    let pos_time_seed = vec3<u32>(vec3<f32>(pos) + trace_uniforms.time * 240.0);
+    let pos_time_seed = vec3<u32>(vec3<f32>(pos) + compute_uniforms.time * 240.0);
 
     let material = get_texture_value(pos);
 
     // grass
     let pos_rand = hash(pos_seed + 100u);
-    if (material.x == 44u && (material.y & ANIMATION_FLAG) == 0u && hash(pos_seed + 50u).x >= 0.5 && trace_uniforms.misc_bool != 1u) {
+    if (material.x == 44u && (material.y & ANIMATION_FLAG) == 0u && hash(pos_seed + 50u).x >= 0.5) {
         for (var i = 1; i < 4 + i32(pos_rand.y * 3.0 - 0.5); i += 1) {
             let i = f32(i);
 
             let offset = vec3(
-                3.0 * snoise(vec3<f32>(pos) / 50.0 + trace_uniforms.time * 0.3) - 0.5, 
+                3.0 * snoise(vec3<f32>(pos) / 50.0 + compute_uniforms.time * 0.3) - 0.5, 
                 i, 
-                3.0 * snoise(vec3<f32>(pos) / 50.0 + trace_uniforms.time * 0.3) - 0.5
+                3.0 * snoise(vec3<f32>(pos) / 50.0 + compute_uniforms.time * 0.3) - 0.5
             );
 
             let new_pos = vec3<f32>(pos) + vec3(

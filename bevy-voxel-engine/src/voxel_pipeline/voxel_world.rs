@@ -1,5 +1,7 @@
-use super::trace::{ExtractedPortal, PalleteEntry};
-use crate::{load::GH, LoadVoxelWorld};
+use crate::{
+    load::{Pallete, GH},
+    LoadVoxelWorld,
+};
 use bevy::{
     prelude::*,
     render::{
@@ -18,14 +20,6 @@ impl Plugin for VoxelWorldPlugin {
         let render_device = app.world.resource::<RenderDevice>();
         let render_queue = app.world.resource::<RenderQueue>();
 
-        // uniforms
-        let uniform_buffer = render_device.create_buffer(&BufferDescriptor {
-            label: None,
-            size: std::mem::size_of::<VoxelUniforms>() as u64,
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-
         let default_path = "/Users/brian/Documents/Code/Rust/vox/monument/monu9.vox".to_string();
         let gh = if let Ok(file) = std::fs::read(default_path) {
             GH::from_vox(&file).unwrap()
@@ -34,7 +28,25 @@ impl Plugin for VoxelWorldPlugin {
         };
         let buffer_size = gh.get_buffer_size();
         let texture_size = gh.texture_size;
-        let offsets = gh.get_offsets();
+        let gh_offsets = gh.get_offsets();
+
+        let mut levels = [UVec4::ZERO; 8];
+        let mut offsets = [UVec4::ZERO; 8];
+        for i in 0..8 {
+            levels[i] = UVec4::new(gh.levels[i], 0, 0, 0);
+            offsets[i] = UVec4::new(gh_offsets[i], 0, 0, 0);
+        }
+
+        // uniforms
+        let voxel_uniforms = VoxelUniforms {
+            pallete: gh.pallete.into(),
+            portals: [ExtractedPortal::default(); 32],
+            levels,
+            offsets,
+            texture_size,
+        };
+        let mut uniform_buffer = UniformBuffer::from(voxel_uniforms.clone());
+        uniform_buffer.write_buffer(render_device, render_queue);
 
         // texture
         let voxel_world = render_device.create_texture_with_data(
@@ -108,7 +120,7 @@ impl Plugin for VoxelWorldPlugin {
             entries: &[
                 BindGroupEntry {
                     binding: 0,
-                    resource: uniform_buffer.as_entire_binding(),
+                    resource: uniform_buffer.binding().unwrap(),
                 },
                 BindGroupEntry {
                     binding: 1,
@@ -121,15 +133,9 @@ impl Plugin for VoxelWorldPlugin {
             ],
         });
 
-        app.insert_resource(NewGH::None)
-            .insert_resource(VoxelUniforms {
-                pallete: gh.pallete.into(),
-                portals: [ExtractedPortal::default(); 32],
-                levels: gh.levels,
-                offsets: offsets,
-                texture_size,
-                _padding: [0; 3],
-            })
+        app.insert_resource(LoadVoxelWorld::None)
+            .insert_resource(NewGH::None)
+            .insert_resource(voxel_uniforms)
             .add_plugin(ExtractResourcePlugin::<NewGH>::default())
             .add_plugin(ExtractResourcePlugin::<VoxelUniforms>::default())
             .add_system(load_voxel_world);
@@ -150,22 +156,44 @@ impl Plugin for VoxelWorldPlugin {
 
 #[derive(Resource)]
 pub struct VoxelData {
-    pub uniform_buffer: Buffer,
+    pub uniform_buffer: UniformBuffer<VoxelUniforms>,
     pub voxel_world: TextureView,
     pub grid_heierachy: Buffer,
     pub bind_group_layout: BindGroupLayout,
     pub bind_group: BindGroup,
 }
 
-#[repr(C)]
-#[derive(Resource, ExtractResource, Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]
+#[derive(Default, Debug, Clone, Copy, ShaderType)]
+pub struct PalleteEntry {
+    pub colour: Vec4,
+}
+
+impl Into<[PalleteEntry; 256]> for Pallete {
+    fn into(self) -> [PalleteEntry; 256] {
+        let mut pallete = [PalleteEntry::default(); 256];
+        for i in 0..256 {
+            pallete[i].colour = self[i].into();
+        }
+        pallete
+    }
+}
+
+#[derive(Default, Debug, Clone, Copy, ShaderType)]
+pub struct ExtractedPortal {
+    pub pos: Vec4,
+    pub other_pos: Vec4,
+    pub normal: Vec4,
+    pub other_normal: Vec4,
+    pub half_size: IVec4,
+}
+
+#[derive(Resource, ExtractResource, Clone, ShaderType)]
 pub struct VoxelUniforms {
     pub pallete: [PalleteEntry; 256],
     pub portals: [ExtractedPortal; 32],
-    pub levels: [u32; 8],
-    pub offsets: [u32; 8],
+    pub levels: [UVec4; 8],
+    pub offsets: [UVec4; 8],
     pub texture_size: u32,
-    pub _padding: [u32; 3],
 }
 
 #[derive(Resource, ExtractResource, Clone)]
@@ -175,15 +203,15 @@ enum NewGH {
 }
 
 fn prepare_uniforms(
-    extraced_uniforms: Res<VoxelUniforms>,
-    voxel_data: Res<VoxelData>,
+    voxel_uniforms: Res<VoxelUniforms>,
+    mut voxel_data: ResMut<VoxelData>,
+    render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
 ) {
-    render_queue.write_buffer(
-        &voxel_data.uniform_buffer,
-        0,
-        bytemuck::cast_slice(&[*extraced_uniforms.as_ref()]),
-    );
+    voxel_data.uniform_buffer.set(voxel_uniforms.clone());
+    voxel_data
+        .uniform_buffer
+        .write_buffer(&render_device, &render_queue);
 }
 
 fn load_voxel_world(
@@ -202,8 +230,13 @@ fn load_voxel_world(
                 LoadVoxelWorld::None => unreachable!(),
             };
 
+            let mut levels = [UVec4::ZERO; 8];
+            for i in 0..8 {
+                levels[i] = UVec4::new(gh.levels[i], 0, 0, 0);
+            }
+
             voxel_uniforms.pallete = gh.pallete.clone().into();
-            voxel_uniforms.levels = gh.levels;
+            voxel_uniforms.levels = levels;
             voxel_uniforms.texture_size = gh.texture_size;
 
             *new_gh = NewGH::Some(Arc::new(gh));
@@ -260,7 +293,7 @@ fn queue_bind_group(render_device: Res<RenderDevice>, mut voxel_data: ResMut<Vox
         entries: &[
             BindGroupEntry {
                 binding: 0,
-                resource: voxel_data.uniform_buffer.as_entire_binding(),
+                resource: voxel_data.uniform_buffer.binding().unwrap(),
             },
             BindGroupEntry {
                 binding: 1,

@@ -72,5 +72,6 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
 
     write_pos(vec3<i32>(texture_pos), material, COLLISION_FLAG | ANIMATION_FLAG);
 
-    return vec4<f32>(vec3(0.0, 1.0, 0.0), 1.0);
+    let colour = voxel_uniforms.materials[material].rgb;
+    return vec4<f32>(colour, 1.0);
 }

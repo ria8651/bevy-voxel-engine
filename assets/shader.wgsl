@@ -85,15 +85,14 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     // pixel jitter
     let seed = vec3<u32>(in.position.xyy) * 100u + u32(trace_uniforms.time * 120.0) * 15236u;
     let jitter = vec4(hash(seed).xy - 0.5, 0.0, 0.0) / 1.1;
-    var clip_space = get_clip_space(in.position, trace_uniforms.resolution);
-    let aspect = trace_uniforms.resolution.x / trace_uniforms.resolution.y;
-    clip_space.x = clip_space.x * aspect;
+    let resolution = vec2<f32>(textureDimensions(normal_attachment));
+    var clip_space = vec2(1.0, -1.0) * (in.uv * 2.0 - 1.0);
     var output_colour = vec3(0.0);
 
-    let pos = trace_uniforms.camera_inverse * vec4(0.0, 0.0, 0.0, 1.0);
-    let dir = trace_uniforms.camera_inverse * vec4(clip_space.x * trace_uniforms.fov, clip_space.y * trace_uniforms.fov, -1.0, 1.0);
-    let pos = pos.xyz;
-    let dir = normalize(dir.xyz - pos);
+    let pos = trace_uniforms.camera_inverse * vec4(clip_space.x, clip_space.y, 1.0, 1.0);
+    let dir = trace_uniforms.camera_inverse * vec4(clip_space.x, clip_space.y, 0.01, 1.0);
+    let pos = pos.xyz / pos.w;
+    let dir = normalize(dir.xyz / dir.w - pos);
     var ray = Ray(pos, dir);
 
     let hit = shoot_ray(ray, 0.0, 0u);
@@ -122,7 +121,7 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
             }
         } else {
             // aproximate indirect with ambient and voxel ao
-            let texture_coords = (hit.pos * 0.5 + 0.5) * f32(voxel_uniforms.texture_size);
+            let texture_coords = hit.pos * VOXELS_PER_METER + f32(voxel_uniforms.texture_size) / 2.0;
             let ao = voxel_ao(texture_coords, hit.normal.zxy, hit.normal.yzx);
             let uv = glmod(vec2(dot(hit.normal * texture_coords.yzx, vec3(1.0)), dot(hit.normal * texture_coords.zxy, vec3(1.0))), vec2(1.0));
 
@@ -162,15 +161,16 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
         // }
     } else {
         // output_colour = vec3<f32>(0.2);
-        output_colour = skybox(ray.dir, 10.0);
+        // output_colour = skybox(ray.dir, 10.0);
+        discard;
     }
 
-    if (trace_uniforms.freeze == 0u) {
+    // if (trace_uniforms.freeze == 0u) {
         // store colour for next frame
         // let texture_pos = vec2<i32>(frag_pos.xy);
         // textureStore(screen_texture, texture_pos, 0, vec4(output_colour.rgb, samples));
         // textureStore(screen_texture, texture_pos, 1, vec4(hit.pos + hit.portal_offset, 0.0));
-    }
+    // }
 
     if (trace_uniforms.show_ray_steps != 0u) {
         output_colour = vec3<f32>(f32(steps) / 100.0);
@@ -179,9 +179,7 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     // output_colour = (hit.pos + hit.portal_offset) * 2.0;
     // output_colour = hit.pos * 2.0;
 
-    // output_colour = vec3(u.time);
-
-    textureStore(normal_attachment, vec2<i32>(in.uv * trace_uniforms.resolution), vec4(hit.normal * 0.5 + 0.5, 0.0));
-    textureStore(position_attachment, vec2<i32>(in.uv * trace_uniforms.resolution), vec4(hit.pos, 0.0));
+    textureStore(normal_attachment, vec2<i32>(in.position.xy), vec4(hit.normal * 0.5 + 0.5, 0.0));
+    textureStore(position_attachment, vec2<i32>(in.position.xy), vec4(hit.pos, 0.0));
     return vec4<f32>(max(output_colour, vec3(0.0)), 1.0);
 }

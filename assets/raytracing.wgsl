@@ -11,14 +11,14 @@ struct Voxel {
 fn get_value(pos: vec3<f32>) -> Voxel {
     let scaled = pos * 0.5 + 0.5;
 
-    let size0 = voxel_uniforms.levels[0][0];
-    let size1 = voxel_uniforms.levels[0][1];
-    let size2 = voxel_uniforms.levels[0][2];
-    let size3 = voxel_uniforms.levels[0][3];
-    let size4 = voxel_uniforms.levels[1][0];
-    let size5 = voxel_uniforms.levels[1][1];
-    let size6 = voxel_uniforms.levels[1][2];
-    let size7 = voxel_uniforms.levels[1][3];
+    let size0 = voxel_uniforms.levels[0].x;
+    let size1 = voxel_uniforms.levels[1].x;
+    let size2 = voxel_uniforms.levels[2].x;
+    let size3 = voxel_uniforms.levels[3].x;
+    let size4 = voxel_uniforms.levels[4].x;
+    let size5 = voxel_uniforms.levels[5].x;
+    let size6 = voxel_uniforms.levels[6].x;
+    let size7 = voxel_uniforms.levels[7].x;
 
     let scaled0 = vec3<u32>(scaled * f32(size0));
     let scaled1 = vec3<u32>(scaled * f32(size1));
@@ -29,14 +29,14 @@ fn get_value(pos: vec3<f32>) -> Voxel {
     let scaled6 = vec3<u32>(scaled * f32(size6));
     let scaled7 = vec3<u32>(scaled * f32(size7));
 
-    let state0 = get_value_index(voxel_uniforms.offsets[0][0] + scaled0.x * size0 * size0 + scaled0.y * size0 + scaled0.z);
-    let state1 = get_value_index(voxel_uniforms.offsets[0][1] + scaled1.x * size1 * size1 + scaled1.y * size1 + scaled1.z);
-    let state2 = get_value_index(voxel_uniforms.offsets[0][2] + scaled2.x * size2 * size2 + scaled2.y * size2 + scaled2.z);
-    let state3 = get_value_index(voxel_uniforms.offsets[0][3] + scaled3.x * size3 * size3 + scaled3.y * size3 + scaled3.z);
-    let state4 = get_value_index(voxel_uniforms.offsets[1][0] + scaled4.x * size4 * size4 + scaled4.y * size4 + scaled4.z);
-    let state5 = get_value_index(voxel_uniforms.offsets[1][1] + scaled5.x * size5 * size5 + scaled5.y * size5 + scaled5.z);
-    let state6 = get_value_index(voxel_uniforms.offsets[1][2] + scaled6.x * size6 * size6 + scaled6.y * size6 + scaled6.z);
-    let state7 = get_value_index(voxel_uniforms.offsets[1][3] + scaled7.x * size7 * size7 + scaled7.y * size7 + scaled7.z);
+    let state0 = get_value_index(voxel_uniforms.offsets[0].x + scaled0.x * size0 * size0 + scaled0.y * size0 + scaled0.z);
+    let state1 = get_value_index(voxel_uniforms.offsets[1].x + scaled1.x * size1 * size1 + scaled1.y * size1 + scaled1.z);
+    let state2 = get_value_index(voxel_uniforms.offsets[2].x + scaled2.x * size2 * size2 + scaled2.y * size2 + scaled2.z);
+    let state3 = get_value_index(voxel_uniforms.offsets[3].x + scaled3.x * size3 * size3 + scaled3.y * size3 + scaled3.z);
+    let state4 = get_value_index(voxel_uniforms.offsets[4].x + scaled4.x * size4 * size4 + scaled4.y * size4 + scaled4.z);
+    let state5 = get_value_index(voxel_uniforms.offsets[5].x + scaled5.x * size5 * size5 + scaled5.y * size5 + scaled5.z);
+    let state6 = get_value_index(voxel_uniforms.offsets[6].x + scaled6.x * size6 * size6 + scaled6.y * size6 + scaled6.z);
+    let state7 = get_value_index(voxel_uniforms.offsets[7].x + scaled7.x * size7 * size7 + scaled7.y * size7 + scaled7.z);
 
     if (!state0 && size0 != 0u) {
         let rounded_pos = ((vec3<f32>(scaled0) + 0.5) / f32(size0)) * 2.0 - 1.0;
@@ -94,37 +94,37 @@ let IDENTITY = mat3x3<f32>(
 );
 
 fn intersect_scene(r: Ray, steps: u32) -> HitInfo {
-    if (trace_uniforms.skybox != 0u) {
-        // // pillar
-        // let t = ray_box_dist(r, vec3(-1.0), vec3(1.0, -10000.0, 1.0)).x;
-        // if (t != 0.0) {
-        //     let pos = r.pos + r.dir * t;
-        //     let normal = trunc(pos * vec3(1.00001, 0.0, 1.00001));
-        //     return HitInfo(true, 0u, vec4(vec3(0.2), 0.0), pos, vec3(0.0), normal, IDENTITY, steps);
-        // }
+    // // pillar
+    // let t = ray_box_dist(r, vec3(-1.0), vec3(1.0, -10000.0, 1.0)).x;
+    // if (t != 0.0) {
+    //     let pos = r.pos + r.dir * t;
+    //     let normal = trunc(pos * vec3(1.00001, 0.0, 1.00001));
+    //     return HitInfo(true, 0u, vec4(vec3(0.2), 0.0), pos, vec3(0.0), normal, IDENTITY, steps);
+    // }
 
-        // // skybox
-        // let t = ray_box_dist(r, vec3(3.0), vec3(-3.0, -10000.0, -3.0)).y;
-        // if (t != 0.0) {
-        //     let pos = r.pos + r.dir * t;
-        //     if (pos.y > -1.0) {
-        //         let normal = -trunc(pos / vec3(2.99999));
-        //         let col = skybox(normalize(pos - vec3(0.0, -1.0, 0.0)), u.time);
-        //         // let col = vec3(0.3, 0.3, 0.8);
-        //         return HitInfo(true, 0u, vec4(col, 1.0), pos, vec3(0.0), normal, IDENTITY, steps);
-        //     } else {
-        //         let normal = -trunc(pos / vec3(2.99999, 10000.0, 2.99999));
-        //         return HitInfo(true, 0u, vec4(vec3(0.2), 0.0), pos, vec3(0.0), normal, IDENTITY, steps);
-        //     }
-        // }
+    // // skybox
+    // let t = ray_box_dist(r, vec3(3.0), vec3(-3.0, -10000.0, -3.0)).y;
+    // if (t != 0.0) {
+    //     let pos = r.pos + r.dir * t;
+    //     if (pos.y > -1.0) {
+    //         let normal = -trunc(pos / vec3(2.99999));
+    //         let col = skybox(normalize(pos - vec3(0.0, -1.0, 0.0)), u.time);
+    //         // let col = vec3(0.3, 0.3, 0.8);
+    //         return HitInfo(true, 0u, vec4(col, 1.0), pos, vec3(0.0), normal, IDENTITY, steps);
+    //     } else {
+    //         let normal = -trunc(pos / vec3(2.99999, 10000.0, 2.99999));
+    //         return HitInfo(true, 0u, vec4(vec3(0.2), 0.0), pos, vec3(0.0), normal, IDENTITY, steps);
+    //     }
+    // }
 
-        let normal = vec3(0.0, 1.0, 0.0);
-        let hit = ray_plane(r, vec3(0.0, -1.0, 0.0), normal);
-        if (any(hit != vec3(0.0))) {
-            let pos = hit + normal * 0.000002;
-            let colour = vec3(113.0, 129.0, 44.0) / 255.0;
-            return HitInfo(true, 0u, vec4(colour, 0.0), pos, vec3(0.0), normal, IDENTITY, steps);
-        }
+    let rtw = f32(voxel_uniforms.texture_size) / (VOXELS_PER_METER * 2.0); // render to world ratio
+
+    let normal = vec3(0.0, 1.0, 0.0);
+    let hit = ray_plane(r, vec3(0.0, -1.0, 0.0), normal);
+    if (any(hit != vec3(0.0))) {
+        let pos = hit + normal * 0.000002;
+        let colour = vec3(113.0, 129.0, 44.0) / 255.0;
+        return HitInfo(true, 0u, vec4(colour, 0.0), pos * rtw, vec3(0.0), normal, IDENTITY, steps);
     }
 
     return HitInfo(false, 0u, vec4(0.0), vec3(0.0), vec3(0.0), vec3(0.0), IDENTITY, steps);
@@ -136,22 +136,26 @@ let PI: f32 = 3.14159265358979323846264338327950288;
 /// ray direction if you want it to be in world cordinates.
 /// only hits voxels that have any of the flags set or hits everything if flags is 0
 fn shoot_ray(r: Ray, physics_distance: f32, flags: u32) -> HitInfo {
-    var pos = r.pos;
+    let wtr = VOXELS_PER_METER * 2.0 / f32(voxel_uniforms.texture_size); // world to render ratio
+    let rtw = f32(voxel_uniforms.texture_size) / (VOXELS_PER_METER * 2.0); // render to world ratio
+
+    let physics_distance = physics_distance * wtr;
+    var pos = r.pos * wtr;
     let dir_mask = vec3<f32>(r.dir == vec3(0.0));
     var dir = r.dir + dir_mask * 0.000001;
 
     var distance = 0.0;
-    if (!in_bounds(r.pos)) {
+    if (!in_bounds(pos)) {
         // Get position on surface of the octree
-        let dist = ray_box_dist(r, vec3(-1.0), vec3(1.0)).x;
+        let dist = ray_box_dist(Ray(pos, dir), vec3(-1.0), vec3(1.0)).x;
         if (dist == 0.0) {
             if (physics_distance > 0.0) {
-                return HitInfo(false, 0u, vec4(0.0), pos + dir * physics_distance, vec3(0.0), vec3(0.0), IDENTITY, 1u);
+                return HitInfo(false, 0u, vec4(0.0), (pos + dir * physics_distance) * rtw, vec3(0.0), vec3(0.0), IDENTITY, 1u);
             }
-            return intersect_scene(r, 1u);
+            return intersect_scene(Ray(pos, dir), 1u);
         }
 
-        pos = r.pos + dir * dist;
+        pos = pos + dir * dist;
         distance += dist;
     }
 
@@ -179,7 +183,7 @@ fn shoot_ray(r: Ray, physics_distance: f32, flags: u32) -> HitInfo {
             if (all(abs(intersection - portal.pos) < vec3(voxel_size) * (vec3<f32>(portal.half_size) + 0.5)) && all(intersection != vec3(0.0))) {
                 tcpotr = intersection + r_sign * abs(portal.normal) * 0.0000001;
                 if (length(tcpotr - pos) + distance > physics_distance && physics_distance > 0.0) {
-                    return HitInfo(false, 0u, vec4(0.0), pos + dir * (physics_distance - distance), vec3(0.0), vec3(0.0), rot, steps);
+                    return HitInfo(false, 0u, vec4(0.0), (pos + dir * (physics_distance - distance)) * rtw, vec3(0.0), vec3(0.0), rot, steps);
                 }
 
                 let ray_rot_angle = acos(dot(portal.normal, portal.other_normal));
@@ -231,12 +235,12 @@ fn shoot_ray(r: Ray, physics_distance: f32, flags: u32) -> HitInfo {
         tcpotr = pos + dir * t_current - normal * 0.000002;
 
         if (t_current + distance > physics_distance && physics_distance > 0.0) {
-            return HitInfo(false, 0u, vec4(0.0), pos + dir * (physics_distance - distance), portal_offset, vec3(0.0), rot, steps);
+            return HitInfo(false, 0u, vec4(0.0), (pos + dir * (physics_distance - distance)) * rtw, portal_offset, vec3(0.0), rot, steps);
         }
 
         if (!in_bounds(tcpotr)) {
             if (physics_distance > 0.0) {
-                return HitInfo(false, 0u, vec4(0.0), pos + dir * (physics_distance - distance), portal_offset, vec3(0.0), rot, steps);
+                return HitInfo(false, 0u, vec4(0.0), (pos + dir * (physics_distance - distance)) * rtw, portal_offset, vec3(0.0), rot, steps);
             }
             return intersect_scene(Ray(pos, dir), steps);
         }
@@ -244,5 +248,5 @@ fn shoot_ray(r: Ray, physics_distance: f32, flags: u32) -> HitInfo {
         steps = steps + 1u;
     }
 
-    return HitInfo(true, voxel.data, voxel_uniforms.materials[voxel.data & 0xFFu], tcpotr + normal * 0.000004, portal_offset, normal, rot, steps);
+    return HitInfo(true, voxel.data, voxel_uniforms.materials[voxel.data & 0xFFu], tcpotr * rtw + normal * 0.00007, portal_offset, normal, rot, steps);
 }

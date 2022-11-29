@@ -7,8 +7,13 @@ var voxel_world: texture_storage_3d<r16uint, read_write>;
 @group(0) @binding(2)
 var<storage, read_write> gh: array<atomic<u32>>;
 
+struct ComputeUniforms {
+    time: f32,
+    delta_time: f32,
+}
+
 @group(1) @binding(0)
-var<uniform> trace_uniforms: TraceUniforms;
+var<uniform> compute_uniforms: ComputeUniforms;
 @group(1) @binding(1)
 var<storage, read_write> physics_data: array<u32>;
 
@@ -22,9 +27,6 @@ fn physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
 
     let pos = vec3(i32(invocation_id.x), i32(invocation_id.y), i32(invocation_id.z));
     let index = pos.x * dispatch_size * dispatch_size + pos.y * dispatch_size + pos.z + 1;
-
-    let wtr = VOXELS_PER_METER * 2.0 / f32(voxel_uniforms.texture_size); // world to render ratio
-    let rtw = f32(voxel_uniforms.texture_size) / (VOXELS_PER_METER * 2.0); // render to world ratio
 
     if (index <= header_len) {
         let data_index = i32(u32(physics_data[index]) & 0x00FFFFFFu);
@@ -47,11 +49,11 @@ fn physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
 
             // step point by ray
             if (any(abs(velocity) > vec3(0.0001))) {
-                let direction = Ray(world_pos * wtr, normalize(velocity));
-                let distance = length(velocity) * trace_uniforms.delta_time * wtr;
+                let direction = Ray(world_pos, normalize(velocity));
+                let distance = length(velocity) * compute_uniforms.delta_time;
                 let hit = shoot_ray(direction, distance, COLLISION_FLAG);
                 portal_rotation = hit.rot;
-                world_pos = hit.pos * rtw;
+                world_pos = hit.pos;
                 velocity = hit.rot * velocity;
 
                 if (hit.hit) {
@@ -65,7 +67,7 @@ fn physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
             // player
             if (any(abs(velocity) > vec3(0.01))) {
                 let direction = normalize(velocity);
-                let distance = length(velocity) * trace_uniforms.delta_time * wtr;
+                let distance = length(velocity) * compute_uniforms.delta_time;
 
                 let size = vec3(
                     bitcast<i32>(physics_data[data_index + 18]),
@@ -78,12 +80,12 @@ fn physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                 for (var y = -size.y; y <= size.y; y++) {
                     for (var z = -size.z; z <= size.z; z++) {
                         let offset = vec3(f32(size.x) * v_sign.x, f32(y), f32(z)) / (VOXELS_PER_METER * 1.0001);
-                        let hit = shoot_ray(Ray((world_pos + offset) * wtr, direction), distance, COLLISION_FLAG);
+                        let hit = shoot_ray(Ray((world_pos + offset), direction), distance, COLLISION_FLAG);
                         
                         let plane_normal = vec3(1.0, 0.0, 0.0);
                         if (hit.hit && all(abs(hit.normal) == plane_normal)) {
                             velocity = velocity - dot(velocity, plane_normal) * plane_normal;
-                            // world_pos = hit.pos * rtw - offset;
+                            // world_pos = hit.pos - offset;
                         }
                     }
                 }
@@ -92,12 +94,12 @@ fn physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                 for (var x = -size.x; x <= size.x; x++) {
                     for (var z = -size.z; z <= size.z; z++) {
                         let offset = vec3(f32(x), f32(size.y) * v_sign.y, f32(z)) / (VOXELS_PER_METER * 1.001);
-                        let hit = shoot_ray(Ray((world_pos + offset) * wtr, direction), distance, COLLISION_FLAG);
+                        let hit = shoot_ray(Ray((world_pos + offset), direction), distance, COLLISION_FLAG);
                         
                         let plane_normal = vec3(0.0, 1.0, 0.0);
                         if (hit.hit && all(abs(hit.normal) == plane_normal)) {
                             velocity = velocity - dot(velocity, plane_normal) * plane_normal;
-                            // world_pos = hit.pos * rtw - offset;
+                            // world_pos = hit.pos - offset;
                         }
                     }
                 }
@@ -106,23 +108,23 @@ fn physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                 for (var x = -size.x; x <= size.x; x++) {
                     for (var y = -size.y; y <= size.y; y++) {
                         let offset = vec3(f32(x), f32(y), f32(size.z) * v_sign.z) / (VOXELS_PER_METER * 1.0001);
-                        let hit = shoot_ray(Ray((world_pos + offset) * wtr, direction), distance, COLLISION_FLAG);
+                        let hit = shoot_ray(Ray((world_pos + offset), direction), distance, COLLISION_FLAG);
                         
                         let plane_normal = vec3(0.0, 0.0, 1.0);
                         if (hit.hit && all(abs(hit.normal) == plane_normal)) {
                             velocity = velocity - dot(velocity, plane_normal) * plane_normal;
-                            // world_pos = hit.pos * rtw - offset;
+                            // world_pos = hit.pos - offset;
                         }
                     }
                 }
 
                 if (any(abs(velocity) > vec3(0.01))) {
-                    let direction = normalize(velocity * trace_uniforms.delta_time);
-                    let distance = length(velocity) * trace_uniforms.delta_time * wtr;
-                    let hit = shoot_ray(Ray(world_pos * wtr, direction), distance, 1u);
+                    let direction = normalize(velocity * compute_uniforms.delta_time);
+                    let distance = length(velocity) * compute_uniforms.delta_time;
+                    let hit = shoot_ray(Ray(world_pos, direction), distance, 1u);
                     portal_rotation = hit.rot;
                     velocity = hit.rot * velocity;
-                    world_pos = hit.pos * rtw;
+                    world_pos = hit.pos;
                 }
             }
         }

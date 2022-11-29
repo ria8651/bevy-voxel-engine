@@ -35,7 +35,7 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     var sum_w = vec3(0.0);
     let c_phi = 1.0;
     let n_phi = 0.5;
-    let p_phi = 0.00004;
+    let p_phi = 0.1;
 
     let denoise_strength = pass_data.denoise_strength;
 
@@ -66,7 +66,7 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
 
     output_colour = sum / sum_w;
     // output_colour = sum;
-    // output_colour = colour;
+    // output_colour = abs(vec3(uniforms.offsets[5 * i32(in.uv.x * 5.0) + i32(in.uv.y * 5.0)].xyz));
 
     return vec4<f32>(output_colour, 1.0);
 }

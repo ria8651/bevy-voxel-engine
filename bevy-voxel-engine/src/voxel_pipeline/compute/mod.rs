@@ -1,11 +1,10 @@
-use super::trace::{ExtractedUniforms, TraceData};
 use bevy::{
     prelude::*,
     render::{
         extract_resource::{ExtractResource, ExtractResourcePlugin},
         render_resource::*,
-        renderer::RenderDevice,
-        RenderApp,
+        renderer::{RenderDevice, RenderQueue},
+        RenderApp, RenderStage,
     },
     utils::HashMap,
 };
@@ -22,7 +21,13 @@ pub struct ComputeResourcesPlugin;
 impl Plugin for ComputeResourcesPlugin {
     fn build(&self, app: &mut App) {
         let render_device = app.world.resource::<RenderDevice>();
-        let trace_data = app.sub_app(RenderApp).world.resource::<TraceData>();
+        let render_queue = app.world.resource::<RenderQueue>();
+
+        let mut uniform_buffer = UniformBuffer::from(ComputeUniforms {
+            time: 0.0,
+            delta_time: 0.0,
+        });
+        uniform_buffer.write_buffer(render_device, render_queue);
 
         let physics_buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
             contents: bytemuck::cast_slice(&vec![0u32; MAX_TYPE_BUFFER_DATA]),
@@ -41,7 +46,7 @@ impl Plugin for ComputeResourcesPlugin {
                             ty: BufferBindingType::Uniform,
                             has_dynamic_offset: false,
                             min_binding_size: BufferSize::new(
-                                std::mem::size_of::<ExtractedUniforms>() as u64,
+                                std::mem::size_of::<ComputeUniforms>() as u64,
                             ),
                         },
                         count: None,
@@ -65,7 +70,7 @@ impl Plugin for ComputeResourcesPlugin {
             entries: &[
                 BindGroupEntry {
                     binding: 0,
-                    resource: trace_data.uniform_buffer.as_entire_binding(),
+                    resource: uniform_buffer.binding().unwrap(),
                 },
                 BindGroupEntry {
                     binding: 1,
@@ -85,12 +90,36 @@ impl Plugin for ComputeResourcesPlugin {
             .insert_resource(ComputeData {
                 bind_group_layout,
                 bind_group,
+                uniform_buffer,
             })
             .init_resource::<clear::Pipeline>()
             .init_resource::<rebuild::Pipeline>()
             .init_resource::<automata::Pipeline>()
-            .init_resource::<physics::Pipeline>();
+            .init_resource::<physics::Pipeline>()
+            .add_system_to_stage(RenderStage::Prepare, prepare_uniforms);
     }
+}
+
+fn prepare_uniforms(
+    time: Res<Time>,
+    mut compute_data: ResMut<ComputeData>,
+    render_device: Res<RenderDevice>,
+    render_queue: Res<RenderQueue>,
+) {
+    let uniforms = ComputeUniforms {
+        time: time.elapsed_seconds_f64() as f32,
+        delta_time: time.delta_seconds() as f32,
+    };
+    compute_data.uniform_buffer.set(uniforms);
+    compute_data
+        .uniform_buffer
+        .write_buffer(&render_device, &render_queue);
+}
+
+#[derive(Resource, ShaderType)]
+struct ComputeUniforms {
+    time: f32,
+    delta_time: f32,
 }
 
 #[derive(Clone, Resource, ExtractResource)]
@@ -104,4 +133,5 @@ pub struct ExtractedPhysicsData {
 pub struct ComputeData {
     pub bind_group_layout: BindGroupLayout,
     pub bind_group: BindGroup,
+    uniform_buffer: UniformBuffer<ComputeUniforms>,
 }

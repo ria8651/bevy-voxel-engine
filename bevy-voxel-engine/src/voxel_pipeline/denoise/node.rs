@@ -1,5 +1,5 @@
 use super::{super::RenderGraphSettings, DenoisePipeline, PassData};
-use crate::voxel_pipeline::trace::ExtractedUniforms;
+use crate::TraceSettings;
 use bevy::{
     prelude::*,
     render::{
@@ -11,7 +11,7 @@ use bevy::{
 };
 
 pub struct DenoiseNode {
-    query: QueryState<&'static ViewTarget, With<ExtractedView>>,
+    query: QueryState<(&'static ViewTarget, &'static TraceSettings), With<ExtractedView>>,
 }
 
 impl DenoiseNode {
@@ -46,17 +46,16 @@ impl render_graph::Node for DenoiseNode {
         let position = graph.get_input_texture("position")?;
         let pipeline_cache = world.resource::<PipelineCache>();
         let denoise_pipeline = world.resource::<DenoisePipeline>();
-        let trace_uniforms = world.resource::<ExtractedUniforms>();
         let render_graph_settings = world.get_resource::<RenderGraphSettings>().unwrap();
 
-        if !render_graph_settings.denoise || trace_uniforms.indirect_lighting == 0 {
-            return Ok(());
-        }
-
-        let target = match self.query.get_manual(world, view_entity) {
+        let (target, trace_uniforms) = match self.query.get_manual(world, view_entity) {
             Ok(result) => result,
             Err(_) => return Ok(()),
         };
+
+        if !render_graph_settings.denoise || !trace_uniforms.indirect_lighting {
+            return Ok(());
+        }
 
         let pipeline = match pipeline_cache.get_render_pipeline(denoise_pipeline.pipeline_id) {
             Some(pipeline) => pipeline,
@@ -95,7 +94,7 @@ impl render_graph::Node for DenoiseNode {
                     },
                 ],
             });
-        let pass_1_bind_group =
+        let source_bind_group =
             render_context
                 .render_device
                 .create_bind_group(&BindGroupDescriptor {
@@ -112,7 +111,7 @@ impl render_graph::Node for DenoiseNode {
                         },
                     ],
                 });
-        let pass_2_bind_group =
+        let destination_bind_group =
             render_context
                 .render_device
                 .create_bind_group(&BindGroupDescriptor {
@@ -126,23 +125,6 @@ impl render_graph::Node for DenoiseNode {
                         BindGroupEntry {
                             binding: 1,
                             resource: BindingResource::TextureView(destination),
-                        },
-                    ],
-                });
-        let pass_3_bind_group =
-            render_context
-                .render_device
-                .create_bind_group(&BindGroupDescriptor {
-                    label: None,
-                    layout: &denoise_pipeline.pass_data_bind_group_layout,
-                    entries: &[
-                        BindGroupEntry {
-                            binding: 0,
-                            resource: denoise_pipeline.pass_data.binding().unwrap(),
-                        },
-                        BindGroupEntry {
-                            binding: 1,
-                            resource: BindingResource::TextureView(source),
                         },
                     ],
                 });
@@ -181,7 +163,7 @@ impl render_graph::Node for DenoiseNode {
 
             render_pass.set_pipeline(pipeline);
             render_pass.set_bind_group(0, &bind_group, &[]);
-            render_pass.set_bind_group(1, &pass_1_bind_group, &[0]);
+            render_pass.set_bind_group(1, &source_bind_group, &[0]);
             render_pass.draw(0..3, 0..1);
         }
         {
@@ -191,7 +173,7 @@ impl render_graph::Node for DenoiseNode {
 
             render_pass.set_pipeline(pipeline);
             render_pass.set_bind_group(0, &bind_group, &[]);
-            render_pass.set_bind_group(1, &pass_2_bind_group, &[offset_size]);
+            render_pass.set_bind_group(1, &destination_bind_group, &[offset_size]);
             render_pass.draw(0..3, 0..1);
         }
         {
@@ -201,7 +183,7 @@ impl render_graph::Node for DenoiseNode {
 
             render_pass.set_pipeline(pipeline);
             render_pass.set_bind_group(0, &bind_group, &[]);
-            render_pass.set_bind_group(1, &pass_3_bind_group, &[2 * offset_size]);
+            render_pass.set_bind_group(1, &source_bind_group, &[2 * offset_size]);
             render_pass.draw(0..3, 0..1);
         }
 

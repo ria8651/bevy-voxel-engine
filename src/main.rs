@@ -1,11 +1,18 @@
-use bevy::{prelude::*, render::camera::CameraRenderGraph};
+use bevy::{
+    core_pipeline::clear_color::ClearColorConfig,
+    prelude::*,
+    render::{
+        camera::{CameraRenderGraph},
+    },
+};
 use bevy_obj::*;
 use bevy_voxel_engine::{
-    BevyVoxelEnginePlugin, Box, BoxCollider, Edges, Particle, Portal, Velocity, VoxelCamera,
+    BevyVoxelEnginePlugin, Box, BoxCollider, Edges, Particle, Portal, TraceSettings, Velocity,
     VoxelizationBundle, VoxelizationMaterial, VOXELS_PER_METER,
 };
 use character::CharacterEntity;
 use concurrent_queue::ConcurrentQueue;
+use std::f32::consts::PI;
 
 mod character;
 mod fps_counter;
@@ -63,7 +70,10 @@ fn main() {
 
 // world space cordinates are in terms of 4 voxels per meter with 0, 0
 // in the world lining up with the center of the voxel world (ie 0, 0, 0 in the render world)
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+) {
     let portal1 = commands
         .spawn((
             Portal {
@@ -101,7 +111,19 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 hdr: true,
                 ..default()
             },
+            projection: Projection::Perspective(PerspectiveProjection {
+                fov: PI / 2.0,
+                ..default()
+            }),
             ..default()
+        },
+        TraceSettings {
+            show_ray_steps: false,
+            indirect_lighting: false,
+            shadows: true,
+            samples: 1,
+            misc_bool: false,
+            misc_float: 1.0,
         },
         CharacterEntity {
             grounded: false,
@@ -114,7 +136,37 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         BoxCollider {
             half_size: IVec3::new(2, 4, 2),
         },
-        VoxelCamera,
+    ));
+
+    // small camera
+    let transform = Transform::from_xyz(-10.0, -10.0, -5.0).looking_at(Vec3::ZERO, Vec3::Y);
+    commands.spawn((
+        Camera3dBundle {
+            transform: transform,
+            camera_render_graph: CameraRenderGraph::new("voxel"),
+            camera: Camera {
+                hdr: true,
+                priority: 10,
+                ..default()
+            },
+            camera_3d: Camera3d {
+                clear_color: ClearColorConfig::None,
+                ..default()
+            },
+            projection: Projection::Perspective(PerspectiveProjection {
+                fov: PI / 2.0,
+                ..default()
+            }),
+            ..default()
+        },
+        TraceSettings {
+            show_ray_steps: false,
+            indirect_lighting: false,
+            shadows: true,
+            samples: 1,
+            misc_bool: false,
+            misc_float: 1.0,
+        },
     ));
 
     // voxelized mesh

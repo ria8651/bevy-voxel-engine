@@ -1,4 +1,4 @@
-use crate::VoxelCamera;
+use crate::TraceSettings;
 use bevy::{
     ecs::query::QueryItem,
     prelude::*,
@@ -37,7 +37,7 @@ impl ExtractComponent for RenderAttachments {
 fn add_render_attachments(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
-    mut query: Query<Entity, (With<VoxelCamera>, Without<RenderAttachments>)>,
+    mut query: Query<Entity, (With<TraceSettings>, Without<RenderAttachments>)>,
 ) {
     for entity in query.iter_mut() {
         let size = Extent3d {
@@ -82,12 +82,12 @@ fn update_textures(
     let window = windows.get_primary().unwrap();
     let size = UVec2::new(window.physical_width(), window.physical_height());
 
-    for mut render_attachments in query.iter_mut() {
+    for (i, mut render_attachments) in query.iter_mut().enumerate() {
         if size != render_attachments.current_size {
             render_attachments.current_size = size;
             info!(
-                "Resizing attachments to width: {}, height: {}",
-                size.x, size.y
+                "Resizing attachments to width: {}, height: {} for camera {}",
+                size.x, size.y, i
             );
 
             let size = Extent3d {

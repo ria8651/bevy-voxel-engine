@@ -1,4 +1,4 @@
-use super::{TraceData, TracePipeline, ViewTracePipeline};
+use super::{TracePipeline, ViewTracePipeline, ViewTraceUniformBuffer};
 use crate::voxel_pipeline::{
     attachments::RenderAttachments, voxel_world::VoxelData, RenderGraphSettings,
 };
@@ -19,6 +19,7 @@ pub struct TraceNode {
             &'static ViewTarget,
             &'static ViewTracePipeline,
             &'static Camera3d,
+            &'static ViewTraceUniformBuffer,
             &'static RenderAttachments,
         ),
         With<ExtractedView>,
@@ -59,7 +60,6 @@ impl render_graph::Node for TraceNode {
         let pipeline_cache = world.resource::<PipelineCache>();
         let voxel_data = world.get_resource::<VoxelData>().unwrap();
         let trace_pipeline = world.get_resource::<TracePipeline>().unwrap();
-        let trace_data = world.get_resource::<TraceData>().unwrap();
         let gpu_images = world.get_resource::<RenderAssets<Image>>().unwrap();
         let render_graph_settings = world.get_resource::<RenderGraphSettings>().unwrap();
 
@@ -67,10 +67,10 @@ impl render_graph::Node for TraceNode {
             return Ok(());
         }
 
-        let (target, pipeline, camera_3d, render_attachments) =
+        let (target, pipeline, camera_3d, trace_uniform_buffer, render_attachments) =
             match self.query.get_manual(world, view_entity) {
                 Ok(result) => result,
-                Err(_) => return Ok(()),
+                Err(_) => panic!("Voxel camera doesn't have trace settings!"),
             };
 
         let pipeline = match pipeline_cache.get_render_pipeline(pipeline.0) {
@@ -89,7 +89,7 @@ impl render_graph::Node for TraceNode {
                 entries: &[
                     BindGroupEntry {
                         binding: 0,
-                        resource: trace_data.uniform_buffer.as_entire_binding(),
+                        resource: trace_uniform_buffer.binding().unwrap(),
                     },
                     BindGroupEntry {
                         binding: 1,

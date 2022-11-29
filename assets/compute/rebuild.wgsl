@@ -26,14 +26,14 @@ fn rebuild_gh(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let material = get_texture_value(pos);
     if (material.x != 0u || (material.y & PORTAL_FLAG) > 0u) {
         // set bits in grid hierarchy
-        let size0 = voxel_uniforms.levels[0][0];
-        let size1 = voxel_uniforms.levels[0][1];
-        let size2 = voxel_uniforms.levels[0][2];
-        let size3 = voxel_uniforms.levels[0][3];
-        let size4 = voxel_uniforms.levels[1][0];
-        let size5 = voxel_uniforms.levels[1][1];
-        let size6 = voxel_uniforms.levels[1][2];
-        let size7 = voxel_uniforms.levels[1][3];
+        let size0 = voxel_uniforms.levels[0].x;
+        let size1 = voxel_uniforms.levels[1].x;
+        let size2 = voxel_uniforms.levels[2].x;
+        let size3 = voxel_uniforms.levels[3].x;
+        let size4 = voxel_uniforms.levels[4].x;
+        let size5 = voxel_uniforms.levels[5].x;
+        let size6 = voxel_uniforms.levels[6].x;
+        let size7 = voxel_uniforms.levels[7].x;
 
         let pos0 = (vec3<u32>(pos) * size0) / voxel_uniforms.texture_size;
         let pos1 = (vec3<u32>(pos) * size1) / voxel_uniforms.texture_size;
@@ -44,14 +44,14 @@ fn rebuild_gh(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
         let pos6 = (vec3<u32>(pos) * size6) / voxel_uniforms.texture_size;
         let pos7 = (vec3<u32>(pos) * size7) / voxel_uniforms.texture_size;
 
-        let index0 = voxel_uniforms.offsets[0][0] + pos0.x * size0 * size0 + pos0.y * size0 + pos0.z;
-        let index1 = voxel_uniforms.offsets[0][1] + pos1.x * size1 * size1 + pos1.y * size1 + pos1.z;
-        let index2 = voxel_uniforms.offsets[0][2] + pos2.x * size2 * size2 + pos2.y * size2 + pos2.z;
-        let index3 = voxel_uniforms.offsets[0][3] + pos3.x * size3 * size3 + pos3.y * size3 + pos3.z;
-        let index4 = voxel_uniforms.offsets[1][0] + pos4.x * size4 * size4 + pos4.y * size4 + pos4.z;
-        let index5 = voxel_uniforms.offsets[1][1] + pos5.x * size5 * size5 + pos5.y * size5 + pos5.z;
-        let index6 = voxel_uniforms.offsets[1][2] + pos6.x * size6 * size6 + pos6.y * size6 + pos6.z;
-        let index7 = voxel_uniforms.offsets[1][3] + pos7.x * size7 * size7 + pos7.y * size7 + pos7.z;
+        let index0 = voxel_uniforms.offsets[0].x + pos0.x * size0 * size0 + pos0.y * size0 + pos0.z;
+        let index1 = voxel_uniforms.offsets[1].x + pos1.x * size1 * size1 + pos1.y * size1 + pos1.z;
+        let index2 = voxel_uniforms.offsets[2].x + pos2.x * size2 * size2 + pos2.y * size2 + pos2.z;
+        let index3 = voxel_uniforms.offsets[3].x + pos3.x * size3 * size3 + pos3.y * size3 + pos3.z;
+        let index4 = voxel_uniforms.offsets[4].x + pos4.x * size4 * size4 + pos4.y * size4 + pos4.z;
+        let index5 = voxel_uniforms.offsets[5].x + pos5.x * size5 * size5 + pos5.y * size5 + pos5.z;
+        let index6 = voxel_uniforms.offsets[6].x + pos6.x * size6 * size6 + pos6.y * size6 + pos6.z;
+        let index7 = voxel_uniforms.offsets[7].x + pos7.x * size7 * size7 + pos7.y * size7 + pos7.z;
 
         if (size0 != 0u) {
             set_value_index(index0);

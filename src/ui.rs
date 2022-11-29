@@ -1,9 +1,11 @@
 use super::character::CharacterEntity;
 use super::{Bullet, Particle, Settings, Velocity};
 use bevy::prelude::*;
-use bevy_egui::{egui, EguiContext, EguiPlugin};
-use bevy_voxel_engine::{LoadVoxelWorld, RenderGraphSettings, TraceUniforms};
-use egui::Slider;
+use bevy_egui::{
+    egui::{self, Slider},
+    EguiContext, EguiPlugin,
+};
+use bevy_voxel_engine::{LoadVoxelWorld, RenderGraphSettings, TraceSettings};
 use rand::Rng;
 
 pub struct UiPlugin;
@@ -17,11 +19,11 @@ impl Plugin for UiPlugin {
 fn ui_system(
     mut commands: Commands,
     mut egui_context: ResMut<EguiContext>,
-    mut uniforms: ResMut<TraceUniforms>,
     mut settings: ResMut<Settings>,
     particle_query: Query<Entity, (With<Velocity>, Without<CharacterEntity>)>,
     mut load_voxel_world: ResMut<LoadVoxelWorld>,
     mut render_graph_settings: ResMut<RenderGraphSettings>,
+    mut trace_settings_query: Query<&mut TraceSettings>,
 ) {
     egui::Window::new("Settings")
         .anchor(egui::Align2::RIGHT_TOP, [-5.0, 5.0])
@@ -34,23 +36,20 @@ fn ui_system(
                 let path = tinyfiledialogs::open_file_dialog("Select file", "", None);
                 *load_voxel_world = LoadVoxelWorld::File(path.unwrap());
             }
-            ui.collapsing("Rendering", |ui| {
-                ui.checkbox(&mut uniforms.show_ray_steps, "Show ray steps");
-                ui.checkbox(&mut uniforms.indirect_lighting, "Indirect lighting");
-                ui.add(
-                    Slider::new(&mut uniforms.samples, 1..=8)
-                        .text("Samples")
-                        .logarithmic(true),
-                );
-                ui.checkbox(&mut uniforms.shadows, "Shadows");
-                ui.checkbox(&mut uniforms.skybox, "Skybox");
-                ui.add(
-                    Slider::new(&mut uniforms.fov, 0.1..=10.0)
-                        .text("Fov")
-                        .logarithmic(true),
-                );
-                ui.checkbox(&mut uniforms.freeze, "Freeze");
-            });
+            for (i, mut trace_settings) in trace_settings_query.iter_mut().enumerate() {
+                ui.collapsing(format!("Camera Settings {}", i), |ui| {
+                    ui.checkbox(&mut trace_settings.show_ray_steps, "Show ray steps");
+                    ui.checkbox(&mut trace_settings.indirect_lighting, "Indirect lighting");
+                    ui.checkbox(&mut trace_settings.shadows, "Shadows");
+                    ui.add(
+                        Slider::new(&mut trace_settings.samples, 1..=8)
+                            .text("Samples")
+                            .logarithmic(true),
+                    );
+                    ui.checkbox(&mut trace_settings.misc_bool, "Misc");
+                    ui.add(Slider::new(&mut trace_settings.misc_float, 0.0..=1.0).text("Misc"));
+                });
+            }
             ui.collapsing("Compute", |ui| {
                 if ui.button("spawn particles").clicked() {
                     let mut rng = rand::thread_rng();
@@ -90,7 +89,5 @@ fn ui_system(
                 ui.checkbox(&mut render_graph_settings.denoise, "denoise");
             });
             ui.checkbox(&mut settings.spectator, "Spectator mode");
-            ui.checkbox(&mut uniforms.misc_bool, "Misc bool");
-            ui.add(Slider::new(&mut uniforms.misc_float, 0.0..=1.0).text("Misc float"));
         });
 }

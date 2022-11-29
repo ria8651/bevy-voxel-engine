@@ -3,15 +3,12 @@ use physics::PhysicsPlugin;
 pub use physics::VOXELS_PER_METER;
 use voxel_pipeline::RenderPlugin;
 pub use voxel_pipeline::{
-    trace::TraceUniforms, voxelization::VoxelizationMaterial, RenderGraphSettings,
+    trace::TraceSettings, voxelization::VoxelizationMaterial, RenderGraphSettings,
 };
 
 mod load;
 mod physics;
 mod voxel_pipeline;
-
-#[derive(Component)]
-pub struct VoxelCamera;
 
 #[derive(Component)]
 pub struct Particle {

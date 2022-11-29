@@ -16,25 +16,19 @@ struct Portal {
 struct VoxelUniforms {
     materials: array<vec4<f32>, 256>,
     portals: array<Portal, 32>,
-    levels: array<vec4<u32>, 2>,
-    offsets: array<vec4<u32>, 2>,
+    levels: array<vec4<u32>, 8>,
+    offsets: array<vec4<u32>, 8>,
     texture_size: u32,
 };
 
 struct TraceUniforms {
-    resolution: vec2<f32>,
-    last_camera: mat4x4<f32>,
     camera: mat4x4<f32>,
     camera_inverse: mat4x4<f32>,
     time: f32,
-    delta_time: f32,
     show_ray_steps: u32,
     indirect_lighting: u32,
     shadows: u32,
     samples: u32,
-    fov: f32,
-    freeze: u32,
-    skybox: u32,
     misc_bool: u32,
     misc_float: f32,
 };
