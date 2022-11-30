@@ -1,4 +1,4 @@
-use super::{TracePipeline, ViewTracePipeline, ViewTraceUniformBuffer};
+use super::{TracePipelineData, ViewTraceUniformBuffer};
 use crate::voxel_pipeline::{voxel_world::VoxelData, RenderGraphSettings};
 use bevy::{
     core_pipeline::clear_color::ClearColorConfig,
@@ -14,7 +14,6 @@ pub struct TraceNode {
     query: QueryState<
         (
             &'static ViewTarget,
-            &'static ViewTracePipeline,
             &'static Camera3d,
             &'static ViewTraceUniformBuffer,
         ),
@@ -35,7 +34,7 @@ impl render_graph::Node for TraceNode {
         vec![
             SlotInfo::new("view", SlotType::Entity),
             SlotInfo::new("colour", SlotType::TextureView),
-            SlotInfo::new("last_colour", SlotType::TextureView),
+            SlotInfo::new("accumulation", SlotType::TextureView),
             SlotInfo::new("normal", SlotType::TextureView),
             SlotInfo::new("position", SlotType::TextureView),
         ]
@@ -54,26 +53,33 @@ impl render_graph::Node for TraceNode {
         let view_entity = graph.get_input_entity("view")?;
         let pipeline_cache = world.resource::<PipelineCache>();
         let voxel_data = world.get_resource::<VoxelData>().unwrap();
-        let trace_pipeline = world.get_resource::<TracePipeline>().unwrap();
+        let trace_pipeline_data = world.get_resource::<TracePipelineData>().unwrap();
         let render_graph_settings = world.get_resource::<RenderGraphSettings>().unwrap();
 
         if !render_graph_settings.trace {
             return Ok(());
         }
 
-        let (target, pipeline, camera_3d, trace_uniform_buffer) =
+        let (target, camera_3d, trace_uniform_buffer) =
             match self.query.get_manual(world, view_entity) {
                 Ok(result) => result,
                 Err(_) => panic!("Voxel camera missing component!"),
             };
 
-        let pipeline = match pipeline_cache.get_render_pipeline(pipeline.0) {
+        let trace_pipeline =
+            match pipeline_cache.get_render_pipeline(trace_pipeline_data.trace_pipeline_id) {
+                Some(pipeline) => pipeline,
+                None => return Ok(()),
+            };
+        let reprojection_pipeline = match pipeline_cache
+            .get_render_pipeline(trace_pipeline_data.reprojection_pipeline_id)
+        {
             Some(pipeline) => pipeline,
             None => return Ok(()),
         };
 
         let colour = graph.get_input_texture("colour")?;
-        let last_colour = graph.get_input_texture("last_colour")?;
+        let accumulation = graph.get_input_texture("accumulation")?;
         let normal = graph.get_input_texture("normal")?;
         let position = graph.get_input_texture("position")?;
 
@@ -81,7 +87,7 @@ impl render_graph::Node for TraceNode {
             .render_device
             .create_bind_group(&BindGroupDescriptor {
                 label: None,
-                layout: &trace_pipeline.trace_bind_group_layout,
+                layout: &trace_pipeline_data.trace_bind_group_layout,
                 entries: &[
                     BindGroupEntry {
                         binding: 0,
@@ -93,7 +99,7 @@ impl render_graph::Node for TraceNode {
                     },
                     BindGroupEntry {
                         binding: 2,
-                        resource: BindingResource::TextureView(&last_colour),
+                        resource: BindingResource::TextureView(&accumulation),
                     },
                     BindGroupEntry {
                         binding: 3,
@@ -121,15 +127,27 @@ impl render_graph::Node for TraceNode {
             depth_stencil_attachment: None,
         };
 
-        let mut render_pass = render_context
-            .command_encoder
-            .begin_render_pass(&pass_descriptor);
+        {
+            let mut render_pass = render_context
+                .command_encoder
+                .begin_render_pass(&pass_descriptor);
 
-        render_pass.set_bind_group(0, &voxel_data.bind_group, &[]);
-        render_pass.set_bind_group(1, &bind_group, &[]);
+            render_pass.set_bind_group(0, &voxel_data.bind_group, &[]);
+            render_pass.set_bind_group(1, &bind_group, &[]);
 
-        render_pass.set_pipeline(pipeline);
-        render_pass.draw(0..3, 0..1);
+            render_pass.set_pipeline(trace_pipeline);
+            render_pass.draw(0..3, 0..1);
+        }
+        {
+            let mut render_pass = render_context
+                .command_encoder
+                .begin_render_pass(&pass_descriptor);
+
+            render_pass.set_bind_group(0, &bind_group, &[]);
+
+            render_pass.set_pipeline(reprojection_pipeline);
+            render_pass.draw(0..3, 0..1);
+        }
 
         Ok(())
     }

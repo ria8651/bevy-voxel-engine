@@ -40,12 +40,12 @@ fn ui_system(
                 ui.collapsing(format!("Camera Settings {}", i), |ui| {
                     ui.checkbox(&mut trace_settings.show_ray_steps, "Show ray steps");
                     ui.checkbox(&mut trace_settings.indirect_lighting, "Indirect lighting");
-                    ui.checkbox(&mut trace_settings.shadows, "Shadows");
+                    ui.add(Slider::new(&mut trace_settings.samples, 1..=8).text("Samples"));
                     ui.add(
-                        Slider::new(&mut trace_settings.samples, 1..=8)
-                            .text("Samples")
-                            .logarithmic(true),
+                        Slider::new(&mut trace_settings.reprojection_factor, 0.0..=1.0)
+                            .text("Reprojection"),
                     );
+                    ui.checkbox(&mut trace_settings.shadows, "Shadows");
                     ui.checkbox(&mut trace_settings.misc_bool, "Misc");
                     ui.add(Slider::new(&mut trace_settings.misc_float, 0.0..=1.0).text("Misc"));
                 });

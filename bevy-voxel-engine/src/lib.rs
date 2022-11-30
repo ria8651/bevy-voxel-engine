@@ -1,4 +1,8 @@
-use bevy::prelude::*;
+use bevy::{
+    core_pipeline::tonemapping::Tonemapping,
+    prelude::*,
+    render::{camera::CameraRenderGraph, primitives::Frustum, view::VisibleEntities},
+};
 use physics::PhysicsPlugin;
 pub use physics::VOXELS_PER_METER;
 use voxel_pipeline::RenderPlugin;
@@ -54,6 +58,42 @@ impl Velocity {
 #[derive(Component)]
 pub struct BoxCollider {
     pub half_size: IVec3,
+}
+
+#[derive(Bundle)]
+pub struct VoxelCameraBundle {
+    pub camera: Camera,
+    pub camera_render_graph: CameraRenderGraph,
+    pub projection: Projection,
+    pub visible_entities: VisibleEntities,
+    pub frustum: Frustum,
+    pub transform: Transform,
+    pub global_transform: GlobalTransform,
+    pub camera_3d: Camera3d,
+    pub tonemapping: Tonemapping,
+    pub trace_settings: TraceSettings,
+}
+
+impl Default for VoxelCameraBundle {
+    fn default() -> Self {
+        Self {
+            camera_render_graph: CameraRenderGraph::new("voxel"),
+            tonemapping: Tonemapping::Enabled {
+                deband_dither: true,
+            },
+            camera: Camera {
+                hdr: true,
+                ..default()
+            },
+            projection: default(),
+            visible_entities: default(),
+            frustum: default(),
+            transform: default(),
+            global_transform: default(),
+            camera_3d: default(),
+            trace_settings: default(),
+        }
+    }
 }
 
 #[derive(Bundle, Default)]

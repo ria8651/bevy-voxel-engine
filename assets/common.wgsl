@@ -24,11 +24,14 @@ struct VoxelUniforms {
 struct TraceUniforms {
     camera: mat4x4<f32>,
     camera_inverse: mat4x4<f32>,
+    last_camera: mat4x4<f32>,
+    projection: mat4x4<f32>,
     time: f32,
     show_ray_steps: u32,
     indirect_lighting: u32,
-    shadows: u32,
     samples: u32,
+    reprojection_factor: f32,
+    shadows: u32,
     misc_bool: u32,
     misc_float: f32,
 };
@@ -135,6 +138,20 @@ fn ray_plane(r: Ray, pos: vec3<f32>, normal: vec3<f32>) -> vec3<f32> {
 fn in_bounds(v: vec3<f32>) -> bool {
     let s = step(vec3<f32>(-1.0), v) - step(vec3<f32>(1.0), v);
     return (s.x * s.y * s.z) > 0.5;
+}
+
+fn clip_aabb(val: vec3<f32>, min_aabb: vec3<f32>, max_aabb: vec3<f32>) -> vec3<f32> {
+    let p_clip = 0.5 * (max_aabb + min_aabb);
+    let e_clip = 0.5 * (max_aabb - min_aabb);
+    let v_clip = val - p_clip;
+    let v_unit = v_clip / e_clip;
+    let a_unit = abs(v_unit);
+    let max_unit = max(a_unit.x, max(a_unit.y, a_unit.z));
+    if (max_unit > 1.0) {
+        return p_clip + v_clip / max_unit;
+    } else {
+        return val; // point inside aabb
+    }
 }
 
 fn skybox(dir: vec3<f32>, time_of_day: f32) -> vec3<f32> {

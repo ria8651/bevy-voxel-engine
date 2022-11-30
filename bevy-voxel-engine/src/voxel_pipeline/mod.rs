@@ -91,7 +91,7 @@ impl Plugin for RenderPlugin {
             .add_slot_edge("attachments", "colour", "trace", "colour")
             .unwrap();
         voxel_graph
-            .add_slot_edge("attachments", "last_colour", "trace", "last_colour")
+            .add_slot_edge("attachments", "accumulation", "trace", "accumulation")
             .unwrap();
         voxel_graph
             .add_slot_edge("attachments", "normal", "trace", "normal")
@@ -148,7 +148,7 @@ impl Default for RenderGraphSettings {
             rebuild: true,
             physics: true,
             trace: true,
-            denoise: true,
+            denoise: false,
         }
     }
 }

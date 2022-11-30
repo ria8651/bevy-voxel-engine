@@ -17,7 +17,7 @@ var texture_sampler: sampler;
 @group(0) @binding(2)
 var normal_attachment: texture_storage_2d<rgba16float, read_write>;
 @group(0) @binding(3)
-var position_attachment: texture_storage_2d<rgba16float, read_write>;
+var position_attachment: texture_storage_2d<rgba32float, read_write>;
 @group(1) @binding(0)
 var<uniform> pass_data: PassData;
 @group(1) @binding(1)
@@ -33,11 +33,11 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
 
     var sum = vec3(0.0);
     var sum_w = vec3(0.0);
-    let c_phi = 1.0;
+    let c_phi = 0.1;
     let n_phi = 0.5;
     let p_phi = 0.1;
 
-    let denoise_strength = pass_data.denoise_strength;
+    let denoise_strength = 1.0;
 
     for (var i = 0; i < 25; i += 1) {
         let colour_pos = in.uv + denoise_strength * uniforms.offsets[i].xy / vec2<f32>(textureDimensions(colour_attachment));

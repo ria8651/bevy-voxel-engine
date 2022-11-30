@@ -13,11 +13,11 @@ var<uniform> trace_uniforms: TraceUniforms;
 @group(1) @binding(1)
 var colour: texture_storage_2d<rgba16float, read_write>;
 @group(1) @binding(2)
-var last_colour: texture_storage_2d<rgba16float, read_write>;
+var accumulation: texture_storage_2d<rgba16float, read_write>;
 @group(1) @binding(3)
 var normal: texture_storage_2d<rgba16float, read_write>;
 @group(1) @binding(4)
-var position: texture_storage_2d<rgba16float, read_write>;
+var position: texture_storage_2d<rgba32float, read_write>;
 
 // note: raytracing.wgsl requires common.wgsl and for you to define u, voxel_world and gh before you import it
 #import "raytracing.wgsl"
@@ -86,11 +86,13 @@ fn glmod(x: vec2<f32>, y: vec2<f32>) -> vec2<f32> {
 
 @fragment
 fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
-    // pixel jitter
-    let seed = vec3<u32>(in.position.xyy) * 100u + u32(trace_uniforms.time * 120.0) * 15236u;
-    let jitter = vec4(hash(seed).xy - 0.5, 0.0, 0.0) / 1.1;
+    let seed = vec3<u32>(in.position.xyz) * 100u + u32(trace_uniforms.time * 120.0) * 15236u;
     let resolution = vec2<f32>(textureDimensions(colour));
-    var clip_space = vec2(1.0, -1.0) * (in.uv * 2.0 - 1.0);
+    var jitter = vec2(0.0);
+    if (trace_uniforms.indirect_lighting != 0u) {
+        jitter = (hash(seed).xy - 0.5) / resolution;
+    }
+    var clip_space = vec2(1.0, -1.0) * ((in.uv + jitter) * 2.0 - 1.0);
     var output_colour = vec3(0.0);
 
     let pos = trace_uniforms.camera_inverse * vec4(clip_space.x, clip_space.y, 1.0, 1.0);
@@ -137,43 +139,10 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
 
         // final blend
         output_colour = (indirect_lighting + direct_lighting) * hit.material.rgb;
-
-        // // reprojection
-        // let last_frame_clip_space = u.last_camera * vec4<f32>(hit.pos + hit.portal_offset, 1.0);
-        // var last_frame_pos = vec2<f32>(-1.0, 1.0) * (last_frame_clip_space.xy / last_frame_clip_space.z / u.fov);
-        // last_frame_pos.x = last_frame_pos.x / aspect;
-        // let texture_pos = vec2<i32>((last_frame_pos.xy * 0.5 + 0.5) * u.resolution);
-
-        // var last_frame_col = textureLoad(screen_texture, texture_pos, 0);
-        // var last_frame_pos = textureLoad(screen_texture, texture_pos, 1);
-
-        // let last_frame_clip_space_from_texture = u.last_camera * vec4<f32>(last_frame_pos.xyz, 1.0);
-        // if (length(last_frame_clip_space.z - last_frame_clip_space_from_texture.z) > 0.001) {
-        //     last_frame_col = vec4<f32>(0.0);
-        //     last_frame_pos = vec4<f32>(0.0);
-        // }
-        // if (last_frame_clip_space.z > 0.0) {
-        //     last_frame_col = vec4<f32>(0.0);
-        //     last_frame_pos = vec4<f32>(0.0);
-        // }
-
-        // samples = min(last_frame_col.a + 1.0, u.accumulation_frames);
-        // if (u.freeze == 0u) {
-        //     output_colour = last_frame_col.rgb + (output_colour - last_frame_col.rgb) / samples;
-        // } else {
-        //     output_colour = last_frame_col.rgb;
-        // }
     } else {
         // output_colour = vec3<f32>(0.2);
         output_colour = skybox(ray.dir, 10.0);
     }
-
-    // if (trace_uniforms.freeze == 0u) {
-        // store colour for next frame
-        // let texture_pos = vec2<i32>(frag_pos.xy);
-        // textureStore(screen_texture, texture_pos, 0, vec4(output_colour.rgb, samples));
-        // textureStore(screen_texture, texture_pos, 1, vec4(hit.pos + hit.portal_offset, 0.0));
-    // }
 
     if (trace_uniforms.show_ray_steps != 0u) {
         output_colour = vec3<f32>(f32(steps) / 100.0);
@@ -182,8 +151,9 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     // output_colour = (hit.pos + hit.portal_offset) * 2.0;
     // output_colour = hit.pos * 2.0;
 
+    output_colour = max(output_colour, vec3(0.0));
     textureStore(colour, vec2<i32>(in.position.xy), vec4(output_colour, 0.0));
     textureStore(normal, vec2<i32>(in.position.xy), vec4(hit.normal, 0.0));
     textureStore(position, vec2<i32>(in.position.xy), vec4(hit.pos, 0.0));
-    return vec4<f32>(max(output_colour, vec3(0.0)), 1.0);
+    return vec4<f32>(output_colour, 1.0);
 }

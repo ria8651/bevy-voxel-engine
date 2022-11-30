@@ -17,7 +17,8 @@ impl Plugin for AttachmentsPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(ExtractComponentPlugin::<RenderAttachments>::default())
             .add_system(add_render_attachments)
-            .add_system(update_attachments);
+            .add_system(resize_attachments);
+            // .add_system(swap_attachments);
     }
 }
 
@@ -25,7 +26,7 @@ impl Plugin for AttachmentsPlugin {
 pub struct RenderAttachments {
     current_size: UVec2,
     pub colour: Handle<Image>,
-    pub last_colour: Handle<Image>,
+    pub accumulation: Handle<Image>,
     pub normal: Handle<Image>,
     pub position: Handle<Image>,
 }
@@ -59,18 +60,27 @@ fn add_render_attachments(
         image.texture_descriptor.usage = TextureUsages::COPY_DST
             | TextureUsages::STORAGE_BINDING
             | TextureUsages::TEXTURE_BINDING;
+        let mut highp_image = Image::new_fill(
+            size,
+            TextureDimension::D2,
+            &[0, 0, 0, 0],
+            TextureFormat::Rgba32Float,
+        );
+        highp_image.texture_descriptor.usage = TextureUsages::COPY_DST
+            | TextureUsages::STORAGE_BINDING
+            | TextureUsages::TEXTURE_BINDING;
 
         commands.entity(entity).insert(RenderAttachments {
             current_size: UVec2::new(1, 1),
             colour: images.add(image.clone()),
-            last_colour: images.add(image.clone()),
+            accumulation: images.add(image.clone()),
             normal: images.add(image.clone()),
-            position: images.add(image.clone()),
+            position: images.add(highp_image),
         });
     }
 }
 
-fn update_attachments(
+fn resize_attachments(
     windows: Res<Windows>,
     mut images: ResMut<Assets<Image>>,
     mut query: Query<(&mut RenderAttachments, &Camera)>,
@@ -95,8 +105,8 @@ fn update_attachments(
             let colour_image = images.get_mut(&render_attachments.colour).unwrap();
             colour_image.resize(size);
 
-            let last_colour_image = images.get_mut(&render_attachments.last_colour).unwrap();
-            last_colour_image.resize(size);
+            let accumulation_image = images.get_mut(&render_attachments.accumulation).unwrap();
+            accumulation_image.resize(size);
 
             let normal_image = images.get_mut(&render_attachments.normal).unwrap();
             normal_image.resize(size);
@@ -106,6 +116,22 @@ fn update_attachments(
         }
     }
 }
+
+// fn swap_attachments(mut query: Query<&mut RenderAttachments>, mut images: ResMut<Assets<Image>>) {
+//     for mut render_attachments in query.iter_mut() {
+//         let temp = render_attachments.colour.clone();
+//         render_attachments.colour = render_attachments.accumulation.clone();
+//         render_attachments.accumulation = temp;
+
+//         let colour_image = images.get_mut(&render_attachments.colour).unwrap();
+//         let size = colour_image.size();
+//         colour_image.resize(Extent3d {
+//             width: size.x as u32,
+//             height: size.y as u32,
+//             depth_or_array_layers: 1,
+//         });
+//     }
+// }
 
 pub struct AttachmentsNode {
     query: QueryState<&'static RenderAttachments>,
@@ -127,7 +153,7 @@ impl render_graph::Node for AttachmentsNode {
     fn output(&self) -> Vec<SlotInfo> {
         vec![
             SlotInfo::new("colour", SlotType::TextureView),
-            SlotInfo::new("last_colour", SlotType::TextureView),
+            SlotInfo::new("accumulation", SlotType::TextureView),
             SlotInfo::new("normal", SlotType::TextureView),
             SlotInfo::new("position", SlotType::TextureView),
         ]
@@ -152,7 +178,7 @@ impl render_graph::Node for AttachmentsNode {
         };
 
         let colour = gpu_images.get(&render_attachments.colour).unwrap();
-        let last_colour = gpu_images.get(&render_attachments.last_colour).unwrap();
+        let last_colour = gpu_images.get(&render_attachments.accumulation).unwrap();
         let normal = gpu_images.get(&render_attachments.normal).unwrap();
         let position = gpu_images.get(&render_attachments.position).unwrap();
 
@@ -165,7 +191,7 @@ impl render_graph::Node for AttachmentsNode {
             .set_output("colour", SlotValue::TextureView(colour))
             .unwrap();
         graph
-            .set_output("last_colour", SlotValue::TextureView(last_colour))
+            .set_output("accumulation", SlotValue::TextureView(last_colour))
             .unwrap();
         graph
             .set_output("normal", SlotValue::TextureView(normal))

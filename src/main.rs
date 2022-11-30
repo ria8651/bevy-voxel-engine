@@ -1,12 +1,7 @@
-use bevy::{
-    prelude::*,
-    render::{
-        camera::{CameraRenderGraph},
-    },
-};
+use bevy::prelude::*;
 use bevy_obj::*;
 use bevy_voxel_engine::{
-    BevyVoxelEnginePlugin, Box, BoxCollider, Edges, Particle, Portal, TraceSettings, Velocity,
+    BevyVoxelEnginePlugin, Box, BoxCollider, Edges, Particle, Portal, Velocity, VoxelCameraBundle,
     VoxelizationBundle, VoxelizationMaterial, VOXELS_PER_METER,
 };
 use character::CharacterEntity;
@@ -42,8 +37,8 @@ fn main() {
                 })
                 .set(WindowPlugin {
                     window: WindowDescriptor {
-                        width: 600.0,
-                        height: 600.0,
+                        width: 1280.0,
+                        height: 720.0,
                         ..default()
                     },
                     ..default()
@@ -69,10 +64,7 @@ fn main() {
 
 // world space cordinates are in terms of 4 voxels per meter with 0, 0
 // in the world lining up with the center of the voxel world (ie 0, 0, 0 in the render world)
-fn setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let portal1 = commands
         .spawn((
             Portal {
@@ -103,26 +95,13 @@ fn setup(
     // character
     let character_transform = Transform::from_xyz(10.0, 10.0, -5.0).looking_at(Vec3::ZERO, Vec3::Y);
     commands.spawn((
-        Camera3dBundle {
+        VoxelCameraBundle {
             transform: character_transform,
-            camera_render_graph: CameraRenderGraph::new("voxel"),
-            camera: Camera {
-                hdr: true,
-                ..default()
-            },
             projection: Projection::Perspective(PerspectiveProjection {
                 fov: PI / 2.0,
                 ..default()
             }),
             ..default()
-        },
-        TraceSettings {
-            show_ray_steps: false,
-            indirect_lighting: false,
-            shadows: true,
-            samples: 1,
-            misc_bool: false,
-            misc_float: 1.0,
         },
         CharacterEntity {
             grounded: false,
@@ -145,7 +124,7 @@ fn setup(
                 texture: asset_server.load("models/suzanne.png"),
             },
             transform: Transform::from_scale(Vec3::splat(5.0)).looking_at(Vec3::Z, Vec3::Y),
-            ..Default::default()
+            ..default()
         },
         Suzanne,
     ));
