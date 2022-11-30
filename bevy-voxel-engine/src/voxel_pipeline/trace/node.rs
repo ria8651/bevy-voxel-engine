@@ -1,13 +1,10 @@
 use super::{TracePipeline, ViewTracePipeline, ViewTraceUniformBuffer};
-use crate::voxel_pipeline::{
-    attachments::RenderAttachments, voxel_world::VoxelData, RenderGraphSettings,
-};
+use crate::voxel_pipeline::{voxel_world::VoxelData, RenderGraphSettings};
 use bevy::{
     core_pipeline::clear_color::ClearColorConfig,
     prelude::*,
     render::{
-        render_asset::RenderAssets,
-        render_graph::{self, SlotInfo, SlotType, SlotValue},
+        render_graph::{self, SlotInfo, SlotType},
         render_resource::*,
         view::{ExtractedView, ViewTarget},
     },
@@ -20,7 +17,6 @@ pub struct TraceNode {
             &'static ViewTracePipeline,
             &'static Camera3d,
             &'static ViewTraceUniformBuffer,
-            &'static RenderAttachments,
         ),
         With<ExtractedView>,
     >,
@@ -36,11 +32,10 @@ impl TraceNode {
 
 impl render_graph::Node for TraceNode {
     fn input(&self) -> Vec<SlotInfo> {
-        vec![SlotInfo::new("view", SlotType::Entity)]
-    }
-
-    fn output(&self) -> Vec<SlotInfo> {
         vec![
+            SlotInfo::new("view", SlotType::Entity),
+            SlotInfo::new("colour", SlotType::TextureView),
+            SlotInfo::new("last_colour", SlotType::TextureView),
             SlotInfo::new("normal", SlotType::TextureView),
             SlotInfo::new("position", SlotType::TextureView),
         ]
@@ -60,17 +55,16 @@ impl render_graph::Node for TraceNode {
         let pipeline_cache = world.resource::<PipelineCache>();
         let voxel_data = world.get_resource::<VoxelData>().unwrap();
         let trace_pipeline = world.get_resource::<TracePipeline>().unwrap();
-        let gpu_images = world.get_resource::<RenderAssets<Image>>().unwrap();
         let render_graph_settings = world.get_resource::<RenderGraphSettings>().unwrap();
 
         if !render_graph_settings.trace {
             return Ok(());
         }
 
-        let (target, pipeline, camera_3d, trace_uniform_buffer, render_attachments) =
+        let (target, pipeline, camera_3d, trace_uniform_buffer) =
             match self.query.get_manual(world, view_entity) {
                 Ok(result) => result,
-                Err(_) => panic!("Voxel camera doesn't have trace settings!"),
+                Err(_) => panic!("Voxel camera missing component!"),
             };
 
         let pipeline = match pipeline_cache.get_render_pipeline(pipeline.0) {
@@ -78,8 +72,10 @@ impl render_graph::Node for TraceNode {
             None => return Ok(()),
         };
 
-        let normal = gpu_images.get(&render_attachments.normal).unwrap();
-        let position = gpu_images.get(&render_attachments.position).unwrap();
+        let colour = graph.get_input_texture("colour")?;
+        let last_colour = graph.get_input_texture("last_colour")?;
+        let normal = graph.get_input_texture("normal")?;
+        let position = graph.get_input_texture("position")?;
 
         let bind_group = render_context
             .render_device
@@ -93,23 +89,22 @@ impl render_graph::Node for TraceNode {
                     },
                     BindGroupEntry {
                         binding: 1,
-                        resource: BindingResource::TextureView(&normal.texture_view),
+                        resource: BindingResource::TextureView(&colour),
                     },
                     BindGroupEntry {
                         binding: 2,
-                        resource: BindingResource::TextureView(&position.texture_view),
+                        resource: BindingResource::TextureView(&last_colour),
+                    },
+                    BindGroupEntry {
+                        binding: 3,
+                        resource: BindingResource::TextureView(&normal),
+                    },
+                    BindGroupEntry {
+                        binding: 4,
+                        resource: BindingResource::TextureView(&position),
                     },
                 ],
             });
-
-        let normal = normal.texture_view.clone();
-        let position = position.texture_view.clone();
-        graph
-            .set_output("normal", SlotValue::TextureView(normal))
-            .unwrap();
-        graph
-            .set_output("position", SlotValue::TextureView(position))
-            .unwrap();
 
         let pass_descriptor = RenderPassDescriptor {
             label: Some("trace pass"),

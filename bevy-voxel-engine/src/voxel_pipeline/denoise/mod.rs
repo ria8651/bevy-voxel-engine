@@ -63,7 +63,7 @@ impl FromWorld for DenoisePipeline {
                         visibility: ShaderStages::FRAGMENT,
                         ty: BindingType::StorageTexture {
                             access: StorageTextureAccess::ReadWrite,
-                            format: TextureFormat::Rgba8Unorm,
+                            format: TextureFormat::Rgba16Float,
                             view_dimension: TextureViewDimension::D2,
                         },
                         count: None,

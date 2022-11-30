@@ -15,7 +15,7 @@ var<uniform> uniforms: Uniforms;
 @group(0) @binding(1)
 var texture_sampler: sampler;
 @group(0) @binding(2)
-var normal_attachment: texture_storage_2d<rgba8unorm, read_write>;
+var normal_attachment: texture_storage_2d<rgba16float, read_write>;
 @group(0) @binding(3)
 var position_attachment: texture_storage_2d<rgba16float, read_write>;
 @group(1) @binding(0)
@@ -27,7 +27,7 @@ var colour_attachment: texture_2d<f32>;
 fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     let sample_pos = vec2<i32>(in.position.xy);
     let colour = textureSample(colour_attachment, texture_sampler, in.uv).rgb;
-    let normal = textureLoad(normal_attachment, sample_pos).rgb * 2.0 - 1.0;
+    let normal = textureLoad(normal_attachment, sample_pos).rgb;
     let position = textureLoad(position_attachment, sample_pos).rgb;
     var output_colour = vec3(0.0);
 
@@ -47,7 +47,7 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
         let colour_weight = min(exp(-dist2 / c_phi), 1.0);
 
         let normal_pos = sample_pos + vec2<i32>(denoise_strength * uniforms.offsets[i].xy);
-        let new_normal = textureLoad(normal_attachment, normal_pos).rgb * 2.0 - 1.0;
+        let new_normal = textureLoad(normal_attachment, normal_pos).rgb;
         let diff = normal - new_normal;
         let dist2 = dot(diff, diff);
         let normal_weight = min(exp(-dist2 / n_phi), 1.0);
@@ -65,6 +65,7 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     }
 
     output_colour = sum / sum_w;
+    // output_colour = position;
     // output_colour = sum;
     // output_colour = abs(vec3(uniforms.offsets[5 * i32(in.uv.x * 5.0) + i32(in.uv.y * 5.0)].xyz));
 

@@ -11,9 +11,13 @@ var<storage, read_write> gh: array<u32>;
 @group(1) @binding(0)
 var<uniform> trace_uniforms: TraceUniforms;
 @group(1) @binding(1)
-var normal_attachment: texture_storage_2d<rgba8unorm, read_write>;
+var colour: texture_storage_2d<rgba16float, read_write>;
 @group(1) @binding(2)
-var position_attachment: texture_storage_2d<rgba16float, read_write>;
+var last_colour: texture_storage_2d<rgba16float, read_write>;
+@group(1) @binding(3)
+var normal: texture_storage_2d<rgba16float, read_write>;
+@group(1) @binding(4)
+var position: texture_storage_2d<rgba16float, read_write>;
 
 // note: raytracing.wgsl requires common.wgsl and for you to define u, voxel_world and gh before you import it
 #import "raytracing.wgsl"
@@ -85,7 +89,7 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     // pixel jitter
     let seed = vec3<u32>(in.position.xyy) * 100u + u32(trace_uniforms.time * 120.0) * 15236u;
     let jitter = vec4(hash(seed).xy - 0.5, 0.0, 0.0) / 1.1;
-    let resolution = vec2<f32>(textureDimensions(normal_attachment));
+    let resolution = vec2<f32>(textureDimensions(colour));
     var clip_space = vec2(1.0, -1.0) * (in.uv * 2.0 - 1.0);
     var output_colour = vec3(0.0);
 
@@ -161,8 +165,7 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
         // }
     } else {
         // output_colour = vec3<f32>(0.2);
-        // output_colour = skybox(ray.dir, 10.0);
-        discard;
+        output_colour = skybox(ray.dir, 10.0);
     }
 
     // if (trace_uniforms.freeze == 0u) {
@@ -179,7 +182,8 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     // output_colour = (hit.pos + hit.portal_offset) * 2.0;
     // output_colour = hit.pos * 2.0;
 
-    textureStore(normal_attachment, vec2<i32>(in.position.xy), vec4(hit.normal * 0.5 + 0.5, 0.0));
-    textureStore(position_attachment, vec2<i32>(in.position.xy), vec4(hit.pos, 0.0));
+    textureStore(colour, vec2<i32>(in.position.xy), vec4(output_colour, 0.0));
+    textureStore(normal, vec2<i32>(in.position.xy), vec4(hit.normal, 0.0));
+    textureStore(position, vec2<i32>(in.position.xy), vec4(hit.pos, 0.0));
     return vec4<f32>(max(output_colour, vec3(0.0)), 1.0);
 }

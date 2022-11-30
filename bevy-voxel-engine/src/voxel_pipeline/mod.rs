@@ -1,5 +1,5 @@
 use self::{
-    attachments::AttachmentsPlugin,
+    attachments::{AttachmentsNode, AttachmentsPlugin},
     compute::{
         automata::AutomataNode, clear::ClearNode, physics::PhysicsNode, rebuild::RebuildNode,
         ComputeResourcesPlugin,
@@ -52,17 +52,22 @@ impl Plugin for RenderPlugin {
             voxel_graph.set_input(vec![SlotInfo::new("view_entity", SlotType::Entity)]);
 
         // voxel render graph
+        let attachments = AttachmentsNode::new(&mut render_app.world);
         let trace = TraceNode::new(&mut render_app.world);
         let denoise = DenoiseNode::new(&mut render_app.world);
         let tonemapping = TonemappingNode::new(&mut render_app.world);
         let ui = UiPassNode::new(&mut render_app.world);
         let upscaling = UpscalingNode::new(&mut render_app.world);
 
+        voxel_graph.add_node("attachments", attachments);
         voxel_graph.add_node("trace", trace);
         voxel_graph.add_node("denoise", denoise);
         voxel_graph.add_node("tonemapping", tonemapping);
         voxel_graph.add_node("ui", ui);
         voxel_graph.add_node("upscaling", upscaling);
+        voxel_graph
+            .add_slot_edge(input_node_id, "view_entity", "attachments", "view")
+            .unwrap();
         voxel_graph
             .add_slot_edge(input_node_id, "view_entity", "trace", "view")
             .unwrap();
@@ -83,10 +88,22 @@ impl Plugin for RenderPlugin {
         voxel_graph.add_node_edge("tonemapping", "ui").unwrap();
         voxel_graph.add_node_edge("ui", "upscaling").unwrap();
         voxel_graph
-            .add_slot_edge("trace", "normal", "denoise", "normal")
+            .add_slot_edge("attachments", "colour", "trace", "colour")
             .unwrap();
         voxel_graph
-            .add_slot_edge("trace", "position", "denoise", "position")
+            .add_slot_edge("attachments", "last_colour", "trace", "last_colour")
+            .unwrap();
+        voxel_graph
+            .add_slot_edge("attachments", "normal", "trace", "normal")
+            .unwrap();
+        voxel_graph
+            .add_slot_edge("attachments", "position", "trace", "position")
+            .unwrap();
+        voxel_graph
+            .add_slot_edge("attachments", "normal", "denoise", "normal")
+            .unwrap();
+        voxel_graph
+            .add_slot_edge("attachments", "position", "denoise", "position")
             .unwrap();
 
         // voxel render graph compute

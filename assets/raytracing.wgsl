@@ -248,5 +248,5 @@ fn shoot_ray(r: Ray, physics_distance: f32, flags: u32) -> HitInfo {
         steps = steps + 1u;
     }
 
-    return HitInfo(true, voxel.data, voxel_uniforms.materials[voxel.data & 0xFFu], tcpotr * rtw + normal * 0.00007, portal_offset, normal, rot, steps);
+    return HitInfo(true, voxel.data, voxel_uniforms.materials[voxel.data & 0xFFu], tcpotr * rtw + normal * 0.0001, portal_offset, normal, rot, steps);
 }

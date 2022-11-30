@@ -1,5 +1,4 @@
 use bevy::{
-    core_pipeline::clear_color::ClearColorConfig,
     prelude::*,
     render::{
         camera::{CameraRenderGraph},
@@ -135,37 +134,6 @@ fn setup(
         Velocity::new(Vec3::splat(0.0)),
         BoxCollider {
             half_size: IVec3::new(2, 4, 2),
-        },
-    ));
-
-    // small camera
-    let transform = Transform::from_xyz(-10.0, -10.0, -5.0).looking_at(Vec3::ZERO, Vec3::Y);
-    commands.spawn((
-        Camera3dBundle {
-            transform: transform,
-            camera_render_graph: CameraRenderGraph::new("voxel"),
-            camera: Camera {
-                hdr: true,
-                priority: 10,
-                ..default()
-            },
-            camera_3d: Camera3d {
-                clear_color: ClearColorConfig::None,
-                ..default()
-            },
-            projection: Projection::Perspective(PerspectiveProjection {
-                fov: PI / 2.0,
-                ..default()
-            }),
-            ..default()
-        },
-        TraceSettings {
-            show_ray_steps: false,
-            indirect_lighting: false,
-            shadows: true,
-            samples: 1,
-            misc_bool: false,
-            misc_float: 1.0,
         },
     ));
 

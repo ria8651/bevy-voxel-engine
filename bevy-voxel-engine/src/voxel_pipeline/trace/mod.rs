@@ -152,13 +152,33 @@ impl FromWorld for TracePipeline {
                         visibility: ShaderStages::FRAGMENT,
                         ty: BindingType::StorageTexture {
                             access: StorageTextureAccess::ReadWrite,
-                            format: TextureFormat::Rgba8Unorm,
+                            format: TextureFormat::Rgba16Float,
                             view_dimension: TextureViewDimension::D2,
                         },
                         count: None,
                     },
                     BindGroupLayoutEntry {
                         binding: 2,
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::StorageTexture {
+                            access: StorageTextureAccess::ReadWrite,
+                            format: TextureFormat::Rgba16Float,
+                            view_dimension: TextureViewDimension::D2,
+                        },
+                        count: None,
+                    },
+                    BindGroupLayoutEntry {
+                        binding: 3,
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::StorageTexture {
+                            access: StorageTextureAccess::ReadWrite,
+                            format: TextureFormat::Rgba16Float,
+                            view_dimension: TextureViewDimension::D2,
+                        },
+                        count: None,
+                    },
+                    BindGroupLayoutEntry {
+                        binding: 4,
                         visibility: ShaderStages::FRAGMENT,
                         ty: BindingType::StorageTexture {
                             access: StorageTextureAccess::ReadWrite,
