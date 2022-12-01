@@ -10,13 +10,9 @@ var<storage, read_write> gh: array<u32>;
 
 @group(1) @binding(0)
 var<uniform> trace_uniforms: TraceUniforms;
-@group(1) @binding(1)
-var colour: texture_storage_2d<rgba16float, read_write>;
 @group(1) @binding(2)
-var accumulation: texture_storage_2d<rgba16float, read_write>;
-@group(1) @binding(3)
 var normal: texture_storage_2d<rgba16float, read_write>;
-@group(1) @binding(4)
+@group(1) @binding(3)
 var position: texture_storage_2d<rgba32float, read_write>;
 
 // note: raytracing.wgsl requires common.wgsl and for you to define u, voxel_world and gh before you import it
@@ -87,7 +83,7 @@ fn glmod(x: vec2<f32>, y: vec2<f32>) -> vec2<f32> {
 @fragment
 fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     let seed = vec3<u32>(in.position.xyz) * 100u + u32(trace_uniforms.time * 120.0) * 15236u;
-    let resolution = vec2<f32>(textureDimensions(colour));
+    let resolution = vec2<f32>(textureDimensions(normal));
     var jitter = vec2(0.0);
     if (trace_uniforms.indirect_lighting != 0u) {
         jitter = (hash(seed).xy - 0.5) / resolution;
@@ -152,7 +148,6 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     // output_colour = hit.pos * 2.0;
 
     output_colour = max(output_colour, vec3(0.0));
-    textureStore(colour, vec2<i32>(in.position.xy), vec4(output_colour, 0.0));
     textureStore(normal, vec2<i32>(in.position.xy), vec4(hit.normal, 0.0));
     textureStore(position, vec2<i32>(in.position.xy), vec4(hit.pos, 0.0));
     return vec4<f32>(output_colour, 1.0);

@@ -2,10 +2,11 @@ use bevy::{
     core_pipeline::fullscreen_vertex_shader::fullscreen_shader_vertex_state,
     prelude::*,
     render::{
-        render_resource::{*},
+        extract_resource::{ExtractResource, ExtractResourcePlugin},
+        render_resource::*,
         renderer::{RenderDevice, RenderQueue},
         view::ViewTarget,
-        RenderApp,
+        RenderApp, RenderStage,
     },
 };
 pub use node::DenoiseNode;
@@ -16,9 +17,40 @@ pub struct DenoisePlugin;
 
 impl Plugin for DenoisePlugin {
     fn build(&self, app: &mut App) {
+        let pass_settings = [
+            // DenoisePassData::new(1.0, 0.6, 0.5, 0.1),
+            // DenoisePassData::new(2.0, 0.3, 0.5, 0.1),
+            // DenoisePassData::new(4.0, 0.1, 0.5, 0.1),
+            DenoisePassData::new(1.0, 0.15, 0.5, 0.1),
+            DenoisePassData::new(2.0, 0.15, 0.5, 0.1),
+            DenoisePassData::new(0.0, 1.0, 1.0, 1.0),
+        ];
+
+        app.insert_resource(DenoiseSettings { pass_settings })
+            .add_plugin(ExtractResourcePlugin::<DenoiseSettings>::default());
+
         app.sub_app_mut(RenderApp)
-            .init_resource::<DenoisePipeline>();
+            .init_resource::<DenoisePipeline>()
+            .add_system_to_stage(RenderStage::Prepare, prepare_pass_data);
     }
+}
+
+#[derive(Resource, Clone, ExtractResource)]
+pub struct DenoiseSettings {
+    pub pass_settings: [DenoisePassData; 3],
+}
+
+fn prepare_pass_data(
+    denoise_settings: Res<DenoiseSettings>,
+    mut denoise_pipeline: ResMut<DenoisePipeline>,
+    render_device: Res<RenderDevice>,
+    render_queue: Res<RenderQueue>,
+) {
+    denoise_pipeline.pass_data.clear();
+    denoise_pipeline.pass_data.push(denoise_settings.pass_settings[0]);
+    denoise_pipeline.pass_data.push(denoise_settings.pass_settings[1]);
+    denoise_pipeline.pass_data.push(denoise_settings.pass_settings[2]);
+    denoise_pipeline.pass_data.write_buffer(&render_device, &render_queue);
 }
 
 #[derive(Resource)]
@@ -27,7 +59,7 @@ struct DenoisePipeline {
     pass_data_bind_group_layout: BindGroupLayout,
     pipeline_id: CachedRenderPipelineId,
     uniform_buffer: Buffer,
-    pass_data: DynamicUniformBuffer<PassData>,
+    pass_data: DynamicUniformBuffer<DenoisePassData>,
 }
 
 #[derive(Component)]
@@ -55,7 +87,11 @@ impl FromWorld for DenoisePipeline {
                     BindGroupLayoutEntry {
                         binding: 1,
                         visibility: ShaderStages::FRAGMENT,
-                        ty: BindingType::Sampler(SamplerBindingType::NonFiltering),
+                        ty: BindingType::StorageTexture {
+                            access: StorageTextureAccess::ReadWrite,
+                            format: TextureFormat::Rgba16Float,
+                            view_dimension: TextureViewDimension::D2,
+                        },
                         count: None,
                     },
                     BindGroupLayoutEntry {
@@ -92,7 +128,7 @@ impl FromWorld for DenoisePipeline {
                             ty: BufferBindingType::Uniform,
                             has_dynamic_offset: true,
                             min_binding_size: BufferSize::new(
-                                std::mem::size_of::<PassData>() as u64
+                                std::mem::size_of::<DenoisePassData>() as u64
                             ),
                         },
                         count: None,
@@ -146,14 +182,7 @@ impl FromWorld for DenoisePipeline {
                 usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
             });
 
-        let mut pass_data = DynamicUniformBuffer::default();
-        pass_data.push(PassData::new(1.0));
-        pass_data.push(PassData::new(2.0));
-        pass_data.push(PassData::new(4.0));
-        pass_data.write_buffer(
-            render_world.resource::<RenderDevice>(),
-            render_world.resource::<RenderQueue>(),
-        );
+        let pass_data = DynamicUniformBuffer::default();
 
         DenoisePipeline {
             bind_group_layout,
@@ -165,22 +194,21 @@ impl FromWorld for DenoisePipeline {
     }
 }
 
-#[repr(C)]
 #[derive(Clone, Copy, ShaderType)]
-struct PassData {
-    denoise_strength: f32,
-    padding1: u32,
-    padding2: u32,
-    padding3: u32,
+pub struct DenoisePassData {
+    pub denoise_strength: f32,
+    pub colour_phi: f32,
+    pub normal_phi: f32,
+    pub position_phi: f32,
     padding4: [UVec4; 15],
 }
-impl PassData {
-    fn new(denoise_strength: f32) -> Self {
+impl DenoisePassData {
+    fn new(denoise_strength: f32, colour_phi: f32, normal_phi: f32, position_phi: f32) -> Self {
         Self {
             denoise_strength,
-            padding1: 0,
-            padding2: 0,
-            padding3: 0,
+            colour_phi,
+            normal_phi,
+            position_phi,
             padding4: [UVec4::ZERO; 15],
         }
     }

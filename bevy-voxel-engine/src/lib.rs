@@ -7,7 +7,8 @@ use physics::PhysicsPlugin;
 pub use physics::VOXELS_PER_METER;
 use voxel_pipeline::RenderPlugin;
 pub use voxel_pipeline::{
-    trace::TraceSettings, voxelization::VoxelizationMaterial, RenderGraphSettings,
+    denoise::DenoiseSettings, trace::TraceSettings, voxelization::VoxelizationMaterial,
+    RenderGraphSettings,
 };
 
 mod load;

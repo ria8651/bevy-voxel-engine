@@ -88,9 +88,6 @@ impl Plugin for RenderPlugin {
         voxel_graph.add_node_edge("tonemapping", "ui").unwrap();
         voxel_graph.add_node_edge("ui", "upscaling").unwrap();
         voxel_graph
-            .add_slot_edge("attachments", "colour", "trace", "colour")
-            .unwrap();
-        voxel_graph
             .add_slot_edge("attachments", "accumulation", "trace", "accumulation")
             .unwrap();
         voxel_graph
@@ -98,6 +95,9 @@ impl Plugin for RenderPlugin {
             .unwrap();
         voxel_graph
             .add_slot_edge("attachments", "position", "trace", "position")
+            .unwrap();
+        voxel_graph
+            .add_slot_edge("attachments", "accumulation", "denoise", "accumulation")
             .unwrap();
         voxel_graph
             .add_slot_edge("attachments", "normal", "denoise", "normal")
@@ -148,7 +148,7 @@ impl Default for RenderGraphSettings {
             rebuild: true,
             physics: true,
             trace: true,
-            denoise: false,
+            denoise: true,
         }
     }
 }

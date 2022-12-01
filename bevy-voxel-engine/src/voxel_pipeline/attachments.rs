@@ -18,14 +18,12 @@ impl Plugin for AttachmentsPlugin {
         app.add_plugin(ExtractComponentPlugin::<RenderAttachments>::default())
             .add_system(add_render_attachments)
             .add_system(resize_attachments);
-            // .add_system(swap_attachments);
     }
 }
 
 #[derive(Component, Clone)]
 pub struct RenderAttachments {
     current_size: UVec2,
-    pub colour: Handle<Image>,
     pub accumulation: Handle<Image>,
     pub normal: Handle<Image>,
     pub position: Handle<Image>,
@@ -72,7 +70,6 @@ fn add_render_attachments(
 
         commands.entity(entity).insert(RenderAttachments {
             current_size: UVec2::new(1, 1),
-            colour: images.add(image.clone()),
             accumulation: images.add(image.clone()),
             normal: images.add(image.clone()),
             position: images.add(highp_image),
@@ -102,9 +99,6 @@ fn resize_attachments(
                 depth_or_array_layers: 1,
             };
 
-            let colour_image = images.get_mut(&render_attachments.colour).unwrap();
-            colour_image.resize(size);
-
             let accumulation_image = images.get_mut(&render_attachments.accumulation).unwrap();
             accumulation_image.resize(size);
 
@@ -116,22 +110,6 @@ fn resize_attachments(
         }
     }
 }
-
-// fn swap_attachments(mut query: Query<&mut RenderAttachments>, mut images: ResMut<Assets<Image>>) {
-//     for mut render_attachments in query.iter_mut() {
-//         let temp = render_attachments.colour.clone();
-//         render_attachments.colour = render_attachments.accumulation.clone();
-//         render_attachments.accumulation = temp;
-
-//         let colour_image = images.get_mut(&render_attachments.colour).unwrap();
-//         let size = colour_image.size();
-//         colour_image.resize(Extent3d {
-//             width: size.x as u32,
-//             height: size.y as u32,
-//             depth_or_array_layers: 1,
-//         });
-//     }
-// }
 
 pub struct AttachmentsNode {
     query: QueryState<&'static RenderAttachments>,
@@ -152,7 +130,6 @@ impl render_graph::Node for AttachmentsNode {
 
     fn output(&self) -> Vec<SlotInfo> {
         vec![
-            SlotInfo::new("colour", SlotType::TextureView),
             SlotInfo::new("accumulation", SlotType::TextureView),
             SlotInfo::new("normal", SlotType::TextureView),
             SlotInfo::new("position", SlotType::TextureView),
@@ -177,19 +154,14 @@ impl render_graph::Node for AttachmentsNode {
             Err(_) => panic!("Voxel camera missing component!"),
         };
 
-        let colour = gpu_images.get(&render_attachments.colour).unwrap();
         let last_colour = gpu_images.get(&render_attachments.accumulation).unwrap();
         let normal = gpu_images.get(&render_attachments.normal).unwrap();
         let position = gpu_images.get(&render_attachments.position).unwrap();
 
-        let colour = colour.texture_view.clone();
         let last_colour = last_colour.texture_view.clone();
         let normal = normal.texture_view.clone();
         let position = position.texture_view.clone();
 
-        graph
-            .set_output("colour", SlotValue::TextureView(colour))
-            .unwrap();
         graph
             .set_output("accumulation", SlotValue::TextureView(last_colour))
             .unwrap();

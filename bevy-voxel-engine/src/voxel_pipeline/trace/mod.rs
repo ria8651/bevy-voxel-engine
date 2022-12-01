@@ -35,6 +35,7 @@ struct TracePipelineData {
     trace_pipeline_id: CachedRenderPipelineId,
     reprojection_pipeline_id: CachedRenderPipelineId,
     trace_bind_group_layout: BindGroupLayout,
+    reprojection_bind_group_layout: BindGroupLayout,
 }
 
 #[derive(Component, Clone)]
@@ -62,7 +63,7 @@ impl Default for TraceSettings {
         Self {
             show_ray_steps: false,
             indirect_lighting: true,
-            samples: 1,
+            samples: 4,
             reprojection_factor: 0.75,
             shadows: true,
             misc_bool: false,
@@ -186,22 +187,27 @@ impl FromWorld for TracePipelineData {
                         visibility: ShaderStages::FRAGMENT,
                         ty: BindingType::StorageTexture {
                             access: StorageTextureAccess::ReadWrite,
-                            format: TextureFormat::Rgba16Float,
-                            view_dimension: TextureViewDimension::D2,
-                        },
-                        count: None,
-                    },
-                    BindGroupLayoutEntry {
-                        binding: 4,
-                        visibility: ShaderStages::FRAGMENT,
-                        ty: BindingType::StorageTexture {
-                            access: StorageTextureAccess::ReadWrite,
                             format: TextureFormat::Rgba32Float,
                             view_dimension: TextureViewDimension::D2,
                         },
                         count: None,
                     },
                 ],
+            });
+        let reprojection_bind_group_layout = render_world
+            .resource::<RenderDevice>()
+            .create_bind_group_layout(&BindGroupLayoutDescriptor {
+                label: Some("reprojection bind group layout"),
+                entries: &[BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Texture {
+                        sample_type: TextureSampleType::Float { filterable: false },
+                        view_dimension: TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                }],
             });
 
         let asset_server = render_world.get_resource::<AssetServer>().unwrap();
@@ -231,7 +237,10 @@ impl FromWorld for TracePipelineData {
         };
         let reprojection_pipeline_descriptor = RenderPipelineDescriptor {
             label: Some("reprojection pipeline".into()),
-            layout: Some(vec![trace_bind_group_layout.clone()]),
+            layout: Some(vec![
+                trace_bind_group_layout.clone(),
+                reprojection_bind_group_layout.clone(),
+            ]),
             vertex: fullscreen_shader_vertex_state(),
             fragment: Some(FragmentState {
                 shader: reprojection_shader,
@@ -256,6 +265,7 @@ impl FromWorld for TracePipelineData {
             trace_pipeline_id,
             reprojection_pipeline_id,
             trace_bind_group_layout,
+            reprojection_bind_group_layout,
         }
     }
 }

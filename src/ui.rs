@@ -5,7 +5,7 @@ use bevy_egui::{
     egui::{self, Slider},
     EguiContext, EguiPlugin,
 };
-use bevy_voxel_engine::{LoadVoxelWorld, RenderGraphSettings, TraceSettings};
+use bevy_voxel_engine::{DenoiseSettings, LoadVoxelWorld, RenderGraphSettings, TraceSettings};
 use rand::Rng;
 
 pub struct UiPlugin;
@@ -24,6 +24,7 @@ fn ui_system(
     mut load_voxel_world: ResMut<LoadVoxelWorld>,
     mut render_graph_settings: ResMut<RenderGraphSettings>,
     mut trace_settings_query: Query<&mut TraceSettings>,
+    mut denoise_pass_data: ResMut<DenoiseSettings>,
 ) {
     egui::Window::new("Settings")
         .anchor(egui::Align2::RIGHT_TOP, [-5.0, 5.0])
@@ -78,6 +79,42 @@ fn ui_system(
                     }
                 }
                 ui.label(format!("Particle count: {}", particle_query.iter().count()));
+            });
+            ui.collapsing("Denoise", |ui| {
+                for i in 0..3 {
+                    ui.label(format!("Pass {}", i));
+                    ui.add(
+                        Slider::new(
+                            &mut denoise_pass_data.pass_settings[i].denoise_strength,
+                            0.0..=8.0,
+                        )
+                        .text("Strength"),
+                    );
+                    ui.add(
+                        Slider::new(
+                            &mut denoise_pass_data.pass_settings[i].colour_phi,
+                            0.01..=1.0,
+                        )
+                        .text("Colour")
+                        .logarithmic(true),
+                    );
+                    ui.add(
+                        Slider::new(
+                            &mut denoise_pass_data.pass_settings[i].normal_phi,
+                            0.1..=100.0,
+                        )
+                        .text("Normal")
+                        .logarithmic(true),
+                    );
+                    ui.add(
+                        Slider::new(
+                            &mut denoise_pass_data.pass_settings[i].position_phi,
+                            0.01..=1.0,
+                        )
+                        .text("Position")
+                        .logarithmic(true),
+                    );
+                }
             });
             ui.collapsing("Passes", |ui| {
                 ui.checkbox(&mut render_graph_settings.clear, "clear");
