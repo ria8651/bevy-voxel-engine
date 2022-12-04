@@ -94,27 +94,44 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     // character
     let character_transform = Transform::from_xyz(10.0, 10.0, -5.0).looking_at(Vec3::ZERO, Vec3::Y);
-    commands.spawn((
-        VoxelCameraBundle {
-            transform: character_transform,
-            projection: Projection::Perspective(PerspectiveProjection {
-                fov: PI / 2.0,
+    let projection = Projection::Perspective(PerspectiveProjection {
+        fov: PI / 2.0,
+        ..default()
+    });
+    commands
+        .spawn((
+            VoxelCameraBundle {
+                transform: character_transform,
+                projection: projection.clone(),
                 ..default()
-            }),
-            ..default()
-        },
-        CharacterEntity {
-            grounded: false,
-            look_at: -character_transform.local_z(),
-            up: Vec3::new(0.0, 1.0, 0.0),
-            portal1,
-            portal2,
-        },
-        Velocity::new(Vec3::splat(0.0)),
-        BoxCollider {
-            half_size: IVec3::new(2, 4, 2),
-        },
-    ));
+            },
+            CharacterEntity {
+                grounded: false,
+                look_at: -character_transform.local_z(),
+                up: Vec3::new(0.0, 1.0, 0.0),
+                portal1,
+                portal2,
+            },
+            Velocity::new(Vec3::splat(0.0)),
+            BoxCollider {
+                half_size: IVec3::new(2, 4, 2),
+            },
+        ))
+        .with_children(|parent| {
+            // voxelization preview camera
+            parent.spawn((
+                Camera3dBundle {
+                    camera: Camera {
+                        is_active: false,
+                        priority: 10, // render after the main camera
+                        ..default()
+                    },
+                    projection,
+                    ..default()
+                },
+                VoxelizationPreviewCamera,
+            ));
+        });
 
     // voxelized mesh
     commands.spawn((
@@ -130,6 +147,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     ));
 }
 
+#[derive(Component)]
+struct VoxelizationPreviewCamera;
 #[derive(Component)]
 struct Suzanne;
 

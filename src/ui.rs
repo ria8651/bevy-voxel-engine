@@ -1,3 +1,5 @@
+use crate::VoxelizationPreviewCamera;
+
 use super::character::CharacterEntity;
 use super::{Bullet, Particle, Settings, Velocity};
 use bevy::prelude::*;
@@ -25,6 +27,7 @@ fn ui_system(
     mut render_graph_settings: ResMut<RenderGraphSettings>,
     mut trace_settings_query: Query<&mut TraceSettings>,
     mut denoise_pass_data: ResMut<DenoiseSettings>,
+    mut voxelization_preview_camera_query: Query<&mut Camera, With<VoxelizationPreviewCamera>>,
 ) {
     egui::Window::new("Settings")
         .anchor(egui::Align2::RIGHT_TOP, [-5.0, 5.0])
@@ -125,6 +128,10 @@ fn ui_system(
                 ui.checkbox(&mut render_graph_settings.trace, "trace");
                 ui.checkbox(&mut render_graph_settings.denoise, "denoise");
             });
+
+            for mut voxelization_preview_camera in voxelization_preview_camera_query.iter_mut() {
+                ui.checkbox(&mut voxelization_preview_camera.is_active, format!("Preview"));
+            }
             ui.checkbox(&mut settings.spectator, "Spectator mode");
         });
 }

@@ -62,8 +62,8 @@ impl Default for TraceSettings {
     fn default() -> Self {
         Self {
             show_ray_steps: false,
-            indirect_lighting: true,
-            samples: 4,
+            indirect_lighting: false,
+            samples: 1,
             reprojection_factor: 0.75,
             shadows: true,
             misc_bool: false,
