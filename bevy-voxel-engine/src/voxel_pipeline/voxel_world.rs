@@ -85,9 +85,7 @@ impl Plugin for VoxelWorldPlugin {
                         ty: BindingType::Buffer {
                             ty: BufferBindingType::Uniform,
                             has_dynamic_offset: false,
-                            min_binding_size: BufferSize::new(
-                                std::mem::size_of::<VoxelUniforms>() as u64
-                            ),
+                            min_binding_size: BufferSize::new(VoxelUniforms::SHADER_SIZE.into()),
                         },
                         count: None,
                     },
@@ -180,11 +178,11 @@ impl Into<[PalleteEntry; 256]> for Pallete {
 
 #[derive(Default, Debug, Clone, Copy, ShaderType)]
 pub struct ExtractedPortal {
-    pub pos: Vec4,
-    pub other_pos: Vec4,
-    pub normal: Vec4,
-    pub other_normal: Vec4,
-    pub half_size: IVec4,
+    pub pos: Vec3,
+    pub other_pos: Vec3,
+    pub normal: Vec3,
+    pub other_normal: Vec3,
+    pub half_size: IVec3,
 }
 
 #[derive(Resource, ExtractResource, Clone, ShaderType)]

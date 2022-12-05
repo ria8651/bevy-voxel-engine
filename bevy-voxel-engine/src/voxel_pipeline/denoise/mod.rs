@@ -47,10 +47,18 @@ fn prepare_pass_data(
     render_queue: Res<RenderQueue>,
 ) {
     denoise_pipeline.pass_data.clear();
-    denoise_pipeline.pass_data.push(denoise_settings.pass_settings[0]);
-    denoise_pipeline.pass_data.push(denoise_settings.pass_settings[1]);
-    denoise_pipeline.pass_data.push(denoise_settings.pass_settings[2]);
-    denoise_pipeline.pass_data.write_buffer(&render_device, &render_queue);
+    denoise_pipeline
+        .pass_data
+        .push(denoise_settings.pass_settings[0]);
+    denoise_pipeline
+        .pass_data
+        .push(denoise_settings.pass_settings[1]);
+    denoise_pipeline
+        .pass_data
+        .push(denoise_settings.pass_settings[2]);
+    denoise_pipeline
+        .pass_data
+        .write_buffer(&render_device, &render_queue);
 }
 
 #[derive(Resource)]
@@ -127,9 +135,7 @@ impl FromWorld for DenoisePipeline {
                         ty: BindingType::Buffer {
                             ty: BufferBindingType::Uniform,
                             has_dynamic_offset: true,
-                            min_binding_size: BufferSize::new(
-                                std::mem::size_of::<DenoisePassData>() as u64
-                            ),
+                            min_binding_size: BufferSize::new(DenoisePassData::SHADER_SIZE.into()),
                         },
                         count: None,
                     },

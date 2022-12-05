@@ -33,8 +33,8 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
 
         // let min = min(min(min(sample1, sample2), min(sample3, sample4)), min(min(sample5, sample6), min(sample7, sample8)));
         // let max = max(max(max(sample1, sample2), max(sample3, sample4)), max(max(sample5, sample6), max(sample7, sample8)));
-        let min = min(min(sample1, sample3), min(sample5, sample7));
-        let max = max(max(sample1, sample3), max(sample5, sample7));
+        let min_col = min(min(sample1, sample3), min(sample5, sample7));
+        let max_col = max(max(sample1, sample3), max(sample5, sample7));
 
         // mix with samples from last frame
         let last_clip = trace_uniforms.last_camera * vec4(position, 1.0);
@@ -44,8 +44,9 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
 
         let mix_ammount = trace_uniforms.reprojection_factor;
         let mixed = colour * (1.0 - mix_ammount) + accumulation * mix_ammount;
-        // output_colour = clamp(mixed, min, max);
-        output_colour = clip_aabb(mixed, min, max);
+        // output_colour = clamp(mixed, min_col, max_col);
+        output_colour = clip_aabb(mixed, min_col, max_col);
+        // output_colour = max(position, vec3(0.0));
     }
 
     textureStore(accumulation_attachment, sample_pos, vec4(output_colour, 0.0));

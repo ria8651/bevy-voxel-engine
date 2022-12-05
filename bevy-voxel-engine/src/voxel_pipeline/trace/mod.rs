@@ -156,9 +156,7 @@ impl FromWorld for TracePipelineData {
                         ty: BindingType::Buffer {
                             ty: BufferBindingType::Uniform,
                             has_dynamic_offset: false,
-                            min_binding_size: BufferSize::new(
-                                std::mem::size_of::<TraceUniforms>() as u64
-                            ),
+                            min_binding_size: BufferSize::new(TraceUniforms::SHADER_SIZE.into()),
                         },
                         count: None,
                     },

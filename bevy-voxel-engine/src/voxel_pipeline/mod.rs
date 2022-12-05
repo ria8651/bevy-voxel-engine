@@ -1,8 +1,8 @@
 use self::{
     attachments::{AttachmentsNode, AttachmentsPlugin},
     compute::{
-        automata::AutomataNode, clear::ClearNode, physics::PhysicsNode, rebuild::RebuildNode,
-        ComputeResourcesPlugin,
+        animation::AnimationNode, automata::AutomataNode, clear::ClearNode, physics::PhysicsNode,
+        rebuild::RebuildNode, ComputeResourcesPlugin,
     },
     denoise::{DenoiseNode, DenoisePlugin},
     trace::{TraceNode, TracePlugin},
@@ -10,7 +10,9 @@ use self::{
     voxelization::VoxelizationPlugin,
 };
 use bevy::{
-    core_pipeline::{tonemapping::TonemappingNode, upscaling::UpscalingNode, bloom::BloomNode, fxaa::FxaaNode},
+    core_pipeline::{
+        bloom::BloomNode, fxaa::FxaaNode, tonemapping::TonemappingNode, upscaling::UpscalingNode,
+    },
     prelude::*,
     render::{
         extract_resource::{ExtractResource, ExtractResourcePlugin},
@@ -130,10 +132,13 @@ impl Plugin for RenderPlugin {
         let mut graph = render_app.world.resource_mut::<RenderGraph>();
         let clear = ClearNode;
         let automata = AutomataNode;
+        let animation = AnimationNode;
         graph.add_node("clear", clear);
         graph.add_node("automata", automata);
+        graph.add_node("animation", animation);
         graph.add_node_edge("clear", "automata").unwrap();
-        graph.add_node_edge("automata", CAMERA_DRIVER).unwrap();
+        graph.add_node_edge("automata", "animation").unwrap();
+        graph.add_node_edge("animation", CAMERA_DRIVER).unwrap();
 
         // insert the voxel graph into the main render graph
         graph.add_sub_graph("voxel", voxel_graph);

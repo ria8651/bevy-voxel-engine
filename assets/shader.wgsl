@@ -149,6 +149,6 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
 
     output_colour = max(output_colour, vec3(0.0));
     textureStore(normal, vec2<i32>(in.position.xy), vec4(hit.normal, 0.0));
-    textureStore(position, vec2<i32>(in.position.xy), vec4(hit.pos, 0.0));
+    textureStore(position, vec2<i32>(in.position.xy), vec4(hit.reprojection_pos, 0.0));
     return vec4<f32>(output_colour, 1.0);
 }

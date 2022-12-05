@@ -153,7 +153,7 @@ impl render_graph::Node for DenoiseNode {
             depth_stencil_attachment: None,
         };
 
-        let offset_size = std::mem::size_of::<DenoisePassData>() as u32;
+        let offset_size = u64::from(DenoisePassData::SHADER_SIZE) as u32;
 
         {
             let mut render_pass = render_context
