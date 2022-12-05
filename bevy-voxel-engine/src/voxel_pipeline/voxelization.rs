@@ -121,7 +121,7 @@ fn update_cameras(
     let voxelization_image = images.get_mut(&voxelization_image).unwrap();
     if voxelization_image.size().x as u32 != voxel_uniforms.texture_size {
         // update cameras
-        info!(
+        debug!(
             "Updating {} voxelization cameras to as resolution of {}",
             voxelization_cameras.iter().len(),
             voxel_uniforms.texture_size

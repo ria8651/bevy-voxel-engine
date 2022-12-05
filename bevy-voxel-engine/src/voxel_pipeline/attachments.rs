@@ -88,7 +88,7 @@ fn resize_attachments(
 
         if size != render_attachments.current_size {
             render_attachments.current_size = size;
-            info!(
+            debug!(
                 "Resizing camera {}s attachments to ({}, {})",
                 i, size.x, size.y
             );

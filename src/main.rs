@@ -1,4 +1,7 @@
-use bevy::prelude::*;
+use bevy::{
+    core_pipeline::{bloom::BloomSettings, fxaa::Fxaa},
+    prelude::*,
+};
 use bevy_obj::*;
 use bevy_voxel_engine::{
     BevyVoxelEnginePlugin, Box, BoxCollider, Edges, Particle, Portal, Velocity, VoxelCameraBundle,
@@ -116,6 +119,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             BoxCollider {
                 half_size: IVec3::new(2, 4, 2),
             },
+            BloomSettings::default(),
+            Fxaa::default(),
         ))
         .with_children(|parent| {
             // voxelization preview camera
@@ -129,6 +134,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     projection,
                     ..default()
                 },
+                BloomSettings::default(),
+                Fxaa::default(),
                 VoxelizationPreviewCamera,
             ));
         });

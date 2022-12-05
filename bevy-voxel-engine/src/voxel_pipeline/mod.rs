@@ -10,7 +10,7 @@ use self::{
     voxelization::VoxelizationPlugin,
 };
 use bevy::{
-    core_pipeline::{tonemapping::TonemappingNode, upscaling::UpscalingNode},
+    core_pipeline::{tonemapping::TonemappingNode, upscaling::UpscalingNode, bloom::BloomNode, fxaa::FxaaNode},
     prelude::*,
     render::{
         extract_resource::{ExtractResource, ExtractResourcePlugin},
@@ -55,14 +55,18 @@ impl Plugin for RenderPlugin {
         let attachments = AttachmentsNode::new(&mut render_app.world);
         let trace = TraceNode::new(&mut render_app.world);
         let denoise = DenoiseNode::new(&mut render_app.world);
+        let bloom = BloomNode::new(&mut render_app.world);
         let tonemapping = TonemappingNode::new(&mut render_app.world);
+        let fxaa = FxaaNode::new(&mut render_app.world);
         let ui = UiPassNode::new(&mut render_app.world);
         let upscaling = UpscalingNode::new(&mut render_app.world);
 
         voxel_graph.add_node("attachments", attachments);
         voxel_graph.add_node("trace", trace);
         voxel_graph.add_node("denoise", denoise);
+        voxel_graph.add_node("bloom", bloom);
         voxel_graph.add_node("tonemapping", tonemapping);
+        voxel_graph.add_node("fxaa", fxaa);
         voxel_graph.add_node("ui", ui);
         voxel_graph.add_node("upscaling", upscaling);
         voxel_graph
@@ -75,7 +79,13 @@ impl Plugin for RenderPlugin {
             .add_slot_edge(input_node_id, "view_entity", "denoise", "view")
             .unwrap();
         voxel_graph
+            .add_slot_edge(input_node_id, "view_entity", "bloom", "view")
+            .unwrap();
+        voxel_graph
             .add_slot_edge(input_node_id, "view_entity", "tonemapping", "view")
+            .unwrap();
+        voxel_graph
+            .add_slot_edge(input_node_id, "view_entity", "fxaa", "view")
             .unwrap();
         voxel_graph
             .add_slot_edge(input_node_id, "view_entity", "ui", "view")
@@ -84,8 +94,10 @@ impl Plugin for RenderPlugin {
             .add_slot_edge(input_node_id, "view_entity", "upscaling", "view")
             .unwrap();
         voxel_graph.add_node_edge("trace", "denoise").unwrap();
-        voxel_graph.add_node_edge("denoise", "tonemapping").unwrap();
-        voxel_graph.add_node_edge("tonemapping", "ui").unwrap();
+        voxel_graph.add_node_edge("denoise", "bloom").unwrap();
+        voxel_graph.add_node_edge("bloom", "tonemapping").unwrap();
+        voxel_graph.add_node_edge("tonemapping", "fxaa").unwrap();
+        voxel_graph.add_node_edge("fxaa", "ui").unwrap();
         voxel_graph.add_node_edge("ui", "upscaling").unwrap();
         voxel_graph
             .add_slot_edge("attachments", "accumulation", "trace", "accumulation")

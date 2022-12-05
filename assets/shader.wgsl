@@ -85,9 +85,9 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     let seed = vec3<u32>(in.position.xyz) * 100u + u32(trace_uniforms.time * 120.0) * 15236u;
     let resolution = vec2<f32>(textureDimensions(normal));
     var jitter = vec2(0.0);
-    if (trace_uniforms.indirect_lighting != 0u) {
-        jitter = (hash(seed).xy - 0.5) / resolution;
-    }
+    // if (trace_uniforms.indirect_lighting != 0u) {
+    //     jitter = (hash(seed).xy - 0.5) / resolution;
+    // }
     var clip_space = vec2(1.0, -1.0) * ((in.uv + jitter) * 2.0 - 1.0);
     var output_colour = vec3(0.0);
 
