@@ -165,7 +165,7 @@ impl Default for RenderGraphSettings {
             rebuild: true,
             physics: true,
             trace: true,
-            denoise: true,
+            denoise: false,
         }
     }
 }

@@ -52,7 +52,7 @@ fn add_render_attachments(
         let mut image = Image::new_fill(
             size,
             TextureDimension::D2,
-            &[0, 0, 0, 0],
+            &[0; 8],
             TextureFormat::Rgba16Float,
         );
         image.texture_descriptor.usage = TextureUsages::COPY_DST
@@ -61,7 +61,7 @@ fn add_render_attachments(
         let mut highp_image = Image::new_fill(
             size,
             TextureDimension::D2,
-            &[0, 0, 0, 0],
+            &[0; 16],
             TextureFormat::Rgba32Float,
         );
         highp_image.texture_descriptor.usage = TextureUsages::COPY_DST

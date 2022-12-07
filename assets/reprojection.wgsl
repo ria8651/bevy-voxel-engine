@@ -39,16 +39,26 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
         // mix with samples from last frame
         let last_clip = trace_uniforms.last_camera * vec4(position, 1.0);
         let last_clip = vec2(1.0, -1.0) * last_clip.xy / last_clip.w;
-        let last_texture = (last_clip * 0.5 + 0.5) * resolution;
-        let accumulation = textureLoad(accumulation_attachment, vec2<i32>(last_texture)).rgb;
+        if (all(last_clip > vec2(-1.0)) && all(last_clip < vec2(1.0))) {
+            let last_texture = (last_clip * 0.5 + 0.5) * resolution;
+            let accumulation = textureLoad(accumulation_attachment, vec2<i32>(last_texture)).rgb;
 
-        let mix_ammount = trace_uniforms.reprojection_factor;
-        let mixed = colour * (1.0 - mix_ammount) + accumulation * mix_ammount;
-        // output_colour = clamp(mixed, min_col, max_col);
-        output_colour = clip_aabb(mixed, min_col, max_col);
-        // output_colour = max(position, vec3(0.0));
+            let mix_ammount = trace_uniforms.reprojection_factor;
+            let mixed = colour.rgb * (1.0 - mix_ammount) + accumulation * mix_ammount;
+            // output_colour = max(position, vec3(0.0));
+            // output_colour = clamp(mixed, min_col, max_col);
+            let clipped = clip_aabb(mixed, min_col, max_col);
+            output_colour = clipped;
+        }
     }
 
-    textureStore(accumulation_attachment, sample_pos, vec4(output_colour, 0.0));
-    return vec4<f32>(output_colour, 1.0);
+    return vec4(output_colour, 1.0);
+}
+
+@fragment
+fn accumulation(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
+    let sample_pos = vec2<i32>(in.position.xy);
+    let colour = textureLoad(colour_attachment, sample_pos, 0);
+    textureStore(accumulation_attachment, sample_pos, colour);
+    return vec4<f32>(colour.rgb, 1.0);
 }

@@ -34,6 +34,7 @@ impl Plugin for TracePlugin {
 struct TracePipelineData {
     trace_pipeline_id: CachedRenderPipelineId,
     reprojection_pipeline_id: CachedRenderPipelineId,
+    accumulation_pipeline_id: CachedRenderPipelineId,
     trace_bind_group_layout: BindGroupLayout,
     reprojection_bind_group_layout: BindGroupLayout,
 }
@@ -62,7 +63,7 @@ impl Default for TraceSettings {
     fn default() -> Self {
         Self {
             show_ray_steps: false,
-            indirect_lighting: false,
+            indirect_lighting: true,
             samples: 1,
             reprojection_factor: 0.75,
             shadows: true,
@@ -241,7 +242,7 @@ impl FromWorld for TracePipelineData {
             ]),
             vertex: fullscreen_shader_vertex_state(),
             fragment: Some(FragmentState {
-                shader: reprojection_shader,
+                shader: reprojection_shader.clone(),
                 shader_defs: Vec::new(),
                 entry_point: "fragment".into(),
                 targets: vec![Some(ColorTargetState {
@@ -254,14 +255,39 @@ impl FromWorld for TracePipelineData {
             depth_stencil: None,
             multisample: MultisampleState::default(),
         };
+        let accumulation_pipeline_descriptor = RenderPipelineDescriptor {
+            label: Some("accumulation pipeline".into()),
+            layout: Some(vec![
+                trace_bind_group_layout.clone(),
+                reprojection_bind_group_layout.clone(),
+            ]),
+            vertex: fullscreen_shader_vertex_state(),
+            fragment: Some(FragmentState {
+                shader: reprojection_shader,
+                shader_defs: Vec::new(),
+                entry_point: "accumulation".into(),
+                targets: vec![Some(ColorTargetState {
+                    format: ViewTarget::TEXTURE_FORMAT_HDR,
+                    blend: None,
+                    write_mask: ColorWrites::ALL,
+                })],
+            }),
+            primitive: PrimitiveState::default(),
+            depth_stencil: None,
+            multisample: MultisampleState::default(),
+        };
+
         let mut cache = render_world.resource_mut::<PipelineCache>();
         let trace_pipeline_id = cache.queue_render_pipeline(trace_pipeline_descriptor);
         let reprojection_pipeline_id =
             cache.queue_render_pipeline(reprojection_pipeline_descriptor);
+        let accumulation_pipeline_id =
+            cache.queue_render_pipeline(accumulation_pipeline_descriptor);
 
         TracePipelineData {
             trace_pipeline_id,
             reprojection_pipeline_id,
+            accumulation_pipeline_id,
             trace_bind_group_layout,
             reprojection_bind_group_layout,
         }

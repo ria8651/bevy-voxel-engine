@@ -140,17 +140,19 @@ fn in_bounds(v: vec3<f32>) -> bool {
     return (s.x * s.y * s.z) > 0.5;
 }
 
-fn clip_aabb(val: vec3<f32>, min_aabb: vec3<f32>, max_aabb: vec3<f32>) -> vec3<f32> {
+fn clip_aabb(hist: vec3<f32>, min_aabb: vec3<f32>, max_aabb: vec3<f32>) -> vec3<f32> {
     let p_clip = 0.5 * (max_aabb + min_aabb);
     let e_clip = 0.5 * (max_aabb - min_aabb);
-    let v_clip = val - p_clip;
+
+    let v_clip = hist - p_clip;
     let v_unit = v_clip / e_clip;
     let a_unit = abs(v_unit);
     let max_unit = max(a_unit.x, max(a_unit.y, a_unit.z));
+
     if (max_unit > 1.0) {
         return p_clip + v_clip / max_unit;
     } else {
-        return val; // point inside aabb
+        return hist; // point inside aabb
     }
 }
 

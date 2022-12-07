@@ -124,10 +124,11 @@ fn intersect_scene(r: Ray, steps: u32) -> HitInfo {
     if (any(hit != vec3(0.0))) {
         let pos = hit + normal * 0.000002;
         let colour = vec3(113.0, 129.0, 44.0) / 255.0;
-        return HitInfo(true, 0u, vec4(colour, 0.0), pos * rtw, vec3(0.0), normal, IDENTITY, steps);
+        return HitInfo(true, 0u, vec4(colour, 0.0), pos * rtw, pos * rtw, normal, IDENTITY, steps);
     }
 
-    return HitInfo(false, 0u, vec4(0.0), vec3(0.0), vec3(0.0), vec3(0.0), IDENTITY, steps);
+    let infinity = 1000000000.0 * r.dir;
+    return HitInfo(false, 0u, vec4(0.0), infinity, infinity, vec3(0.0), IDENTITY, steps);
 }
 
 let PI: f32 = 3.14159265358979323846264338327950288;

@@ -61,7 +61,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
             depth_or_array_layers: 1,
         },
         TextureDimension::D2,
-        &[10],
+        &[10, 0, 0, 0],
         TextureFormat::Rgba8UnormSrgb,
     );
     image.texture_descriptor.usage =

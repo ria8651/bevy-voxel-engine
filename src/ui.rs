@@ -1,10 +1,10 @@
-use crate::VoxelizationPreviewCamera;
-
-use super::character::CharacterEntity;
-use super::{Bullet, Particle, Settings, Velocity};
-use bevy::core_pipeline::bloom::BloomSettings;
-use bevy::core_pipeline::fxaa::Fxaa;
-use bevy::prelude::*;
+use super::{
+    character::CharacterEntity, Bullet, Particle, Settings, Velocity, VoxelizationPreviewCamera,
+};
+use bevy::{
+    core_pipeline::{bloom::BloomSettings, fxaa::Fxaa, tonemapping::Tonemapping},
+    prelude::*,
+};
 use bevy_egui::{
     egui::{self, Slider},
     EguiContext, EguiPlugin,
@@ -30,6 +30,7 @@ fn ui_system(
     mut camera_settings_query: Query<(
         &mut TraceSettings,
         Option<&mut BloomSettings>,
+        Option<&mut Tonemapping>,
         Option<&mut Fxaa>,
     )>,
     mut denoise_pass_data: ResMut<DenoiseSettings>,
@@ -46,7 +47,7 @@ fn ui_system(
                 let path = tinyfiledialogs::open_file_dialog("Select file", "", None);
                 *load_voxel_world = LoadVoxelWorld::File(path.unwrap());
             }
-            for (i, (mut trace_settings, bloom_settings, fxaa)) in
+            for (i, (mut trace_settings, bloom_settings, tonemapping, fxaa)) in
                 camera_settings_query.iter_mut().enumerate()
             {
                 ui.collapsing(format!("Camera Settings {}", i), |ui| {
@@ -61,7 +62,27 @@ fn ui_system(
                     ui.checkbox(&mut trace_settings.misc_bool, "Misc");
                     ui.add(Slider::new(&mut trace_settings.misc_float, 0.0..=1.0).text("Misc"));
                     if let Some(bloom_settings) = bloom_settings {
-                        ui.add(Slider::new(&mut bloom_settings.into_inner().intensity, 0.0..=1.0).text("Bloom"));
+                        ui.add(
+                            Slider::new(&mut bloom_settings.into_inner().intensity, 0.0..=1.0)
+                                .text("Bloom"),
+                        );
+                    }
+                    if let Some(tonemapping) = tonemapping {
+                        let mut state = match tonemapping.as_ref() {
+                            Tonemapping::Enabled { .. } => true,
+                            Tonemapping::Disabled => false,
+                        };
+                        ui.checkbox(&mut state, "Tonemapping");
+                        match state {
+                            true => {
+                                *tonemapping.into_inner() = Tonemapping::Enabled {
+                                    deband_dither: true,
+                                };
+                            }
+                            false => {
+                                *tonemapping.into_inner() = Tonemapping::Disabled;
+                            }
+                        }
                     }
                     if let Some(fxaa) = fxaa {
                         ui.checkbox(&mut fxaa.into_inner().enabled, "FXAA");
