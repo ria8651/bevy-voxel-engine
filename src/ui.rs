@@ -157,6 +157,7 @@ fn ui_system(
             ui.collapsing("Passes", |ui| {
                 ui.checkbox(&mut render_graph_settings.clear, "clear");
                 ui.checkbox(&mut render_graph_settings.automata, "automata");
+                ui.checkbox(&mut render_graph_settings.animation, "animation");
                 ui.checkbox(&mut render_graph_settings.voxelization, "voxelization");
                 ui.checkbox(&mut render_graph_settings.rebuild, "rebuild");
                 ui.checkbox(&mut render_graph_settings.physics, "physics");

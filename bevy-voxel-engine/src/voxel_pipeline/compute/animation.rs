@@ -50,7 +50,7 @@ impl render_graph::Node for AnimationNode {
         let animation_data = world.resource::<AnimationData>();
         let render_graph_settings = world.get_resource::<RenderGraphSettings>().unwrap();
 
-        if !render_graph_settings.physics {
+        if !render_graph_settings.animation {
             return Ok(());
         }
 
@@ -66,7 +66,7 @@ impl render_graph::Node for AnimationNode {
         pass.set_bind_group(0, &voxel_data.bind_group, &[]);
         pass.set_bind_group(1, &compute_data.bind_group, &[]);
 
-        let dispatch_size = (animation_data.distpatch_size as f32).cbrt().ceil() as u32;
+        let dispatch_size = (animation_data.dispatch_size as f32).cbrt().ceil() as u32;
         if dispatch_size > 0 {
             pass.set_pipeline(pipeline);
             pass.dispatch_workgroups(dispatch_size, dispatch_size, dispatch_size);

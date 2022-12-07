@@ -149,6 +149,7 @@ impl Plugin for RenderPlugin {
 pub struct RenderGraphSettings {
     pub clear: bool,
     pub automata: bool,
+    pub animation: bool,
     pub voxelization: bool,
     pub rebuild: bool,
     pub physics: bool,
@@ -161,6 +162,7 @@ impl Default for RenderGraphSettings {
         Self {
             clear: true,
             automata: true,
+            animation: true,
             voxelization: true,
             rebuild: true,
             physics: true,

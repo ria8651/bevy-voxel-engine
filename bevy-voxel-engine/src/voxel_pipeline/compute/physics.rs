@@ -5,7 +5,7 @@ use bevy::{
     render::{
         render_graph::{self, NodeRunError, RenderGraphContext},
         render_resource::*,
-        renderer::{RenderContext, RenderQueue},
+        renderer::RenderContext,
     },
 };
 use std::borrow::Cow;
@@ -45,7 +45,6 @@ impl render_graph::Node for PhysicsNode {
         let voxel_data = world.resource::<VoxelData>();
         let compute_data = world.resource::<ComputeData>();
         let pipeline_cache = world.resource::<PipelineCache>();
-        let render_queue = world.resource::<RenderQueue>();
         let physics_data = world.resource::<PhysicsData>();
         let render_graph_settings = world.get_resource::<RenderGraphSettings>().unwrap();
 
@@ -58,13 +57,6 @@ impl render_graph::Node for PhysicsNode {
             None => return Ok(()),
         };
 
-        // copy physics data to the buffer
-        render_queue.write_buffer(
-            &physics_data.physics_buffer,
-            0,
-            bytemuck::cast_slice(&physics_data.data),
-        );
-
         let mut pass = render_context
             .command_encoder
             .begin_compute_pass(&ComputePassDescriptor::default());
@@ -72,7 +64,7 @@ impl render_graph::Node for PhysicsNode {
         pass.set_bind_group(0, &voxel_data.bind_group, &[]);
         pass.set_bind_group(1, &compute_data.bind_group, &[]);
 
-        let dispatch_size = (physics_data.data[0] as f32).cbrt().ceil() as u32;
+        let dispatch_size = (physics_data.dispatch_size as f32).cbrt().ceil() as u32;
         if dispatch_size > 0 {
             pass.set_pipeline(pipeline);
             pass.dispatch_workgroups(dispatch_size, dispatch_size, dispatch_size);

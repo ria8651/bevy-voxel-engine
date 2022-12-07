@@ -18,9 +18,9 @@ pub struct DenoisePlugin;
 impl Plugin for DenoisePlugin {
     fn build(&self, app: &mut App) {
         let pass_settings = [
-            DenoisePassData::new(1.0, 0.6, 0.5, 0.1),
-            DenoisePassData::new(2.0, 0.3, 0.5, 0.1),
-            DenoisePassData::new(4.0, 0.1, 0.5, 0.1),
+            DenoisePassData::new(1.0, 0.08, 0.5, 0.1),
+            DenoisePassData::new(2.0, 0.025, 0.5, 0.1),
+            DenoisePassData::new(4.0, 0.015, 0.5, 0.1),
             // DenoisePassData::new(1.0, 0.15, 0.5, 0.1),
             // DenoisePassData::new(2.0, 0.10, 0.5, 0.1),
             // DenoisePassData::new(0.0, 1.0, 1.0, 1.0),

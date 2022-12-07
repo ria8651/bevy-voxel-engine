@@ -98,12 +98,13 @@ impl Plugin for ComputeResourcesPlugin {
         });
 
         app.insert_resource(PhysicsData {
-            data: vec![0],
+            dispatch_size: 0,
+            buffer_length: 0,
             entities: HashMap::new(),
             physics_buffer,
         })
         .insert_resource(AnimationData {
-            distpatch_size: 0,
+            dispatch_size: 0,
             animation_buffer,
         })
         .add_plugin(ExtractResourcePlugin::<PhysicsData>::default())
@@ -148,14 +149,15 @@ struct ComputeUniforms {
 
 #[derive(Clone, Resource, ExtractResource)]
 pub struct PhysicsData {
-    pub data: Vec<u32>,
+    pub dispatch_size: u32,
+    pub buffer_length: u64,
     pub entities: HashMap<Entity, usize>,
     pub physics_buffer: Buffer,
 }
 
 #[derive(Clone, Resource, ExtractResource)]
 pub struct AnimationData {
-    pub distpatch_size: u32,
+    pub dispatch_size: u32,
     pub animation_buffer: Buffer,
 }
 

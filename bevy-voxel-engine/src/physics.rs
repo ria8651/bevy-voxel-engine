@@ -29,6 +29,7 @@ pub fn extract_physics_data(
         Query<(&Transform, &Velocity, &BoxCollider, Entity)>,
     )>,
     mut physics_data: ResMut<PhysicsData>,
+    render_queue: Res<RenderQueue>,
 ) {
     let mut type_buffer = TypeBuffer::new();
     let mut entities = HashMap::new();
@@ -58,7 +59,16 @@ pub fn extract_physics_data(
         });
     }
 
-    physics_data.data = type_buffer.finish();
+    physics_data.dispatch_size = type_buffer.header.len() as u32;
+    physics_data.buffer_length = (type_buffer.header.len() + type_buffer.data.len() + 1) as u64;
+
+    // copy physics data to the buffer
+    render_queue.write_buffer(
+        &physics_data.physics_buffer,
+        0,
+        bytemuck::cast_slice(&type_buffer.finish()),
+    );
+
     physics_data.entities = entities;
 }
 
@@ -73,10 +83,10 @@ pub fn insert_physics_data(
     }
 
     // process last frames physics data
-    if physics_data.data.len() > 1 {
+    if physics_data.dispatch_size > 0 {
         let physics_buffer_slice = physics_data
             .physics_buffer
-            .slice(..physics_data.data.len() as u64 * 4);
+            .slice(..physics_data.buffer_length * 4);
         physics_buffer_slice.map_async(wgpu::MapMode::Read, |_| {});
         render_device.poll(wgpu::Maintain::Wait);
 
@@ -304,7 +314,7 @@ pub fn extract_animation_data(
         i += 1;
     }
 
-    animation_data.distpatch_size = type_buffer.data[0];
+    animation_data.dispatch_size = type_buffer.header.len() as u32;
 
     // copy animation data to the buffer
     render_queue.write_buffer(
