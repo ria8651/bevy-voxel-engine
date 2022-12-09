@@ -1,3 +1,5 @@
+#define_import_path bevy_voxel_engine::common
+
 let PORTAL_FLAG = 64u; // 0b01000000
 let ANIMATION_FLAG = 32u; // 0b00100000
 let COLLISION_FLAG = 16u; // 0b00010000

@@ -1,6 +1,7 @@
 use super::voxel_world::{VoxelData, VoxelUniforms};
 use crate::{RenderGraphSettings, VOXELS_PER_METER};
 use bevy::{
+    asset::load_internal_asset,
     core_pipeline::{clear_color::ClearColorConfig, core_3d::Transparent3d},
     ecs::system::{
         lifetimeless::{Read, SQuery, SRes},
@@ -11,6 +12,7 @@ use bevy::{
         SetMeshViewBindGroup,
     },
     prelude::*,
+    reflect::TypeUuid,
     render::{
         camera::{RenderTarget, ScalingMode},
         extract_component::{ExtractComponent, ExtractComponentPlugin},
@@ -28,10 +30,20 @@ use bevy::{
     },
 };
 
+const VOXELIZATION_SHADER_HANDLE: HandleUntyped =
+    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 1975691635883203525);
+
 pub struct VoxelizationPlugin;
 
 impl Plugin for VoxelizationPlugin {
     fn build(&self, app: &mut App) {
+        load_internal_asset!(
+            app,
+            VOXELIZATION_SHADER_HANDLE,
+            "shaders/voxelization.wgsl",
+            Shader::from_wgsl
+        );
+
         app.add_plugin(ExtractResourcePlugin::<FallbackImage>::default())
             .add_plugin(ExtractComponentPlugin::<VoxelizationMaterial>::default())
             .add_startup_system(setup)
@@ -187,7 +199,6 @@ type DrawCustom = (
 
 #[derive(Resource)]
 pub struct VoxelizationPipeline {
-    shader: Handle<Shader>,
     mesh_pipeline: MeshPipeline,
     world_bind_group_layout: BindGroupLayout,
     voxelization_bind_group_layout: BindGroupLayout,
@@ -199,10 +210,8 @@ struct FallbackImage(Handle<Image>);
 impl FromWorld for VoxelizationPipeline {
     fn from_world(world: &mut World) -> Self {
         let render_device = world.resource::<RenderDevice>();
-        let asset_server = world.resource::<AssetServer>();
         let voxel_world_data = world.resource::<VoxelData>();
 
-        let shader = asset_server.load("voxelization.wgsl");
         let world_bind_group_layout = voxel_world_data.bind_group_layout.clone();
         let voxelization_bind_group_layout =
             render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
@@ -228,7 +237,6 @@ impl FromWorld for VoxelizationPipeline {
             });
 
         VoxelizationPipeline {
-            shader,
             mesh_pipeline: world.resource::<MeshPipeline>().clone(),
             world_bind_group_layout,
             voxelization_bind_group_layout,
@@ -245,8 +253,8 @@ impl SpecializedMeshPipeline for VoxelizationPipeline {
         layout: &MeshVertexBufferLayout,
     ) -> Result<RenderPipelineDescriptor, SpecializedMeshPipelineError> {
         let mut descriptor = self.mesh_pipeline.specialize(key, layout)?;
-        descriptor.vertex.shader = self.shader.clone();
-        descriptor.fragment.as_mut().unwrap().shader = self.shader.clone();
+        descriptor.vertex.shader = VOXELIZATION_SHADER_HANDLE.typed();
+        descriptor.fragment.as_mut().unwrap().shader = VOXELIZATION_SHADER_HANDLE.typed();
         descriptor.layout = Some(vec![
             self.mesh_pipeline.view_layout.clone(),
             self.mesh_pipeline.mesh_layout.clone(),

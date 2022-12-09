@@ -1,3 +1,5 @@
+#define_import_path bevy_voxel_engine::raytracing
+
 fn get_value_index(index: u32) -> bool {
     return ((gh[index / 32u] >> (index % 32u)) & 1u) != 0u;
 }

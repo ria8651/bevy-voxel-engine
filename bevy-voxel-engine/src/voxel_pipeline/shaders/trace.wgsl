@@ -1,5 +1,5 @@
 #import bevy_core_pipeline::fullscreen_vertex_shader
-#import "common.wgsl"
+#import bevy_voxel_engine::common
 
 @group(0) @binding(0)
 var<uniform> voxel_uniforms: VoxelUniforms;
@@ -16,7 +16,7 @@ var normal: texture_storage_2d<rgba16float, read_write>;
 var position: texture_storage_2d<rgba32float, read_write>;
 
 // note: raytracing.wgsl requires common.wgsl and for you to define u, voxel_world and gh before you import it
-#import "raytracing.wgsl"
+#import bevy_voxel_engine::raytracing
 
 let light_dir = vec3<f32>(0.8, -1.0, 0.8);
 let light_colour = vec3<f32>(1.0, 1.0, 1.0);

@@ -1,5 +1,5 @@
 #import bevy_core_pipeline::fullscreen_vertex_shader
-#import "common.wgsl"
+#import bevy_voxel_engine::common
 
 @group(0) @binding(0)
 var<uniform> trace_uniforms: TraceUniforms;

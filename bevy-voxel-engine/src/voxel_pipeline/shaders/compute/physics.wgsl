@@ -1,4 +1,4 @@
-#import "common.wgsl"
+#import bevy_voxel_engine::common
 
 @group(0) @binding(0)
 var<uniform> voxel_uniforms: VoxelUniforms;
@@ -18,7 +18,7 @@ var<uniform> compute_uniforms: ComputeUniforms;
 var<storage, read_write> physics_data: array<u32>;
 
 // note: raytracing.wgsl requires common.wgsl and for you to define u, voxel_world and gh before you import it
-#import "raytracing.wgsl"
+#import bevy_voxel_engine::raytracing
 
 @compute @workgroup_size(1, 1, 1)
 fn physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {

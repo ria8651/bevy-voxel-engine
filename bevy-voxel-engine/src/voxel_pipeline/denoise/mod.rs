@@ -1,6 +1,8 @@
 use bevy::{
+    asset::load_internal_asset,
     core_pipeline::fullscreen_vertex_shader::fullscreen_shader_vertex_state,
     prelude::*,
+    reflect::TypeUuid,
     render::{
         extract_resource::{ExtractResource, ExtractResourcePlugin},
         render_resource::*,
@@ -13,10 +15,20 @@ pub use node::DenoiseNode;
 
 mod node;
 
+pub const DENOISE_SHADER_HANDLE: HandleUntyped =
+    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 3278741884048607584);
+
 pub struct DenoisePlugin;
 
 impl Plugin for DenoisePlugin {
     fn build(&self, app: &mut App) {
+        load_internal_asset!(
+            app,
+            DENOISE_SHADER_HANDLE,
+            "../shaders/denoise.wgsl",
+            Shader::from_wgsl
+        );
+
         let pass_settings = [
             DenoisePassData::new(1.0, 0.08, 0.5, 0.1),
             DenoisePassData::new(2.0, 0.025, 0.5, 0.1),
@@ -152,9 +164,6 @@ impl FromWorld for DenoisePipeline {
                 ],
             });
 
-        let asset_server = render_world.get_resource::<AssetServer>().unwrap();
-        let shader = asset_server.load("denoise.wgsl");
-
         let pipeline_descriptor = RenderPipelineDescriptor {
             label: Some("denoise pipeline".into()),
             layout: Some(vec![
@@ -163,7 +172,7 @@ impl FromWorld for DenoisePipeline {
             ]),
             vertex: fullscreen_shader_vertex_state(),
             fragment: Some(FragmentState {
-                shader: shader,
+                shader: DENOISE_SHADER_HANDLE.typed(),
                 shader_defs: vec![],
                 entry_point: "fragment".into(),
                 targets: vec![Some(ColorTargetState {

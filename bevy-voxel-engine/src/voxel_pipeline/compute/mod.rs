@@ -1,5 +1,7 @@
 use bevy::{
+    asset::load_internal_asset,
     prelude::*,
+    reflect::TypeUuid,
     render::{
         extract_resource::{ExtractResource, ExtractResourcePlugin},
         render_resource::*,
@@ -17,10 +19,52 @@ pub mod rebuild;
 
 const MAX_TYPE_BUFFER_DATA: usize = 1000000; // 4mb
 
+pub const ANIMATION_SHADER_HANDLE: HandleUntyped =
+    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 7356431584756113968);
+pub const AUTOMATA_SHADER_HANDLE: HandleUntyped =
+    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 2461997473694366307);
+pub const CLEAR_SHADER_HANDLE: HandleUntyped =
+    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 15320669235097444653);
+pub const PHYSICS_SHADER_HANDLE: HandleUntyped =
+    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 5103938181551247167);
+pub const REBUILD_SHADER_HANDLE: HandleUntyped =
+    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 18135969847573717619);
+
 pub struct ComputeResourcesPlugin;
 
 impl Plugin for ComputeResourcesPlugin {
     fn build(&self, app: &mut App) {
+        load_internal_asset!(
+            app,
+            ANIMATION_SHADER_HANDLE,
+            "../shaders/compute/animation.wgsl",
+            Shader::from_wgsl
+        );
+        load_internal_asset!(
+            app,
+            AUTOMATA_SHADER_HANDLE,
+            "../shaders/compute/automata.wgsl",
+            Shader::from_wgsl
+        );
+        load_internal_asset!(
+            app,
+            CLEAR_SHADER_HANDLE,
+            "../shaders/compute/clear.wgsl",
+            Shader::from_wgsl
+        );
+        load_internal_asset!(
+            app,
+            PHYSICS_SHADER_HANDLE,
+            "../shaders/compute/physics.wgsl",
+            Shader::from_wgsl
+        );
+        load_internal_asset!(
+            app,
+            REBUILD_SHADER_HANDLE,
+            "../shaders/compute/rebuild.wgsl",
+            Shader::from_wgsl
+        );
+
         let render_device = app.world.resource::<RenderDevice>();
         let render_queue = app.world.resource::<RenderQueue>();
 

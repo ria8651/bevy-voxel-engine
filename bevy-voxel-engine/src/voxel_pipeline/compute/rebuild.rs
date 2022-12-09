@@ -21,14 +21,13 @@ pub struct Pipeline(CachedComputePipelineId);
 impl FromWorld for Pipeline {
     fn from_world(world: &mut World) -> Self {
         let voxel_bind_group_layout = world.resource::<VoxelData>().bind_group_layout.clone();
-        let shader = world.resource::<AssetServer>().load("compute/rebuild.wgsl");
 
         let mut pipeline_cache = world.resource_mut::<PipelineCache>();
 
         let update_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
             label: Some(Cow::from("rebuild pipeline")),
             layout: Some(vec![voxel_bind_group_layout]),
-            shader: shader,
+            shader: super::REBUILD_SHADER_HANDLE.typed(),
             shader_defs: vec![],
             entry_point: Cow::from("rebuild_gh"),
         });

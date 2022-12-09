@@ -1,8 +1,10 @@
 use super::voxel_world::VoxelData;
 use bevy::{
+    asset::load_internal_asset,
     core_pipeline::fullscreen_vertex_shader::fullscreen_shader_vertex_state,
     ecs::query::QueryItem,
     prelude::*,
+    reflect::TypeUuid,
     render::{
         extract_component::{ExtractComponent, ExtractComponentPlugin},
         render_resource::*,
@@ -16,10 +18,44 @@ pub use node::TraceNode;
 
 mod node;
 
+const TRACE_SHADER_HANDLE: HandleUntyped =
+    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 3541867952248261868);
+const REPROJECTION_SHADER_HANDLE: HandleUntyped =
+    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 18296058895300425745);
+const COMMON_SHADER_HANDLE: HandleUntyped =
+    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 1874948457211004189);
+const RAYTRACING_SHADER_HANDLE: HandleUntyped =
+    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 10483863284569474370);
+
 pub struct TracePlugin;
 
 impl Plugin for TracePlugin {
-    fn build(&self, app: &mut bevy::prelude::App) {
+    fn build(&self, app: &mut App) {
+        load_internal_asset!(
+            app,
+            TRACE_SHADER_HANDLE,
+            "../shaders/trace.wgsl",
+            Shader::from_wgsl
+        );
+        load_internal_asset!(
+            app,
+            REPROJECTION_SHADER_HANDLE,
+            "../shaders/reprojection.wgsl",
+            Shader::from_wgsl
+        );
+        load_internal_asset!(
+            app,
+            COMMON_SHADER_HANDLE,
+            "../shaders/common.wgsl",
+            Shader::from_wgsl
+        );
+        load_internal_asset!(
+            app,
+            RAYTRACING_SHADER_HANDLE,
+            "../shaders/raytracing.wgsl",
+            Shader::from_wgsl
+        );
+
         app.add_plugin(ExtractComponentPlugin::<TraceSettings>::default());
 
         // setup custom render pipeline
@@ -63,7 +99,7 @@ impl Default for TraceSettings {
     fn default() -> Self {
         Self {
             show_ray_steps: false,
-            indirect_lighting: true,
+            indirect_lighting: false,
             samples: 1,
             reprojection_factor: 0.75,
             shadows: true,
@@ -209,10 +245,6 @@ impl FromWorld for TracePipelineData {
                 }],
             });
 
-        let asset_server = render_world.get_resource::<AssetServer>().unwrap();
-        let trace_shader = asset_server.load("shader.wgsl");
-        let reprojection_shader = asset_server.load("reprojection.wgsl");
-
         let trace_pipeline_descriptor = RenderPipelineDescriptor {
             label: Some("trace pipeline".into()),
             layout: Some(vec![
@@ -221,7 +253,7 @@ impl FromWorld for TracePipelineData {
             ]),
             vertex: fullscreen_shader_vertex_state(),
             fragment: Some(FragmentState {
-                shader: trace_shader,
+                shader: TRACE_SHADER_HANDLE.typed(),
                 shader_defs: Vec::new(),
                 entry_point: "fragment".into(),
                 targets: vec![Some(ColorTargetState {
@@ -242,7 +274,7 @@ impl FromWorld for TracePipelineData {
             ]),
             vertex: fullscreen_shader_vertex_state(),
             fragment: Some(FragmentState {
-                shader: reprojection_shader.clone(),
+                shader: REPROJECTION_SHADER_HANDLE.typed(),
                 shader_defs: Vec::new(),
                 entry_point: "fragment".into(),
                 targets: vec![Some(ColorTargetState {
@@ -263,7 +295,7 @@ impl FromWorld for TracePipelineData {
             ]),
             vertex: fullscreen_shader_vertex_state(),
             fragment: Some(FragmentState {
-                shader: reprojection_shader,
+                shader: REPROJECTION_SHADER_HANDLE.typed(),
                 shader_defs: Vec::new(),
                 entry_point: "accumulation".into(),
                 targets: vec![Some(ColorTargetState {

@@ -1,6 +1,6 @@
 #import bevy_pbr::mesh_types
 #import bevy_pbr::mesh_view_bindings
-#import "common.wgsl"
+#import bevy_voxel_engine::common
 
 @group(1) @binding(0)
 var<uniform> mesh: Mesh;

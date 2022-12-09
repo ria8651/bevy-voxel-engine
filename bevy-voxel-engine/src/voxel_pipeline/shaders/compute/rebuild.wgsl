@@ -1,4 +1,4 @@
-#import "common.wgsl"
+#import bevy_voxel_engine::common
 
 @group(0) @binding(0)
 var<uniform> voxel_uniforms: VoxelUniforms;
