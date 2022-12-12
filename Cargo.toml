@@ -1,11 +1,25 @@
 [package]
-name = "grid-hierarchy"
+name = "bevy-voxel-engine"
 version = "0.1.0"
 edition = "2021"
+description = "A raytraced, small world voxel engine built with the bevy game engine"
+exclude = ["assets/"]
+repository = "https://github.com/ria8651/bevy-voxel-engine"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = { version = "0.9" }
-bevy-voxel-engine = { path = "bevy-voxel-engine" }
+bevy = { version = "0.9", default-features = true, features = [
+    "render",
+    "x11",
+    "filesystem_watcher",
+    "png",
+] }
+bytemuck = "1.10"
+dot_vox = "5.1"
+wgpu = "0.14"
+
+[dev-dependencies]
 bevy_egui = "0.17"
 rand = "0.8"
 concurrent-queue = "1.2"

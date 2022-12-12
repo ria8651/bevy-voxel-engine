@@ -111,7 +111,9 @@ pub struct BevyVoxelEnginePlugin;
 
 impl Plugin for BevyVoxelEnginePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(PhysicsPlugin).add_plugin(RenderPlugin);
+        app.insert_resource(Msaa { samples: 1 })
+            .add_plugin(PhysicsPlugin)
+            .add_plugin(RenderPlugin);
     }
 }
 

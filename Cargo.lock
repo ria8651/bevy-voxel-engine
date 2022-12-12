@@ -239,8 +239,14 @@ name = "bevy-voxel-engine"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy_egui",
+ "bevy_mod_debugdump",
+ "bevy_obj",
  "bytemuck",
+ "concurrent-queue 1.2.4",
  "dot_vox",
+ "rand",
+ "tinyfiledialogs",
  "wgpu",
 ]
 
@@ -1391,9 +1397,9 @@ dependencies = [
 
 [[package]]
 name = "encase"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6bdd416eb91cd6fb73a22fbc9fa1ea013641cce1a58905c31623ff9c562e811"
+checksum = "48ec50086547d597b5c871a78399ec04a14828a6a5c445a61ed4687c540edec6"
 dependencies = [
  "const_panic",
  "encase_derive",
@@ -1403,18 +1409,18 @@ dependencies = [
 
 [[package]]
 name = "encase_derive"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df06cd7ea02426c2a0a164656bf116813584b461b8a7bb059b7941ab981105d3"
+checksum = "dda93e9714c7683c474f49a461a2ae329471d2bda43c4302d41c6d8339579e92"
 dependencies = [
  "encase_derive_impl",
 ]
 
 [[package]]
 name = "encase_derive_impl"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b299aab48b9a897ddd730dde2b5550af7c90ec6779c78e3c70f4c28d9337663f"
+checksum = "ec27b639e942eb0297513b81cc6d87c50f6c77dc8c37af00a39ed5db3b9657ee"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1759,20 +1765,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "363e3677e55ad168fef68cf9de3a4a310b53124c5e784c53a1d70e92d23f2126"
 dependencies = [
  "bitflags",
-]
-
-[[package]]
-name = "grid-hierarchy"
-version = "0.1.0"
-dependencies = [
- "bevy",
- "bevy-voxel-engine",
- "bevy_egui",
- "bevy_mod_debugdump",
- "bevy_obj",
- "concurrent-queue 1.2.4",
- "rand",
- "tinyfiledialogs",
 ]
 
 [[package]]

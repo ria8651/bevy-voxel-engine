@@ -20,12 +20,7 @@ impl Plugin for VoxelWorldPlugin {
         let render_device = app.world.resource::<RenderDevice>();
         let render_queue = app.world.resource::<RenderQueue>();
 
-        let default_path = "/Users/brian/Documents/Code/Rust/vox/monument/monu9.vox".to_string();
-        let gh = if let Ok(file) = std::fs::read(default_path) {
-            GH::from_vox(&file).unwrap()
-        } else {
-            GH::empty(32)
-        };
+        let gh = GH::empty(128);
         let buffer_size = gh.get_buffer_size();
         let texture_size = gh.texture_size;
         let gh_offsets = gh.get_offsets();

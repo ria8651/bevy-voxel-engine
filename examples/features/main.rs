@@ -5,7 +5,7 @@ use bevy::{
 use bevy_obj::*;
 use bevy_voxel_engine::{
     BevyVoxelEnginePlugin, Box, BoxCollider, Edges, Particle, Portal, Velocity, VoxelCameraBundle,
-    VoxelizationBundle, VoxelizationMaterial, VOXELS_PER_METER,
+    VoxelizationBundle, VoxelizationMaterial, VOXELS_PER_METER, LoadVoxelWorld,
 };
 use character::CharacterEntity;
 use concurrent_queue::ConcurrentQueue;
@@ -31,22 +31,7 @@ pub struct Settings {
 fn main() {
     let mut app = App::new();
     app.insert_resource(Settings { spectator: false })
-        .insert_resource(Msaa { samples: 1 })
-        .add_plugins(
-            DefaultPlugins
-                .set(AssetPlugin {
-                    watch_for_changes: true,
-                    ..default()
-                })
-                .set(WindowPlugin {
-                    window: WindowDescriptor {
-                        width: 1280.0,
-                        height: 720.0,
-                        ..default()
-                    },
-                    ..default()
-                }),
-        )
+        .add_plugins(DefaultPlugins)
         .add_plugin(ObjPlugin)
         .add_plugin(BevyVoxelEnginePlugin)
         .add_plugin(character::Character)
@@ -66,8 +51,15 @@ fn main() {
 }
 
 // world space cordinates are in terms of 4 voxels per meter with 0, 0
-// in the world lining up with the center of the voxel world (ie 0, 0, 0 in the render world)
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+// in the world lining up with the center of the voxel world and the edge
+// of the world being half of the world size in each direction
+fn setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut load_voxel_world: ResMut<LoadVoxelWorld>,
+) {
+    *load_voxel_world = LoadVoxelWorld::File("assets/monu9.vox".to_string());
+
     let portal1 = commands
         .spawn((
             Portal {
