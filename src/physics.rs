@@ -64,7 +64,7 @@ pub fn extract_physics_data(
 
     // copy physics data to the buffer
     render_queue.write_buffer(
-        &physics_data.physics_buffer,
+        &physics_data.physics_buffer_gpu,
         0,
         bytemuck::cast_slice(&type_buffer.finish()),
     );
@@ -85,7 +85,7 @@ pub fn insert_physics_data(
     // process last frames physics data
     if physics_data.dispatch_size > 0 {
         let physics_buffer_slice = physics_data
-            .physics_buffer
+            .physics_buffer_cpu
             .slice(..physics_data.buffer_length * 4);
         physics_buffer_slice.map_async(wgpu::MapMode::Read, |_| {});
         render_device.poll(wgpu::Maintain::Wait);
@@ -94,7 +94,7 @@ pub fn insert_physics_data(
         let result: Vec<u32> = bytemuck::cast_slice(&data).to_vec();
 
         drop(data);
-        physics_data.physics_buffer.unmap();
+        physics_data.physics_buffer_cpu.unmap();
 
         if result[0] == 0 {
             warn!("No physics data returned from the gpu!");

@@ -56,18 +56,28 @@ impl render_graph::Node for PhysicsNode {
             None => return Ok(()),
         };
 
-        let mut pass = render_context
-            .command_encoder
-            .begin_compute_pass(&ComputePassDescriptor::default());
+        {
+            let mut pass = render_context
+                .command_encoder
+                .begin_compute_pass(&ComputePassDescriptor::default());
 
-        pass.set_bind_group(0, &voxel_data.bind_group, &[]);
-        pass.set_bind_group(1, &compute_data.bind_group, &[]);
+            pass.set_bind_group(0, &voxel_data.bind_group, &[]);
+            pass.set_bind_group(1, &compute_data.bind_group, &[]);
 
-        let dispatch_size = (physics_data.dispatch_size as f32).cbrt().ceil() as u32;
-        if dispatch_size > 0 {
-            pass.set_pipeline(pipeline);
-            pass.dispatch_workgroups(dispatch_size, dispatch_size, dispatch_size);
+            let dispatch_size = (physics_data.dispatch_size as f32).cbrt().ceil() as u32;
+            if dispatch_size > 0 {
+                pass.set_pipeline(pipeline);
+                pass.dispatch_workgroups(dispatch_size, dispatch_size, dispatch_size);
+            }
         }
+
+        render_context.command_encoder.copy_buffer_to_buffer(
+            &physics_data.physics_buffer_gpu,
+            0,
+            &physics_data.physics_buffer_cpu,
+            0,
+            physics_data.buffer_length * 4,
+        );
 
         Ok(())
     }

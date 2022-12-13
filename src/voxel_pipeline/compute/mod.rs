@@ -74,10 +74,15 @@ impl Plugin for ComputeResourcesPlugin {
         });
         uniform_buffer.write_buffer(render_device, render_queue);
 
-        let physics_buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
+        let physics_buffer_gpu = render_device.create_buffer_with_data(&BufferInitDescriptor {
             contents: bytemuck::cast_slice(&vec![0u32; MAX_TYPE_BUFFER_DATA]),
             label: None,
-            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST | BufferUsages::MAP_READ,
+            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST | BufferUsages::COPY_SRC,
+        });
+        let physics_buffer_cpu = render_device.create_buffer_with_data(&BufferInitDescriptor {
+            contents: bytemuck::cast_slice(&vec![0u32; MAX_TYPE_BUFFER_DATA]),
+            label: None,
+            usage: BufferUsages::COPY_DST | BufferUsages::MAP_READ,
         });
         let animation_buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
             contents: bytemuck::cast_slice(&vec![0u32; MAX_TYPE_BUFFER_DATA]),
@@ -132,7 +137,7 @@ impl Plugin for ComputeResourcesPlugin {
                 },
                 BindGroupEntry {
                     binding: 1,
-                    resource: physics_buffer.as_entire_binding(),
+                    resource: physics_buffer_gpu.as_entire_binding(),
                 },
                 BindGroupEntry {
                     binding: 2,
@@ -145,7 +150,8 @@ impl Plugin for ComputeResourcesPlugin {
             dispatch_size: 0,
             buffer_length: 0,
             entities: HashMap::new(),
-            physics_buffer,
+            physics_buffer_gpu,
+            physics_buffer_cpu,
         })
         .insert_resource(AnimationData {
             dispatch_size: 0,
@@ -196,7 +202,8 @@ pub struct PhysicsData {
     pub dispatch_size: u32,
     pub buffer_length: u64,
     pub entities: HashMap<Entity, usize>,
-    pub physics_buffer: Buffer,
+    pub physics_buffer_gpu: Buffer,
+    pub physics_buffer_cpu: Buffer,
 }
 
 #[derive(Clone, Resource, ExtractResource)]
