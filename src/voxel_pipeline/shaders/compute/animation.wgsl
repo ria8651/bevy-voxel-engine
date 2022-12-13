@@ -104,7 +104,7 @@ fn animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                 for (var y = -half_size.y; y <= half_size.y; y++) {
                     for (var z = -half_size.z; z <= half_size.z; z++) {
                         let pos = vec3(x, y, z);
-                        write_pos(texture_pos + pos, material, 0u); // ANIMATION_FLAG | COLLISION_FLAG
+                        write_pos(texture_pos + pos, material, ANIMATION_FLAG); //  | COLLISION_FLAG
                     }
                 }
             }

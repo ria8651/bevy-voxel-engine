@@ -74,10 +74,10 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
         },
         TextureDimension::D2,
         &[10, 0, 0, 0],
-        TextureFormat::Rgba8UnormSrgb,
+        TextureFormat::Rgba8Unorm,
     );
     image.texture_descriptor.usage =
-        TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
+        TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING;
     let image = images.add(image);
     commands.insert_resource(FallbackImage(image));
 
