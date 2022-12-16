@@ -16,8 +16,8 @@ pub struct AttachmentsPlugin;
 impl Plugin for AttachmentsPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(ExtractComponentPlugin::<RenderAttachments>::default())
-            .add_system(add_render_attachments)
-            .add_system(resize_attachments);
+            .add_system_to_stage(CoreStage::PostUpdate, add_render_attachments)
+            .add_system_to_stage(CoreStage::PostUpdate, resize_attachments);
     }
 }
 
