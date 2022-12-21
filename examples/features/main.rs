@@ -57,56 +57,38 @@ fn setup(
 ) {
     *load_voxel_world = LoadVoxelWorld::File("assets/monu9.vox".to_string());
 
-    let portal1 = commands
-        .spawn((
-            VoxelizationBundle {
-                mesh_handle: asset_server.load("models/portal.obj"),
-                transform: Transform::from_xyz(0.0, 100.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
-                voxelization_material: VoxelizationMaterial {
-                    flags: Flags::ANIMATION_FLAG | Flags::PORTAL_FLAG,
-                    ..default()
-                },
-                ..default()
-            },
-            Portal,
-        ))
-        .with_children(|parent| {
-            // portal border
-            parent.spawn(VoxelizationBundle {
-                mesh_handle: asset_server.load("models/portal_frame.obj"),
-                voxelization_material: VoxelizationMaterial {
-                    material: VoxelizationMaterialType::Material(120),
-                    flags: Flags::ANIMATION_FLAG | Flags::COLLISION_FLAG,
-                },
-                ..default()
-            });
-        })
-        .id();
-    let portal2 = commands
-        .spawn((
-            VoxelizationBundle {
-                mesh_handle: asset_server.load("models/portal.obj"),
-                transform: Transform::from_xyz(0.0, 100.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
-                voxelization_material: VoxelizationMaterial {
-                    flags: Flags::ANIMATION_FLAG | Flags::PORTAL_FLAG,
-                    ..default()
-                },
-                ..default()
-            },
-            Portal,
-        ))
-        .with_children(|parent| {
-            // portal border
-            parent.spawn(VoxelizationBundle {
-                mesh_handle: asset_server.load("models/portal_frame.obj"),
-                voxelization_material: VoxelizationMaterial {
-                    material: VoxelizationMaterialType::Material(121),
-                    flags: Flags::ANIMATION_FLAG | Flags::COLLISION_FLAG,
-                },
-                ..default()
-            });
-        })
-        .id();
+    let mut portals = vec![None; 2];
+    for i in 0..2 {
+        portals[i] = Some(
+            commands
+                .spawn((
+                    VoxelizationBundle {
+                        mesh_handle: asset_server.load("models/portal.obj"),
+                        transform: Transform::from_xyz(0.0, 100.0, 0.0)
+                            .looking_at(Vec3::ZERO, Vec3::Y)
+                            .with_scale(Vec3::new(i as f32 * 2.0 - 1.0, 1.0, i as f32 * 2.0 - 1.0)),
+                        voxelization_material: VoxelizationMaterial {
+                            flags: Flags::ANIMATION_FLAG | Flags::PORTAL_FLAG,
+                            ..default()
+                        },
+                        ..default()
+                    },
+                    Portal,
+                ))
+                .with_children(|parent| {
+                    // portal border
+                    parent.spawn(VoxelizationBundle {
+                        mesh_handle: asset_server.load("models/portal_frame.obj"),
+                        voxelization_material: VoxelizationMaterial {
+                            material: VoxelizationMaterialType::Material(120 + i as u8),
+                            flags: Flags::ANIMATION_FLAG | Flags::COLLISION_FLAG,
+                        },
+                        ..default()
+                    });
+                })
+                .id(),
+        );
+    }
 
     // character
     let character_transform = Transform::from_xyz(10.0, 10.0, -5.0).looking_at(Vec3::ZERO, Vec3::Y);
@@ -125,14 +107,14 @@ fn setup(
                 grounded: false,
                 look_at: -character_transform.local_z(),
                 up: Vec3::new(0.0, 1.0, 0.0),
-                portal1,
-                portal2,
+                portal1: portals[0].unwrap(),
+                portal2: portals[1].unwrap(),
             },
             Velocity::new(Vec3::splat(0.0)),
             BoxCollider {
                 half_size: IVec3::new(2, 4, 2),
             },
-            // BloomSettings::default(),
+            BloomSettings::default(),
             Fxaa::default(),
         ))
         .with_children(|parent| {
@@ -176,7 +158,9 @@ fn setup(
             .spawn((
                 VoxelizationBundle {
                     mesh_handle: asset_server.load("models/portal.obj"),
-                    transform: Transform::from_translation(pos[i]).looking_at(Vec3::ZERO, Vec3::Y),
+                    transform: Transform::from_translation(pos[i])
+                        .looking_at(Vec3::ZERO, Vec3::Y)
+                        .with_scale(Vec3::new(i as f32 * 2.0 - 1.0, 1.0, i as f32 * 2.0 - 1.0)),
                     voxelization_material: VoxelizationMaterial {
                         flags: Flags::ANIMATION_FLAG | Flags::PORTAL_FLAG,
                         ..default()
@@ -191,7 +175,7 @@ fn setup(
                     mesh_handle: asset_server.load("models/portal_frame.obj"),
                     voxelization_material: VoxelizationMaterial {
                         material: VoxelizationMaterialType::Material(120 + i as u8),
-                        flags: Flags::ANIMATION_FLAG,
+                        flags: Flags::ANIMATION_FLAG | Flags::COLLISION_FLAG,
                     },
                     ..default()
                 });
@@ -288,10 +272,10 @@ fn spawn_portals(
                 commands.entity(entity).despawn();
 
                 let normal = velocity.hit_normal;
-                let pos = ((transform.translation + normal * (0.5 / VOXELS_PER_METER))
-                    * VOXELS_PER_METER)
-                    .floor()
-                    / VOXELS_PER_METER;
+
+                let plane = 1.0 - normal.abs();
+                let pos = (transform.translation * plane * VOXELS_PER_METER).floor() / VOXELS_PER_METER;
+                let pos = pos + transform.translation * normal.abs();
 
                 let character = character_query.single_mut();
                 let entity = match bullet.bullet_type {

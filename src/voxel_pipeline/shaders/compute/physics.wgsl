@@ -52,9 +52,9 @@ fn physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                 let direction = Ray(world_pos, normalize(velocity));
                 let distance = length(velocity) * compute_uniforms.delta_time;
                 let hit = shoot_ray(direction, distance, COLLISION_FLAG);
-                portal_rotation = hit.rot;
+                portal_rotation = hit.portals;
                 world_pos = hit.pos;
-                velocity = hit.rot * velocity;
+                velocity = (hit.portals * vec4(velocity, 0.0)).xyz;
 
                 if (hit.hit) {
                     // velocity = reflect(velocity, normalize(hit.normal));
@@ -122,8 +122,8 @@ fn physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                     let direction = normalize(velocity * compute_uniforms.delta_time);
                     let distance = length(velocity) * compute_uniforms.delta_time;
                     let hit = shoot_ray(Ray(world_pos, direction), distance, 1u);
-                    portal_rotation = hit.rot;
-                    velocity = hit.rot * velocity;
+                    portal_rotation = hit.portals;
+                    velocity = (hit.portals * vec4(velocity, 0.0)).xyz;
                     world_pos = hit.pos;
                 }
             }

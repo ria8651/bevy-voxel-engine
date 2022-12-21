@@ -85,14 +85,15 @@ struct HitInfo {
     pos: vec3<f32>,
     reprojection_pos: vec3<f32>,
     normal: vec3<f32>,
-    rot: mat3x3<f32>,
+    portals: mat4x4<f32>,
     steps: u32,
 };
 
-let IDENTITY = mat3x3<f32>(
-    vec3<f32>(1.0, 0.0, 0.0), 
-    vec3<f32>(0.0, 1.0, 0.0), 
-    vec3<f32>(0.0, 0.0, 1.0)
+let IDENTITY = mat4x4<f32>(
+    vec4<f32>(1.0, 0.0, 0.0, 0.0), 
+    vec4<f32>(0.0, 1.0, 0.0, 0.0), 
+    vec4<f32>(0.0, 0.0, 1.0, 0.0),
+    vec4<f32>(0.0, 0.0, 0.0, 1.0),
 );
 
 fn intersect_scene(r: Ray, steps: u32) -> HitInfo {
@@ -171,14 +172,12 @@ fn shoot_ray(r: Ray, physics_distance: f32, flags: u32) -> HitInfo {
     var steps = 0u;
     var normal = trunc(pos * 1.00001);
     var voxel = Voxel(0u, vec3(0.0), 0u);
-    var rot = IDENTITY;
+    var portal_mat = IDENTITY;
     var reprojection_pos = pos;
-    var jumped = false;
     while (steps < 1000u) {
         voxel = get_value(tcpotr);
 
         let should_portal_skip = ((voxel.data >> 8u) & PORTAL_FLAG) > 0u;
-
         if ((voxel.data & 0xFFu) != 0u && !should_portal_skip && (((voxel.data >> 8u) & flags) > 0u || flags == 0u)) {
             break;
         }
@@ -195,30 +194,29 @@ fn shoot_ray(r: Ray, physics_distance: f32, flags: u32) -> HitInfo {
         reprojection_pos = r.pos + (t_current + distance) * r.dir * rtw;
 
         // portals
-        if (should_portal_skip && !jumped) {
+        if (should_portal_skip) {
             let portal = voxel_uniforms.portals[i32(voxel.data & 0xFFu)];
-            
-            let intersection = ray_plane(Ray(pos * rtw, dir), portal.position, portal.normal);
-            if (intersection.w != 0.0 && intersection.w * wtr - 0.000002 < t_current) {
-                pos = (portal.transformation * vec4(intersection.xyz, 1.0)).xyz * wtr;
-                dir = (portal.transformation * vec4(reflect(dir, portal.normal), 0.0)).xyz;
+
+            let intersection = ray_plane(Ray(pos * rtw, dir), portal.position + portal.normal * 0.00002, portal.normal);
+            if (intersection.w != 0.0 && intersection.w * wtr < t_current) {
+                pos = (portal.transformation * vec4(intersection.xyz - portal.normal * 0.00004, 1.0)).xyz * wtr;
+                dir = (portal.transformation * vec4(dir, 0.0)).xyz;
                 r_sign = sign(dir);
                 tcpotr = pos;
 
-                // voxel = get_value(tcpotr);
-                // jumped = true;
+                portal_mat = portal.transformation * portal_mat;
 
-                // return HitInfo(true, voxel.data, vec4(tcpotr, 0.0), tcpotr * rtw + normal * 0.0001, reprojection_pos, normal, rot, steps);
+                // return HitInfo(true, voxel.data, vec4(tcpotr, 0.0), tcpotr * rtw + normal * 0.0001, reprojection_pos, normal, portal_mat, steps);
             }
         }
 
         if (t_current + distance > physics_distance && physics_distance > 0.0) {
-            return HitInfo(false, 0u, vec4(0.0), (pos + dir * (physics_distance - distance)) * rtw, vec3(0.0), vec3(0.0), rot, steps);
+            return HitInfo(false, 0u, vec4(0.0), (pos + dir * (physics_distance - distance)) * rtw, vec3(0.0), vec3(0.0), portal_mat, steps);
         }
 
         if (!in_bounds(tcpotr)) {
             if (physics_distance > 0.0) {
-                return HitInfo(false, 0u, vec4(0.0), (pos + dir * (physics_distance - distance)) * rtw, vec3(0.0), vec3(0.0), rot, steps);
+                return HitInfo(false, 0u, vec4(0.0), (pos + dir * (physics_distance - distance)) * rtw, vec3(0.0), vec3(0.0), portal_mat, steps);
             }
             return intersect_scene(Ray(pos, dir), steps);
         }
@@ -226,5 +224,5 @@ fn shoot_ray(r: Ray, physics_distance: f32, flags: u32) -> HitInfo {
         steps = steps + 1u;
     }
 
-    return HitInfo(true, voxel.data, voxel_uniforms.materials[voxel.data & 0xFFu], tcpotr * rtw + normal * 0.0001, reprojection_pos, normal, rot, steps);
+    return HitInfo(true, voxel.data, voxel_uniforms.materials[voxel.data & 0xFFu], tcpotr * rtw + normal * 0.0001, reprojection_pos, normal, portal_mat, steps);
 }

@@ -277,15 +277,21 @@ pub fn extract_animation_data(
             let first_matrix = first.0.compute_matrix();
             let second_matrix = second.0.compute_matrix();
 
+            let first_normal = -first.0.local_z();
+            let first_pos = first.0.translation;
+
+            let second_normal = -second.0.local_z();
+            let second_pos = second.0.translation;
+
             voxel_uniforms.portals[i - 1] = ExtractedPortal {
                 transformation: second_matrix * first_matrix.inverse(),
-                position: first.0.translation,
-                normal: -first.0.local_z(),
+                position: first_pos,
+                normal: first_normal,
             };
             voxel_uniforms.portals[i] = ExtractedPortal {
                 transformation: first_matrix * second_matrix.inverse(),
-                position: second.0.translation,
-                normal: -second.0.local_z(),
+                position: second_pos,
+                normal: second_normal,
             };
         }
     }
