@@ -176,53 +176,54 @@ fn shoot_ray(r: Ray, physics_distance: f32, flags: u32) -> HitInfo {
     while (steps < 1000u) {
         voxel = get_value(tcpotr);
 
-        // portals
-        let should_portal_skip = ((voxel.data >> 8u) & PORTAL_FLAG) > 0u;
-        if (should_portal_skip) {
-            let portal = voxel_uniforms.portals[i32(voxel.data & 0xFFu)];
-            let voxel_size = 2.0 / f32(voxel_uniforms.texture_size);
+        // // portals
+        // let should_portal_skip = ((voxel.data >> 8u) & PORTAL_FLAG) > 0u;
+        // if (should_portal_skip) {
+        //     let portal = voxel_uniforms.portals[i32(voxel.data & 0xFFu)];
+        //     let voxel_size = 2.0 / f32(voxel_uniforms.texture_size);
 
-            let intersection = ray_plane(Ray(pos, dir), portal.pos, portal.normal);
-            if (all(abs(intersection - portal.pos) < vec3(voxel_size) * (vec3<f32>(portal.half_size) + 0.5)) && all(intersection != vec3(0.0))) {
-                tcpotr = intersection + r_sign * abs(portal.normal) * 0.0000001;
-                if (length(tcpotr - pos) + distance > physics_distance && physics_distance > 0.0) {
-                    return HitInfo(false, 0u, vec4(0.0), (pos + dir * (physics_distance - distance)) * rtw, vec3(0.0), vec3(0.0), rot, steps);
-                }
+        //     let intersection = ray_plane(Ray(pos, dir), portal.pos, portal.normal);
+        //     if (all(abs(intersection - portal.pos) < vec3(voxel_size) * (vec3<f32>(portal.half_size) + 0.5)) && all(intersection != vec3(0.0))) {
+        //         tcpotr = intersection + r_sign * abs(portal.normal) * 0.0000001;
+        //         if (length(tcpotr - pos) + distance > physics_distance && physics_distance > 0.0) {
+        //             return HitInfo(false, 0u, vec4(0.0), (pos + dir * (physics_distance - distance)) * rtw, vec3(0.0), vec3(0.0), rot, steps);
+        //         }
 
-                let ray_rot_angle = acos(dot(portal.normal, portal.other_normal));
-                var ray_rot_axis: vec3<f32>;
-                if (any(abs(portal.normal) != abs(portal.other_normal))) {
-                    ray_rot_axis = cross(portal.normal, portal.other_normal);
-                } else {
-                    if (all(abs(portal.normal) == vec3(0.0, 1.0, 0.0))) {
-                        ray_rot_axis = vec3(1.0, 0.0, 0.0);
-                    } else {
-                        ray_rot_axis = vec3(0.0, 1.0, 0.0);
-                    }
-                }
-                let ray_rot_mat = create_rot_mat(ray_rot_axis, PI - ray_rot_angle);
+        //         let ray_rot_angle = acos(dot(portal.normal, portal.other_normal));
+        //         var ray_rot_axis: vec3<f32>;
+        //         if (any(abs(portal.normal) != abs(portal.other_normal))) {
+        //             ray_rot_axis = cross(portal.normal, portal.other_normal);
+        //         } else {
+        //             if (all(abs(portal.normal) == vec3(0.0, 1.0, 0.0))) {
+        //                 ray_rot_axis = vec3(1.0, 0.0, 0.0);
+        //             } else {
+        //                 ray_rot_axis = vec3(0.0, 1.0, 0.0);
+        //             }
+        //         }
+        //         let ray_rot_mat = create_rot_mat(ray_rot_axis, PI - ray_rot_angle);
 
-                let new_pos = (ray_rot_mat * (tcpotr - portal.pos)) + portal.other_pos;
-                let new_dir = ray_rot_mat * dir;
+        //         let new_pos = (ray_rot_mat * (tcpotr - portal.pos)) + portal.other_pos;
+        //         let new_dir = ray_rot_mat * dir;
 
-                // return HitInfo(true, voxel.data, vec4(tcpotr * 10.0, 0.0), tcpotr, tcpotr - reprojection_pos, normal, steps);
-                // return HitInfo(true, voxel.data, vec4(vec3(ray_rot_angle / u.misc_float / PI), 1.0), tcpotr, tcpotr - reprojection_pos, normal, steps);
+        //         // return HitInfo(true, voxel.data, vec4(tcpotr * 10.0, 0.0), tcpotr, tcpotr - reprojection_pos, normal, steps);
+        //         // return HitInfo(true, voxel.data, vec4(vec3(ray_rot_angle / u.misc_float / PI), 1.0), tcpotr, tcpotr - reprojection_pos, normal, steps);
 
-                distance += length(tcpotr - pos);
+        //         distance += length(tcpotr - pos);
 
-                rot = ray_rot_mat * rot;
-                pos = new_pos;
-                dir = new_dir;
-                r_sign = sign(dir);
-                tcpotr = pos;
+        //         rot = ray_rot_mat * rot;
+        //         pos = new_pos;
+        //         dir = new_dir;
+        //         r_sign = sign(dir);
+        //         tcpotr = pos;
 
-                // jumped = true;
+        //         // jumped = true;
 
-                voxel = get_value(tcpotr);
-            }
-        }
+        //         voxel = get_value(tcpotr);
+        //     }
+        // }
 
-        if ((voxel.data & 0xFFu) != 0u && !should_portal_skip && (((voxel.data >> 8u) & flags) > 0u || flags == 0u)) {
+        //  && !should_portal_skip
+        if ((voxel.data & 0xFFu) != 0u && (((voxel.data >> 8u) & flags) > 0u || flags == 0u)) {
             break;
         }
 

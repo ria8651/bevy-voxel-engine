@@ -8,11 +8,7 @@ let SAND_FLAG = 8u; // 0b00001000
 let VOXELS_PER_METER: f32 = 4.0;
 
 struct Portal {
-    pos: vec3<f32>,
-    other_pos: vec3<f32>,
-    normal: vec3<f32>,
-    other_normal: vec3<f32>,
-    half_size: vec3<i32>,
+    transformation: mat4x4<f32>,
 }
 
 struct VoxelUniforms {

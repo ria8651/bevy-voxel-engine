@@ -173,11 +173,7 @@ impl Into<[PalleteEntry; 256]> for Pallete {
 
 #[derive(Default, Debug, Clone, Copy, ShaderType)]
 pub struct ExtractedPortal {
-    pub pos: Vec3,
-    pub other_pos: Vec3,
-    pub normal: Vec3,
-    pub other_normal: Vec3,
-    pub half_size: IVec3,
+    pub transformation: Mat4,
 }
 
 #[derive(Resource, ExtractResource, Clone, ShaderType)]

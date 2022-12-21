@@ -1,5 +1,5 @@
 use super::voxel_world::{VoxelData, VoxelUniforms};
-use crate::{RenderGraphSettings, VOXELS_PER_METER};
+use crate::{RenderGraphSettings, VOXELS_PER_METER, Flags};
 use bevy::{
     asset::load_internal_asset,
     core_pipeline::{clear_color::ClearColorConfig, core_3d::Transparent3d},
@@ -24,10 +24,11 @@ use bevy::{
             SetItemPipeline, TrackedRenderPass,
         },
         render_resource::*,
-        renderer::RenderDevice,
+        renderer::{RenderDevice, RenderQueue},
         view::ExtractedView,
         RenderApp, RenderStage,
     },
+    utils::HashMap,
 };
 
 const VOXELIZATION_SHADER_HANDLE: HandleUntyped =
@@ -53,6 +54,7 @@ impl Plugin for VoxelizationPlugin {
             .add_render_command::<Transparent3d, DrawCustom>()
             .init_resource::<VoxelizationPipeline>()
             .init_resource::<SpecializedMeshPipelines<VoxelizationPipeline>>()
+            .insert_resource(VoxelizationUniformsResource(HashMap::new()))
             .add_system_to_stage(RenderStage::Queue, queue_bind_group)
             .add_system_to_stage(RenderStage::Queue, queue_custom);
     }
@@ -76,8 +78,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
         &[10, 0, 0, 0],
         TextureFormat::Rgba8Unorm,
     );
-    image.texture_descriptor.usage =
-        TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING;
+    image.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING;
     let image = images.add(image);
     commands.insert_resource(FallbackImage(image));
 
@@ -173,9 +174,25 @@ fn update_cameras(
     }
 }
 
-#[derive(Component, Default, Clone, Debug)]
+#[derive(Component, Clone)]
 pub struct VoxelizationMaterial {
-    pub texture: Handle<Image>,
+    pub material: VoxelizationMaterialType,
+    pub flags: u8,
+}
+
+impl Default for VoxelizationMaterial {
+    fn default() -> Self {
+        Self {
+            material: VoxelizationMaterialType::Material(10),
+            flags: Flags::ANIMATION_FLAG,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum VoxelizationMaterialType {
+    Texture(Handle<Image>),
+    Material(u8),
 }
 
 impl ExtractComponent for VoxelizationMaterial {
@@ -185,6 +202,25 @@ impl ExtractComponent for VoxelizationMaterial {
 
     fn extract_component(material: bevy::ecs::query::QueryItem<Self::Query>) -> Self {
         material.clone()
+    }
+}
+
+#[derive(Clone, ShaderType)]
+pub struct VoxelizationUniforms {
+    material: u32,
+    flags: u32,
+}
+
+impl From<&VoxelizationMaterial> for UniformBuffer<VoxelizationUniforms> {
+    fn from(value: &VoxelizationMaterial) -> Self {
+        let material = match &value.material {
+            VoxelizationMaterialType::Texture(_) => 0,
+            VoxelizationMaterialType::Material(material) => *material as u32,
+        };
+        UniformBuffer::from(VoxelizationUniforms {
+            material,
+            flags: value.flags as u32,
+        })
     }
 }
 
@@ -220,6 +256,18 @@ impl FromWorld for VoxelizationPipeline {
                     BindGroupLayoutEntry {
                         binding: 0,
                         visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Buffer {
+                            ty: BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: BufferSize::new(
+                                VoxelizationUniforms::SHADER_SIZE.into(),
+                            ),
+                        },
+                        count: None,
+                    },
+                    BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: ShaderStages::FRAGMENT,
                         ty: BindingType::Texture {
                             sample_type: TextureSampleType::Float { filterable: false },
                             view_dimension: TextureViewDimension::D2,
@@ -228,7 +276,7 @@ impl FromWorld for VoxelizationPipeline {
                         count: None,
                     },
                     BindGroupLayoutEntry {
-                        binding: 1,
+                        binding: 2,
                         visibility: ShaderStages::FRAGMENT,
                         ty: BindingType::Sampler(SamplerBindingType::NonFiltering),
                         count: None,
@@ -310,21 +358,36 @@ fn queue_custom(
 #[derive(Component, Deref, DerefMut)]
 struct VoxelizationBindGroup(BindGroup);
 
+#[derive(Resource, Deref, DerefMut)]
+struct VoxelizationUniformsResource(HashMap<Entity, UniformBuffer<VoxelizationUniforms>>);
+
 fn queue_bind_group(
     mut commands: Commands,
     render_device: Res<RenderDevice>,
+    render_queue: Res<RenderQueue>,
     voxelization_materials: Query<(Entity, &VoxelizationMaterial)>,
     gpu_images: Res<RenderAssets<Image>>,
     voxelization_pipeline: Res<VoxelizationPipeline>,
     fallback_image: Res<FallbackImage>,
+    mut voxelization_uniforms: ResMut<VoxelizationUniformsResource>,
 ) {
     for (entity, voxelization_material) in voxelization_materials.iter() {
+        let uniforms = voxelization_uniforms.entry(entity).or_insert({
+            let mut buffer: UniformBuffer<VoxelizationUniforms> = voxelization_material.into();
+            buffer.write_buffer(&render_device, &render_queue);
+            buffer
+        });
+
         let sampler = render_device.create_sampler(&SamplerDescriptor::default());
 
-        let image_handle = voxelization_material.texture.clone();
-        let image_view = gpu_images
-            .get(&image_handle)
-            .unwrap_or(gpu_images.get(&fallback_image).unwrap());
+        let image_view =
+            if let VoxelizationMaterialType::Texture(texture) = &voxelization_material.material {
+                gpu_images
+                    .get(texture)
+                    .unwrap_or(gpu_images.get(&fallback_image).unwrap())
+            } else {
+                gpu_images.get(&fallback_image).unwrap()
+            };
 
         let voxelization_bind_group = render_device.create_bind_group(&BindGroupDescriptor {
             label: None,
@@ -332,10 +395,14 @@ fn queue_bind_group(
             entries: &[
                 BindGroupEntry {
                     binding: 0,
-                    resource: BindingResource::TextureView(&image_view.texture_view),
+                    resource: uniforms.binding().unwrap(),
                 },
                 BindGroupEntry {
                     binding: 1,
+                    resource: BindingResource::TextureView(&image_view.texture_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
                     resource: BindingResource::Sampler(&sampler),
                 },
             ],

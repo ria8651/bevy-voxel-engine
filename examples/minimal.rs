@@ -43,10 +43,7 @@ fn setup(
 
     // portal pair
     commands.spawn((
-        Portal {
-            half_size: IVec3::new(0, 9, 6),
-            normal: Vec3::new(1.0, 0.0, 0.0),
-        },
+        Portal,
         Edges {
             material: 23,
             half_size: IVec3::new(0, 10, 7),
@@ -54,10 +51,7 @@ fn setup(
         Transform::from_xyz(-5.0, 0.0, -5.0),
     ));
     commands.spawn((
-        Portal {
-            half_size: IVec3::new(0, 9, 6),
-            normal: Vec3::new(1.0, 0.0, 0.0),
-        },
+        Portal,
         Edges {
             material: 23,
             half_size: IVec3::new(0, 10, 7),

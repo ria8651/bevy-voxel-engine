@@ -62,7 +62,7 @@ fn update_character(
         }
         if mouse_delta != Vec2::ZERO {
             let angle = character.look_at.dot(character.up).acos();
-            let max_angle = 0.1;
+            let max_angle = 0.01;
 
             // Order is important to prevent unintended roll
             character.look_at = Quat::from_axis_angle(Vec3::Y, -mouse_delta.x * SENSITIVITY)

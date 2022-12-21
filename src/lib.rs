@@ -8,7 +8,7 @@ pub use physics::VOXELS_PER_METER;
 use voxel_pipeline::RenderPlugin;
 pub use voxel_pipeline::{
     denoise::DenoiseSettings, trace::TraceSettings, voxelization::VoxelizationMaterial,
-    RenderGraphSettings,
+    voxelization::VoxelizationMaterialType, RenderGraphSettings,
 };
 
 mod load;
@@ -22,10 +22,7 @@ pub struct Particle {
 
 /// normal must be a normalized voxel normal
 #[derive(Component)]
-pub struct Portal {
-    pub half_size: IVec3,
-    pub normal: Vec3,
-}
+pub struct Portal;
 
 #[derive(Component)]
 pub struct Edges {
@@ -122,4 +119,13 @@ pub enum LoadVoxelWorld {
     Empty(u32),
     File(String),
     None,
+}
+
+#[allow(non_snake_case, dead_code)]
+pub mod Flags {
+    pub const PORTAL_FLAG: u8 = 64; // 0b01000000
+    pub const ANIMATION_FLAG: u8 = 32; // 0b00100000
+    pub const COLLISION_FLAG: u8 = 16; // 0b00010000
+    pub const SAND_FLAG: u8 = 8; // 0b00001000
+    pub const NONE: u8 = 0; // 0b00000000
 }

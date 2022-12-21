@@ -26,6 +26,11 @@ fn vertex(vertex: Vertex) -> VertexOutput {
     return out;
 }
 
+struct VoxelizationUniforms {
+    material: u32,
+    flags: u32,
+}
+
 @group(2) @binding(0)
 var<uniform> voxel_uniforms: VoxelUniforms;
 @group(2) @binding(1)
@@ -34,8 +39,10 @@ var voxel_world: texture_storage_3d<r16uint, read_write>;
 var<storage, read> gh: array<u32>;
 
 @group(3) @binding(0)
-var material_texture: texture_2d<f32>;
+var<uniform> voxelization_uniforms: VoxelizationUniforms;
 @group(3) @binding(1)
+var material_texture: texture_2d<f32>;
+@group(3) @binding(2)
 var material_sampler: sampler;
 
 fn get_texture_value(pos: vec3<i32>) -> vec2<u32> {
@@ -67,10 +74,17 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let world = view.inverse_view_proj * clip_space;
     let texture_pos = VOXELS_PER_METER * (world.xyz / world.w) + vec3(f32(voxel_uniforms.texture_size) / 2.0);
 
-    let texture_value = textureSample(material_texture, material_sampler, vec2(in.uv.xy));
-    let material = max(u32(texture_value.r * 255.0), 1u);
+    var material = 0u;
+    // if voxelization_uniforms.material != 0u {
+        let texture_value = textureSample(material_texture, material_sampler, vec2(in.uv.xy));
+        material = max(u32(texture_value.r * 255.0), 1u);
+        // material = 10u;
+    // } else {
+    //     material = voxelization_uniforms.material;
+    // }
+    // material = 10u;
 
-    write_pos(vec3<i32>(texture_pos), material, COLLISION_FLAG | ANIMATION_FLAG);
+    write_pos(vec3<i32>(texture_pos), material, voxelization_uniforms.flags);
 
     let colour = voxel_uniforms.materials[material].rgb;
     return vec4<f32>(colour, 1.0);

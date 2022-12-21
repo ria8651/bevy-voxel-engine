@@ -243,22 +243,10 @@ pub fn extract_animation_data(
         });
     }
 
-    // add portals
-    let mut i = 0;
-    for (transform, portal) in portal_query.iter() {
-        let pos = world_to_voxel(transform.translation, voxel_world_size);
-        type_buffer.push_object(1, |type_buffer| {
-            type_buffer.push_ivec3(pos);
-            type_buffer.push_ivec3(portal.half_size);
-            type_buffer.push_u32(i);
-        });
-        i += 1;
-    }
-
     // add edges
     for (transform, edges) in edges_query.iter() {
         let pos = world_to_voxel(transform.translation, voxel_world_size);
-        type_buffer.push_object(2, |type_buffer| {
+        type_buffer.push_object(1, |type_buffer| {
             type_buffer.push_ivec3(pos);
             type_buffer.push_u32(edges.material as u32);
             type_buffer.push_ivec3(edges.half_size);
@@ -268,7 +256,7 @@ pub fn extract_animation_data(
     // add boxes
     for (transform, boxes) in boxes_query.iter() {
         let pos = world_to_voxel(transform.translation, voxel_world_size);
-        type_buffer.push_object(3, |type_buffer| {
+        type_buffer.push_object(2, |type_buffer| {
             type_buffer.push_ivec3(pos);
             type_buffer.push_u32(boxes.material as u32);
             type_buffer.push_ivec3(boxes.half_size);
@@ -281,33 +269,14 @@ pub fn extract_animation_data(
     let mut first: Option<(&Transform, &Portal)> = None;
     for (transform, portal) in portal_query.iter() {
         if i % 2 == 1 {
-            let first = first.unwrap();
-            let second = (transform, portal);
-
-            let first_normal = first.1.normal;
-            let second_normal = second.1.normal;
-
-            let voxel_size = 2.0 / voxel_uniforms.texture_size as f32;
-            let first_pos = world_to_render(first.0.translation, voxel_uniforms.texture_size)
-                + voxel_size / 2.0
-                - first_normal * voxel_size / 2.0;
-            let second_pos = world_to_render(second.0.translation, voxel_uniforms.texture_size)
-                + voxel_size / 2.0
-                - second_normal * voxel_size / 2.0;
+            let _first = first.unwrap();
+            let _second = (transform, portal);
 
             voxel_uniforms.portals[i - 1] = ExtractedPortal {
-                pos: first_pos,
-                other_pos: second_pos,
-                normal: first_normal,
-                other_normal: second_normal,
-                half_size: first.1.half_size,
+                transformation: Mat4::IDENTITY,
             };
             voxel_uniforms.portals[i] = ExtractedPortal {
-                pos: second_pos,
-                other_pos: first_pos,
-                normal: second_normal,
-                other_normal: first_normal,
-                half_size: second.1.half_size,
+                transformation: Mat4::IDENTITY,
             };
         }
         first = Some((transform, portal));

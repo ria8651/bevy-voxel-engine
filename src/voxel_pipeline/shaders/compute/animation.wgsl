@@ -55,22 +55,6 @@ fn animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
             let material = animation_data[data_index + 3];
             write_pos(texture_pos, material, ANIMATION_FLAG);
         } else if (data_type == 1) {
-            // portal
-            let half_size = vec3(
-                bitcast<i32>(animation_data[data_index + 3]),
-                bitcast<i32>(animation_data[data_index + 4]),
-                bitcast<i32>(animation_data[data_index + 5]),
-            );
-            let portal_index = animation_data[data_index + 6];
-            for (var x = -half_size.x; x <= half_size.x; x++) {
-                for (var y = -half_size.y; y <= half_size.y; y++) {
-                    for (var z = -half_size.z; z <= half_size.z; z++) {
-                        let texture_pos = texture_pos + vec3(x, y, z);
-                        write_pos(texture_pos, portal_index, PORTAL_FLAG);
-                    }
-                }
-            }
-        } else if (data_type == 2) {
             // edges
             let material = animation_data[data_index + 3];
             let half_size = vec3(
@@ -92,7 +76,7 @@ fn animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                     }
                 }
             }
-        } else if (data_type == 3) {
+        } else if (data_type == 2) {
             // boxes
             let material = animation_data[data_index + 3];
             let half_size = vec3(

@@ -4,8 +4,9 @@ use bevy::{
 };
 use bevy_obj::*;
 use bevy_voxel_engine::{
-    BevyVoxelEnginePlugin, Box, BoxCollider, Edges, Particle, Portal, Velocity, VoxelCameraBundle,
-    VoxelizationBundle, VoxelizationMaterial, VOXELS_PER_METER, LoadVoxelWorld,
+    BevyVoxelEnginePlugin, Box, BoxCollider, Flags, LoadVoxelWorld, Particle, Portal, Velocity,
+    VoxelCameraBundle, VoxelizationBundle, VoxelizationMaterial, VoxelizationMaterialType,
+    VOXELS_PER_METER,
 };
 use character::CharacterEntity;
 use concurrent_queue::ConcurrentQueue;
@@ -55,35 +56,30 @@ fn main() {
 // of the world being half of the world size in each direction
 fn setup(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
     mut load_voxel_world: ResMut<LoadVoxelWorld>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    asset_server: Res<AssetServer>,
 ) {
     *load_voxel_world = LoadVoxelWorld::File("assets/monu9.vox".to_string());
 
     let portal1 = commands
         .spawn((
-            Portal {
-                half_size: IVec3::new(0, 0, 0),
-                normal: Vec3::new(1.0, 0.0, 0.0),
+            VoxelizationBundle {
+                mesh_handle: meshes.add(Mesh::from(shape::Plane { size: 3.0 })),
+                transform: Transform::from_xyz(0.0, 1000.0, 0.0),
+                ..default()
             },
-            Edges {
-                material: 120,
-                half_size: IVec3::new(0, 0, 0),
-            },
-            Transform::from_xyz(0.0, 1000.0, 0.0),
+            Portal,
         ))
         .id();
     let portal2 = commands
         .spawn((
-            Portal {
-                half_size: IVec3::new(0, 0, 0),
-                normal: Vec3::new(1.0, 0.0, 0.0),
+            VoxelizationBundle {
+                mesh_handle: meshes.add(Mesh::from(shape::Plane { size: 3.0 })),
+                transform: Transform::from_xyz(0.0, 1000.0, 0.0),
+                ..default()
             },
-            Edges {
-                material: 121,
-                half_size: IVec3::new(0, 0, 0),
-            },
-            Transform::from_xyz(0.0, 1000.0, 0.0),
+            Portal,
         ))
         .id();
 
@@ -137,7 +133,10 @@ fn setup(
         VoxelizationBundle {
             mesh_handle: asset_server.load("models/suzanne.obj"),
             voxelization_material: VoxelizationMaterial {
-                texture: asset_server.load("models/suzanne.png"),
+                material: VoxelizationMaterialType::Texture(
+                    asset_server.load("models/suzanne.png"),
+                ),
+                flags: Flags::COLLISION_FLAG | Flags::ANIMATION_FLAG,
             },
             transform: Transform::from_scale(Vec3::splat(5.0)).looking_at(Vec3::Z, Vec3::Y),
             ..default()
@@ -227,6 +226,7 @@ fn spawn_portals(
     mut commands: Commands,
     bullet_query: Query<(&Transform, &Velocity, &Bullet, Entity)>,
     mut character_query: Query<&mut CharacterEntity>,
+    mut portal_query: Query<&mut Transform, (With<Portal>, Without<Bullet>)>,
 ) {
     for (transform, velocity, bullet, entity) in bullet_query.iter() {
         if bullet.bullet_type == 1 || bullet.bullet_type == 2 {
@@ -239,41 +239,18 @@ fn spawn_portals(
                     .floor()
                     / VOXELS_PER_METER;
 
-                let plane = (Vec3::splat(1.0) - normal.abs()).as_ivec3();
+                let character = character_query.single_mut();
+                let entity = match bullet.bullet_type {
+                    1 => character.portal1,
+                    2 => character.portal2,
+                    _ => panic!(),
+                };
 
-                let mut character = character_query.single_mut();
-                if bullet.bullet_type == 1 {
-                    commands.entity(character.portal1).despawn();
-                    character.portal1 = commands
-                        .spawn((
-                            Portal {
-                                half_size: plane * 5,
-                                normal: normal,
-                            },
-                            Edges {
-                                material: 120,
-                                half_size: plane * 6,
-                            },
-                            Transform::from_xyz(pos.x, pos.y, pos.z),
-                        ))
-                        .id();
-                }
-                if bullet.bullet_type == 2 {
-                    commands.entity(character.portal2).despawn();
-                    character.portal2 = commands
-                        .spawn((
-                            Portal {
-                                half_size: plane * 5,
-                                normal: normal,
-                            },
-                            Edges {
-                                material: 121,
-                                half_size: plane * 6,
-                            },
-                            Transform::from_xyz(pos.x, pos.y, pos.z),
-                        ))
-                        .id();
-                }
+                let up = if normal == Vec3::Y { Vec3::Z } else { Vec3::Y };
+
+                let mut transform = portal_query.get_mut(entity).unwrap();
+                transform.translation = pos;
+                transform.look_at(pos + up, normal);
             }
         }
     }
