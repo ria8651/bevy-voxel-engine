@@ -3,11 +3,7 @@ use bevy::{
     prelude::*,
 };
 use bevy_obj::*;
-use bevy_voxel_engine::{
-    BevyVoxelEnginePlugin, Box, BoxCollider, Flags, LoadVoxelWorld, Particle, Portal, Velocity,
-    VoxelCameraBundle, VoxelizationBundle, VoxelizationMaterial, VoxelizationMaterialType,
-    VOXELS_PER_METER,
-};
+use bevy_voxel_engine::*;
 use character::CharacterEntity;
 use concurrent_queue::ConcurrentQueue;
 use std::f32::consts::PI;
@@ -57,7 +53,6 @@ fn main() {
 fn setup(
     mut commands: Commands,
     mut load_voxel_world: ResMut<LoadVoxelWorld>,
-    mut meshes: ResMut<Assets<Mesh>>,
     asset_server: Res<AssetServer>,
 ) {
     *load_voxel_world = LoadVoxelWorld::File("assets/monu9.vox".to_string());
@@ -65,22 +60,52 @@ fn setup(
     let portal1 = commands
         .spawn((
             VoxelizationBundle {
-                mesh_handle: meshes.add(Mesh::from(shape::Plane { size: 3.0 })),
-                transform: Transform::from_xyz(0.0, 1000.0, 0.0),
+                mesh_handle: asset_server.load("models/portal.obj"),
+                transform: Transform::from_xyz(0.0, 100.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
+                voxelization_material: VoxelizationMaterial {
+                    flags: Flags::ANIMATION_FLAG | Flags::PORTAL_FLAG,
+                    ..default()
+                },
                 ..default()
             },
             Portal,
         ))
+        .with_children(|parent| {
+            // portal border
+            parent.spawn(VoxelizationBundle {
+                mesh_handle: asset_server.load("models/portal_frame.obj"),
+                voxelization_material: VoxelizationMaterial {
+                    material: VoxelizationMaterialType::Material(120),
+                    flags: Flags::ANIMATION_FLAG | Flags::COLLISION_FLAG,
+                },
+                ..default()
+            });
+        })
         .id();
     let portal2 = commands
         .spawn((
             VoxelizationBundle {
-                mesh_handle: meshes.add(Mesh::from(shape::Plane { size: 3.0 })),
-                transform: Transform::from_xyz(0.0, 1000.0, 0.0),
+                mesh_handle: asset_server.load("models/portal.obj"),
+                transform: Transform::from_xyz(0.0, 100.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
+                voxelization_material: VoxelizationMaterial {
+                    flags: Flags::ANIMATION_FLAG | Flags::PORTAL_FLAG,
+                    ..default()
+                },
                 ..default()
             },
             Portal,
         ))
+        .with_children(|parent| {
+            // portal border
+            parent.spawn(VoxelizationBundle {
+                mesh_handle: asset_server.load("models/portal_frame.obj"),
+                voxelization_material: VoxelizationMaterial {
+                    material: VoxelizationMaterialType::Material(121),
+                    flags: Flags::ANIMATION_FLAG | Flags::COLLISION_FLAG,
+                },
+                ..default()
+            });
+        })
         .id();
 
     // character
@@ -107,7 +132,7 @@ fn setup(
             BoxCollider {
                 half_size: IVec3::new(2, 4, 2),
             },
-            BloomSettings::default(),
+            // BloomSettings::default(),
             Fxaa::default(),
         ))
         .with_children(|parent| {
@@ -138,11 +163,40 @@ fn setup(
                 ),
                 flags: Flags::COLLISION_FLAG | Flags::ANIMATION_FLAG,
             },
-            transform: Transform::from_scale(Vec3::splat(5.0)).looking_at(Vec3::Z, Vec3::Y),
+            transform: Transform::from_scale(Vec3::splat(1.0)).looking_at(Vec3::Z, Vec3::Y),
             ..default()
         },
         Suzanne,
     ));
+
+    // rotated portal
+    let pos = vec![Vec3::new(5.0, 0.0, -5.0), Vec3::new(-5.0, 0.0, 5.0)];
+    for i in 0..2 {
+        commands
+            .spawn((
+                VoxelizationBundle {
+                    mesh_handle: asset_server.load("models/portal.obj"),
+                    transform: Transform::from_translation(pos[i]).looking_at(Vec3::ZERO, Vec3::Y),
+                    voxelization_material: VoxelizationMaterial {
+                        flags: Flags::ANIMATION_FLAG | Flags::PORTAL_FLAG,
+                        ..default()
+                    },
+                    ..default()
+                },
+                Portal,
+            ))
+            .with_children(|parent| {
+                // portal border
+                parent.spawn(VoxelizationBundle {
+                    mesh_handle: asset_server.load("models/portal_frame.obj"),
+                    voxelization_material: VoxelizationMaterial {
+                        material: VoxelizationMaterialType::Material(120 + i as u8),
+                        flags: Flags::ANIMATION_FLAG,
+                    },
+                    ..default()
+                });
+            });
+    }
 }
 
 #[derive(Component)]
@@ -246,11 +300,15 @@ fn spawn_portals(
                     _ => panic!(),
                 };
 
-                let up = if normal == Vec3::Y { Vec3::Z } else { Vec3::Y };
+                let up = if normal.abs() == Vec3::Y {
+                    Vec3::Z
+                } else {
+                    Vec3::Y
+                };
 
                 let mut transform = portal_query.get_mut(entity).unwrap();
                 transform.translation = pos;
-                transform.look_at(pos + up, normal);
+                transform.look_at(pos + normal, up);
             }
         }
     }

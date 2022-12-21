@@ -1,5 +1,5 @@
 use super::voxel_world::{VoxelData, VoxelUniforms};
-use crate::{RenderGraphSettings, VOXELS_PER_METER, Flags};
+use crate::{Flags, RenderGraphSettings, VOXELS_PER_METER};
 use bevy::{
     asset::load_internal_asset,
     core_pipeline::{clear_color::ClearColorConfig, core_3d::Transparent3d},
@@ -211,16 +211,16 @@ pub struct VoxelizationUniforms {
     flags: u32,
 }
 
-impl From<&VoxelizationMaterial> for UniformBuffer<VoxelizationUniforms> {
+impl From<&VoxelizationMaterial> for VoxelizationUniforms {
     fn from(value: &VoxelizationMaterial) -> Self {
         let material = match &value.material {
-            VoxelizationMaterialType::Texture(_) => 0,
+            VoxelizationMaterialType::Texture(_) => 255,
             VoxelizationMaterialType::Material(material) => *material as u32,
         };
-        UniformBuffer::from(VoxelizationUniforms {
+        Self {
             material,
             flags: value.flags as u32,
-        })
+        }
     }
 }
 
@@ -372,11 +372,14 @@ fn queue_bind_group(
     mut voxelization_uniforms: ResMut<VoxelizationUniformsResource>,
 ) {
     for (entity, voxelization_material) in voxelization_materials.iter() {
-        let uniforms = voxelization_uniforms.entry(entity).or_insert({
-            let mut buffer: UniformBuffer<VoxelizationUniforms> = voxelization_material.into();
-            buffer.write_buffer(&render_device, &render_queue);
-            buffer
-        });
+        let uniforms = voxelization_uniforms
+            .entry(entity)
+            .or_insert(UniformBuffer::from(VoxelizationUniforms::from(
+                voxelization_material,
+            )));
+
+        uniforms.set(voxelization_material.into());
+        uniforms.write_buffer(&render_device, &render_queue);
 
         let sampler = render_device.create_sampler(&SamplerDescriptor::default());
 
@@ -411,6 +414,16 @@ fn queue_bind_group(
         commands
             .entity(entity)
             .insert(VoxelizationBindGroup(voxelization_bind_group));
+    }
+
+    let mut to_remove = Vec::new();
+    for entity in voxelization_uniforms.keys() {
+        if voxelization_materials.get(*entity).is_err() {
+            to_remove.push(*entity);
+        }
+    }
+    for entity in to_remove {
+        voxelization_uniforms.remove(&entity);
     }
 }
 

@@ -75,14 +75,12 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let texture_pos = VOXELS_PER_METER * (world.xyz / world.w) + vec3(f32(voxel_uniforms.texture_size) / 2.0);
 
     var material = 0u;
-    // if voxelization_uniforms.material != 0u {
+    if voxelization_uniforms.material == 255u {
         let texture_value = textureSample(material_texture, material_sampler, vec2(in.uv.xy));
         material = max(u32(texture_value.r * 255.0), 1u);
-        // material = 10u;
-    // } else {
-    //     material = voxelization_uniforms.material;
-    // }
-    // material = 10u;
+    } else {
+        material = voxelization_uniforms.material;
+    }
 
     write_pos(vec3<i32>(texture_pos), material, voxelization_uniforms.flags);
 

@@ -9,6 +9,8 @@ let VOXELS_PER_METER: f32 = 4.0;
 
 struct Portal {
     transformation: mat4x4<f32>,
+    position: vec3<f32>,
+    normal: vec3<f32>,
 }
 
 struct VoxelUniforms {
@@ -121,16 +123,16 @@ fn ray_box_dist(r: Ray, vmin: vec3<f32>, vmax: vec3<f32>) -> vec2<f32> {
     return vec2(v7, v8);
 }
 
-fn ray_plane(r: Ray, pos: vec3<f32>, normal: vec3<f32>) -> vec3<f32> {
+fn ray_plane(r: Ray, pos: vec3<f32>, normal: vec3<f32>) -> vec4<f32> {
     let denom = dot(normal, r.dir);
-    if (abs(denom) > 0.00001) {
+    if (denom < 0.00001) {
         let t = dot(normal, pos - r.pos) / denom;
         if (t >= 0.0) {
             let pos = r.pos + r.dir * t;
-            return pos;
+            return vec4(pos, t);
         }
     }
-    return vec3(0.0);
+    return vec4(0.0);
 }
 
 fn in_bounds(v: vec3<f32>) -> bool {

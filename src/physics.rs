@@ -3,7 +3,8 @@ use crate::{
         compute::{AnimationData, PhysicsData},
         voxel_world::{ExtractedPortal, VoxelUniforms},
     },
-    Box, BoxCollider, Edges, Particle, Portal, RenderGraphSettings, Velocity,
+    Box, BoxCollider, Edges, Particle, Portal, RenderGraphSettings, Velocity, VoxelizationMaterial,
+    VoxelizationMaterialType,
 };
 use bevy::{
     prelude::*,
@@ -224,7 +225,7 @@ impl TypeBuffer {
 pub fn extract_animation_data(
     mut animation_data: ResMut<AnimationData>,
     particle_query: Query<(&Transform, &Particle)>,
-    portal_query: Query<(&Transform, &Portal)>,
+    mut portal_query: Query<(&Transform, &Portal, &mut VoxelizationMaterial)>,
     edges_query: Query<(&Transform, &Edges)>,
     boxes_query: Query<(&Transform, &Box)>,
     mut voxel_uniforms: ResMut<VoxelUniforms>,
@@ -265,22 +266,28 @@ pub fn extract_animation_data(
 
     // grab all the poratls in pairs
     voxel_uniforms.portals = [ExtractedPortal::default(); 32];
-    let mut i = 0;
-    let mut first: Option<(&Transform, &Portal)> = None;
-    for (transform, portal) in portal_query.iter() {
+    let mut portals: Vec<(&Transform, &Portal, Mut<VoxelizationMaterial>)> =
+        portal_query.iter_mut().collect();
+    for i in 0..portals.len() {
+        portals[i].2.material = VoxelizationMaterialType::Material(i as u8);
         if i % 2 == 1 {
-            let _first = first.unwrap();
-            let _second = (transform, portal);
+            let first = &portals[i - 1];
+            let second = &portals[i];
+
+            let first_matrix = first.0.compute_matrix();
+            let second_matrix = second.0.compute_matrix();
 
             voxel_uniforms.portals[i - 1] = ExtractedPortal {
-                transformation: Mat4::IDENTITY,
+                transformation: second_matrix * first_matrix.inverse(),
+                position: first.0.translation,
+                normal: -first.0.local_z(),
             };
             voxel_uniforms.portals[i] = ExtractedPortal {
-                transformation: Mat4::IDENTITY,
+                transformation: first_matrix * second_matrix.inverse(),
+                position: second.0.translation,
+                normal: -second.0.local_z(),
             };
         }
-        first = Some((transform, portal));
-        i += 1;
     }
 
     animation_data.dispatch_size = type_buffer.header.len() as u32;
