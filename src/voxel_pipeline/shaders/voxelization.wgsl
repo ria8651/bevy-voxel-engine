@@ -54,10 +54,10 @@ fn get_texture_value(pos: vec3<i32>) -> vec2<u32> {
 }
 
 fn write_pos(pos: vec3<i32>, material: u32, flags: u32) {
-    // let voxel_type = get_texture_value(pos);
-    // if (voxel_type.x == 0u) {
+    let voxel_type = get_texture_value(pos);
+    if (voxel_type.x == 0u) {
         textureStore(voxel_world, pos.zyx, vec4(material | (flags << 8u)));
-    // }
+    }
 }
 
 @fragment
