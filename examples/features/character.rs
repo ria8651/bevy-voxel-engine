@@ -6,11 +6,10 @@ const SENSITIVITY: f32 = 0.004;
 
 #[derive(Component)]
 pub struct CharacterEntity {
+    pub in_spectator: bool,
     pub grounded: bool,
     pub look_at: Vec3,
     pub up: Vec3,
-    pub portal1: Entity,
-    pub portal2: Entity,
 }
 
 pub struct Character;
@@ -42,7 +41,6 @@ fn update_character(
     mut mouse_motion_events: EventReader<MouseMotion>,
     time: Res<Time>,
     mut windows: ResMut<Windows>,
-    settings: Res<super::Settings>,
 ) {
     let window = windows.get_primary_mut().unwrap();
     if keys.just_pressed(KeyCode::Escape) {
@@ -89,7 +87,7 @@ fn update_character(
         }
         input *= SPEED;
 
-        if settings.spectator {
+        if character.in_spectator {
             target_velocity = input.z * transform.local_z()
                 + input.x * transform.local_x()
                 + input.y * transform.local_y();
@@ -112,7 +110,7 @@ fn update_character(
         target_velocity = Vec3::splat(0.0);
     }
 
-    let acceleration: f32 = if settings.spectator {
+    let acceleration: f32 = if character.in_spectator {
         0.2
     } else if character.grounded {
         0.2

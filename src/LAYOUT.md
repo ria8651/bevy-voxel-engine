@@ -14,4 +14,4 @@ collision───╯│
 other────────╯
 ```
 
-If the automata flag is set then the rest of the data byte is automata data. If the portal flag is set then the material becomes a portal id. If the animation flag or portal flag is set the voxel will be destroyed at the beginning of the next frame. If the collision flag is set the voxel will be used for collision
+If the automata flag is set then the rest of the data byte is automata data. If the portal flag is set then the material becomes a portal id. If the animation flag is set the voxel will be destroyed at the beginning of the next frame. If the collision flag is set the voxel will be used for collision detection.

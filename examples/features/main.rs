@@ -20,15 +20,15 @@ pub struct Bullet {
     bullet_type: u32,
 }
 
-#[derive(Resource)]
-pub struct Settings {
-    pub spectator: bool,
+#[derive(Component)]
+struct CharacterPortals {
+    portal1: Entity,
+    portal2: Entity,
 }
 
 fn main() {
     let mut app = App::new();
-    app.insert_resource(Settings { spectator: false })
-        .add_plugins(DefaultPlugins)
+    app.add_plugins(DefaultPlugins)
         .add_plugin(ObjPlugin)
         .add_plugin(BevyVoxelEnginePlugin)
         .add_plugin(character::Character)
@@ -104,9 +104,12 @@ fn setup(
                 ..default()
             },
             CharacterEntity {
+                in_spectator: false,
                 grounded: false,
                 look_at: -character_transform.local_z(),
                 up: Vec3::new(0.0, 1.0, 0.0),
+            },
+            CharacterPortals {
                 portal1: portals[0].unwrap(),
                 portal2: portals[1].unwrap(),
             },
@@ -199,36 +202,35 @@ fn shoot(
     mut commands: Commands,
     input: Res<Input<MouseButton>>,
     keyboard: Res<Input<KeyCode>>,
-    character: Query<&Transform, With<CharacterEntity>>,
-    mut settings: ResMut<Settings>,
+    mut character: Query<(&Transform, &mut CharacterEntity)>,
 ) {
-    let character = character.single();
+    let (transform, mut character_entity) = character.single_mut();
 
     if input.just_pressed(MouseButton::Left) {
         commands.spawn((
-            Transform::from_translation(character.translation),
+            Transform::from_translation(transform.translation),
             Particle { material: 120 },
-            Velocity::new(-character.local_z() * 50.0),
+            Velocity::new(-transform.local_z() * 50.0),
             Bullet { bullet_type: 1 },
         ));
     }
     if input.just_pressed(MouseButton::Right) {
         commands.spawn((
-            Transform::from_translation(character.translation),
+            Transform::from_translation(transform.translation),
             Particle { material: 121 },
-            Velocity::new(-character.local_z() * 50.0),
+            Velocity::new(-transform.local_z() * 50.0),
             Bullet { bullet_type: 2 },
         ));
     }
 
     if keyboard.just_pressed(KeyCode::P) {
-        settings.spectator = !settings.spectator;
+        character_entity.in_spectator = !character_entity.in_spectator;
     }
 
     if keyboard.just_pressed(KeyCode::B) {
         commands.spawn((
-            Transform::from_translation(character.translation),
-            Velocity::new(-character.local_z() * 10.0),
+            Transform::from_translation(transform.translation),
+            Velocity::new(-transform.local_z() * 10.0),
             Bullet { bullet_type: 0 },
             BoxCollider {
                 half_size: IVec3::new(3, 3, 3),
@@ -263,7 +265,7 @@ fn update_velocitys(
 fn spawn_portals(
     mut commands: Commands,
     bullet_query: Query<(&Transform, &Velocity, &Bullet, Entity)>,
-    mut character_query: Query<&mut CharacterEntity>,
+    character_query: Query<&CharacterPortals>,
     mut portal_query: Query<&mut Transform, (With<Portal>, Without<Bullet>)>,
 ) {
     for (transform, velocity, bullet, entity) in bullet_query.iter() {
@@ -274,13 +276,14 @@ fn spawn_portals(
                 let normal = velocity.hit_normal;
 
                 let plane = 1.0 - normal.abs();
-                let pos = (transform.translation * plane * VOXELS_PER_METER).floor() / VOXELS_PER_METER;
+                let pos =
+                    (transform.translation * plane * VOXELS_PER_METER).floor() / VOXELS_PER_METER;
                 let pos = pos + transform.translation * normal.abs();
 
-                let character = character_query.single_mut();
+                let portals = character_query.single();
                 let entity = match bullet.bullet_type {
-                    1 => character.portal1,
-                    2 => character.portal2,
+                    1 => portals.portal1,
+                    2 => portals.portal2,
                     _ => panic!(),
                 };
 

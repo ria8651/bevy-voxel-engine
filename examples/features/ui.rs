@@ -1,6 +1,4 @@
-use super::{
-    character::CharacterEntity, Bullet, Particle, Settings, Velocity, VoxelizationPreviewCamera,
-};
+use super::{character::CharacterEntity, Bullet, Particle, Velocity, VoxelizationPreviewCamera};
 use bevy::{
     core_pipeline::{bloom::BloomSettings, fxaa::Fxaa, tonemapping::Tonemapping},
     prelude::*,
@@ -23,7 +21,6 @@ impl Plugin for UiPlugin {
 fn ui_system(
     mut commands: Commands,
     mut egui_context: ResMut<EguiContext>,
-    mut settings: ResMut<Settings>,
     particle_query: Query<Entity, (With<Velocity>, Without<CharacterEntity>)>,
     mut load_voxel_world: ResMut<LoadVoxelWorld>,
     mut render_graph_settings: ResMut<RenderGraphSettings>,
@@ -35,7 +32,10 @@ fn ui_system(
     )>,
     mut denoise_pass_data: ResMut<DenoiseSettings>,
     mut voxelization_preview_camera_query: Query<&mut Camera, With<VoxelizationPreviewCamera>>,
+    mut character_query: Query<&mut CharacterEntity>,
 ) {
+    let mut character = character_query.single_mut();
+
     egui::Window::new("Settings")
         .anchor(egui::Align2::RIGHT_TOP, [-5.0, 5.0])
         .show(egui_context.ctx_mut(), |ui| {
@@ -171,6 +171,6 @@ fn ui_system(
                     format!("Preview"),
                 );
             }
-            ui.checkbox(&mut settings.spectator, "Spectator mode");
+            ui.checkbox(&mut character.in_spectator, "Spectator mode");
         });
 }
