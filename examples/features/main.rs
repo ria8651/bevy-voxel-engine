@@ -5,7 +5,6 @@ use bevy::{
 use bevy_obj::*;
 use bevy_voxel_engine::*;
 use character::CharacterEntity;
-use concurrent_queue::ConcurrentQueue;
 use std::f32::consts::PI;
 
 mod character;
@@ -37,7 +36,7 @@ fn main() {
         .add_startup_system(setup)
         .add_system(update)
         .add_system(shoot)
-        .add_system(update_velocitys)
+        // .add_system(update_velocitys)
         .add_system(spawn_portals);
 
     let dot = bevy_mod_debugdump::get_render_graph(&mut app);
@@ -113,7 +112,11 @@ fn setup(
                 portal1: portals[0].unwrap(),
                 portal2: portals[1].unwrap(),
             },
-            Velocity::new(Vec3::splat(0.0)),
+            VoxelPhysics::new(
+                Vec3::splat(0.0),
+                Vec3::ZERO, // gravity handeled in character.rs
+                CollisionEffect::None,
+            ),
             BoxCollider {
                 half_size: IVec3::new(2, 4, 2),
             },
@@ -206,20 +209,43 @@ fn shoot(
 ) {
     let (transform, mut character_entity) = character.single_mut();
 
+    // if input.just_pressed(MouseButton::Left) {
+    //     commands.spawn((
+    //         Transform::from_translation(transform.translation),
+    //         Particle { material: 120 },
+    //         VoxelPhysics::new(
+    //             -transform.local_z() * 50.0,
+    //             Vec3::new(0.0, -9.81, 0.0),
+    //             CollisionEffect::None,
+    //         ),
+    //         Bullet { bullet_type: 1 },
+    //     ));
+    // }
+    // if input.just_pressed(MouseButton::Right) {
+    //     commands.spawn((
+    //         Transform::from_translation(transform.translation),
+    //         Particle { material: 121 },
+    //         VoxelPhysics::new(
+    //             -transform.local_z() * 50.0,
+    //             Vec3::new(0.0, -9.81, 0.0),
+    //             CollisionEffect::None,
+    //         ),
+    //         Bullet { bullet_type: 2 },
+    //     ));
+    // }
     if input.just_pressed(MouseButton::Left) {
         commands.spawn((
             Transform::from_translation(transform.translation),
             Particle { material: 120 },
-            Velocity::new(-transform.local_z() * 50.0),
-            Bullet { bullet_type: 1 },
-        ));
-    }
-    if input.just_pressed(MouseButton::Right) {
-        commands.spawn((
-            Transform::from_translation(transform.translation),
-            Particle { material: 121 },
-            Velocity::new(-transform.local_z() * 50.0),
-            Bullet { bullet_type: 2 },
+            VoxelPhysics::new(
+                -transform.local_z() * 50.0,
+                Vec3::new(0.0, -9.81, 0.0),
+                CollisionEffect::SetFlags {
+                    radius: 3.0,
+                    flags: Flags::SAND_FLAG,
+                },
+            ),
+            Bullet { bullet_type: 0 },
         ));
     }
 
@@ -230,7 +256,11 @@ fn shoot(
     if keyboard.just_pressed(KeyCode::B) {
         commands.spawn((
             Transform::from_translation(transform.translation),
-            Velocity::new(-transform.local_z() * 10.0),
+            VoxelPhysics::new(
+                -transform.local_z() * 10.0,
+                Vec3::new(0.0, -9.81, 0.0),
+                CollisionEffect::None,
+            ),
             Bullet { bullet_type: 0 },
             BoxCollider {
                 half_size: IVec3::new(3, 3, 3),
@@ -243,36 +273,36 @@ fn shoot(
     }
 }
 
-fn update_velocitys(
-    mut commands: Commands,
-    mut velocity_query: Query<(&Transform, &mut Velocity, Entity), With<Bullet>>,
-    time: Res<Time>,
-) {
-    let to_destroy = ConcurrentQueue::unbounded();
-    velocity_query.par_for_each_mut(8, |(_transform, mut velocity, _entity)| {
-        velocity.velocity += Vec3::new(0.0, -9.81 * time.delta_seconds(), 0.0);
-        // let e = animation::world_to_render(transform.translation.abs(), uniforms.texture_size);
-        // if e.x > 1.0 || e.y > 1.0 || e.z > 1.0 {
-        //     to_destroy.push(entity).unwrap();
-        // }
-    });
+// fn update_velocitys(
+//     mut commands: Commands,
+//     mut velocity_query: Query<(&Transform, &mut VoxelPhysics, Entity), With<Bullet>>,
+//     time: Res<Time>,
+// ) {
+//     // let to_destroy = ConcurrentQueue::unbounded();
+//     // velocity_query.par_for_each_mut(8, |(_transform, mut velocity, _entity)| {
+//     //     // velocity.velocity += Vec3::new(0.0, -9.81 * time.delta_seconds(), 0.0);
+//     //     // let e = animation::world_to_render(transform.translation.abs(), uniforms.texture_size);
+//     //     // if e.x > 1.0 || e.y > 1.0 || e.z > 1.0 {
+//     //     //     to_destroy.push(entity).unwrap();
+//     //     // }
+//     // });
 
-    while let Ok(entity) = to_destroy.pop() {
-        commands.entity(entity).despawn();
-    }
-}
+//     // while let Ok(entity) = to_destroy.pop() {
+//     //     commands.entity(entity).despawn();
+//     // }
+// }
 
 fn spawn_portals(
     mut commands: Commands,
-    bullet_query: Query<(&Transform, &Velocity, &Bullet, Entity)>,
+    bullet_query: Query<(&Transform, &VoxelPhysics, &Bullet, Entity)>,
     character_query: Query<&CharacterPortals>,
     mut portal_query: Query<&mut Transform, (With<Portal>, Without<Bullet>)>,
 ) {
     for (transform, velocity, bullet, entity) in bullet_query.iter() {
-        if bullet.bullet_type == 1 || bullet.bullet_type == 2 {
-            if velocity.hit_normal != Vec3::splat(0.0) {
-                commands.entity(entity).despawn();
+        if velocity.hit_normal != Vec3::splat(0.0) {
+            commands.entity(entity).despawn();
 
+            if bullet.bullet_type == 1 || bullet.bullet_type == 2 {
                 let normal = velocity.hit_normal;
 
                 let plane = 1.0 - normal.abs();

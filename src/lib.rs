@@ -37,19 +37,66 @@ pub struct Box {
 }
 
 #[derive(Component)]
-pub struct Velocity {
+pub struct VoxelPhysics {
     pub velocity: Vec3,
+    pub gravity: Vec3,
+    pub collision_effect: CollisionEffect,
     pub hit_normal: Vec3,
     pub portal_rotation: Mat3,
 }
 
-impl Velocity {
-    pub fn new(velocity: Vec3) -> Self {
+impl VoxelPhysics {
+    pub fn new(velocity: Vec3, gravity: Vec3, collision_effect: CollisionEffect) -> Self {
         Self {
             velocity,
+            gravity,
+            collision_effect,
             hit_normal: Vec3::ZERO,
             portal_rotation: Mat3::IDENTITY,
         }
+    }
+}
+
+pub enum CollisionEffect {
+    None,
+    Destroy {
+        radius: f32,
+    },
+    Place {
+        radius: f32,
+        material: u8,
+        flags: u8,
+    },
+    SetFlags {
+        radius: f32,
+        flags: u8,
+    },
+}
+
+impl CollisionEffect {
+    pub fn to_vec3(&self) -> Vec3 {
+        let mut vec = Vec3::ZERO;
+        vec.x = match self {
+            CollisionEffect::None => 0u32 as f32,
+            CollisionEffect::Destroy { .. } => 1u32 as f32,
+            CollisionEffect::Place { .. } => 2u32 as f32,
+            CollisionEffect::SetFlags { .. } => 3u32 as f32,
+        };
+        vec.y = match self {
+            CollisionEffect::Destroy { radius }
+            | CollisionEffect::Place { radius, .. }
+            | CollisionEffect::SetFlags { radius, .. } => *radius,
+            _ => 0.0,
+        };
+        vec.z = match self {
+            CollisionEffect::Place {
+                material, flags, ..
+            } => bytemuck::cast(*material as u32 | ((*flags as u32) << 8)),
+            CollisionEffect::SetFlags { flags, .. } => bytemuck::cast(*flags as u32),
+            _ => 0.0,
+        };
+
+        vec
     }
 }
 

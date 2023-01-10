@@ -1,4 +1,4 @@
-use super::{character::CharacterEntity, Bullet, Particle, Velocity, VoxelizationPreviewCamera};
+use super::{character::CharacterEntity, Bullet, Particle, VoxelizationPreviewCamera};
 use bevy::{
     core_pipeline::{bloom::BloomSettings, fxaa::Fxaa, tonemapping::Tonemapping},
     prelude::*,
@@ -7,7 +7,9 @@ use bevy_egui::{
     egui::{self, Slider},
     EguiContext, EguiPlugin,
 };
-use bevy_voxel_engine::{DenoiseSettings, LoadVoxelWorld, RenderGraphSettings, TraceSettings};
+use bevy_voxel_engine::{
+    DenoiseSettings, LoadVoxelWorld, RenderGraphSettings, TraceSettings, VoxelPhysics,
+};
 use rand::Rng;
 
 pub struct UiPlugin;
@@ -21,7 +23,7 @@ impl Plugin for UiPlugin {
 fn ui_system(
     mut commands: Commands,
     mut egui_context: ResMut<EguiContext>,
-    particle_query: Query<Entity, (With<Velocity>, Without<CharacterEntity>)>,
+    particle_query: Query<Entity, (With<VoxelPhysics>, Without<CharacterEntity>)>,
     mut load_voxel_world: ResMut<LoadVoxelWorld>,
     mut render_graph_settings: ResMut<RenderGraphSettings>,
     mut camera_settings_query: Query<(
@@ -98,7 +100,7 @@ fn ui_system(
                             Particle {
                                 material: rng.gen_range(100..104),
                             },
-                            Velocity::new(
+                            VoxelPhysics::new(
                                 Vec3::new(
                                     rng.gen_range(-1.0..1.0),
                                     rng.gen_range(-1.0..1.0),
@@ -106,6 +108,8 @@ fn ui_system(
                                 )
                                 .clamp_length_max(1.0)
                                     * 10.0,
+                                Vec3::new(0.0, -9.81, 0.0),
+                                bevy_voxel_engine::CollisionEffect::None,
                             ),
                             Bullet { bullet_type: 0 },
                         ));

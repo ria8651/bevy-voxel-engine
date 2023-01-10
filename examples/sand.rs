@@ -3,7 +3,7 @@ use bevy::{
     prelude::*,
 };
 use bevy_voxel_engine::{
-    BevyVoxelEnginePlugin, BoxCollider, Flags, LoadVoxelWorld, Velocity, VoxelCameraBundle,
+    BevyVoxelEnginePlugin, BoxCollider, Flags, LoadVoxelWorld, VoxelCameraBundle, VoxelPhysics,
     VoxelizationBundle, VoxelizationMaterial, VoxelizationMaterialType,
 };
 use character::CharacterEntity;
@@ -49,7 +49,11 @@ fn setup(
             look_at: -transform.local_z(),
             up: Vec3::new(0.0, 1.0, 0.0),
         },
-        Velocity::new(Vec3::splat(0.0)),
+        VoxelPhysics::new(
+            Vec3::splat(0.0),
+            Vec3::new(0.0, -9.81, 0.0),
+            bevy_voxel_engine::CollisionEffect::None,
+        ),
         BoxCollider {
             half_size: IVec3::new(2, 4, 2),
         },

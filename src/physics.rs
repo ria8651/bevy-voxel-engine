@@ -3,8 +3,8 @@ use crate::{
         compute::{AnimationData, PhysicsData},
         voxel_world::{ExtractedPortal, VoxelUniforms},
     },
-    Box, BoxCollider, Edges, Particle, Portal, RenderGraphSettings, Velocity, VoxelizationMaterial,
-    VoxelizationMaterialType,
+    Box, BoxCollider, Edges, Particle, Portal, RenderGraphSettings, VoxelPhysics,
+    VoxelizationMaterial, VoxelizationMaterialType,
 };
 use bevy::{
     prelude::*,
@@ -25,10 +25,8 @@ impl Plugin for PhysicsPlugin {
 }
 
 pub fn extract_physics_data(
-    mut set: ParamSet<(
-        Query<(&Transform, &Velocity, Entity), Without<BoxCollider>>,
-        Query<(&Transform, &Velocity, &BoxCollider, Entity)>,
-    )>,
+    particle_query: Query<(&Transform, &VoxelPhysics, Entity), Without<BoxCollider>>,
+    box_query: Query<(&Transform, &VoxelPhysics, &BoxCollider, Entity)>,
     mut physics_data: ResMut<PhysicsData>,
     render_queue: Res<RenderQueue>,
 ) {
@@ -36,24 +34,28 @@ pub fn extract_physics_data(
     let mut entities = HashMap::new();
 
     // add points
-    for (transform, velocity, entity) in set.p0().iter() {
+    for (transform, voxel_physics, entity) in particle_query.iter() {
         entities.insert(entity, type_buffer.header.len());
 
         type_buffer.push_object(0, |type_buffer| {
             type_buffer.push_vec3(transform.translation);
-            type_buffer.push_vec3(velocity.velocity);
+            type_buffer.push_vec3(voxel_physics.velocity);
+            type_buffer.push_vec3(voxel_physics.gravity);
+            type_buffer.push_vec3(voxel_physics.collision_effect.to_vec3());
             type_buffer.push_vec3(Vec3::ZERO); // space to recieve hit data
             type_buffer.push_mat3(Mat3::IDENTITY); // space to recieve portal rotation
         });
     }
 
     // add boxes
-    for (transform, velocity, box_collider, entity) in set.p1().iter() {
+    for (transform, voxel_physics, box_collider, entity) in box_query.iter() {
         entities.insert(entity, type_buffer.header.len());
 
         type_buffer.push_object(1, |type_buffer| {
             type_buffer.push_vec3(transform.translation);
-            type_buffer.push_vec3(velocity.velocity);
+            type_buffer.push_vec3(voxel_physics.velocity);
+            type_buffer.push_vec3(voxel_physics.gravity);
+            type_buffer.push_vec3(voxel_physics.collision_effect.to_vec3());
             type_buffer.push_vec3(Vec3::ZERO); // space to recieve hit data
             type_buffer.push_mat3(Mat3::IDENTITY); // space to recieve portal rotation
             type_buffer.push_ivec3(box_collider.half_size);
@@ -74,7 +76,7 @@ pub fn extract_physics_data(
 }
 
 pub fn insert_physics_data(
-    mut set: ParamSet<(Query<(&mut Transform, &mut Velocity, Entity)>,)>,
+    mut voxel_physics_query: Query<(&mut Transform, &mut VoxelPhysics, Entity)>,
     physics_data: Res<PhysicsData>,
     render_device: Res<RenderDevice>,
     render_graph_settings: Res<RenderGraphSettings>,
@@ -103,7 +105,7 @@ pub fn insert_physics_data(
         }
 
         // process points and boxes
-        for (mut transform, mut velocity, entity) in set.p0().iter_mut() {
+        for (mut transform, mut voxel_physics, entity) in voxel_physics_query.iter_mut() {
             if let Some(index) = physics_data.entities.get(&entity) {
                 let data_index = result[index + 1] as usize & 0xFFFFFF;
                 transform.translation = Vec3::new(
@@ -111,31 +113,31 @@ pub fn insert_physics_data(
                     bytemuck::cast(result[data_index + 1]),
                     bytemuck::cast(result[data_index + 2]),
                 );
-                velocity.velocity = Vec3::new(
+                voxel_physics.velocity = Vec3::new(
                     bytemuck::cast(result[data_index + 3]),
                     bytemuck::cast(result[data_index + 4]),
                     bytemuck::cast(result[data_index + 5]),
                 );
-                velocity.hit_normal = Vec3::new(
-                    bytemuck::cast(result[data_index + 6]),
-                    bytemuck::cast(result[data_index + 7]),
-                    bytemuck::cast(result[data_index + 8]),
+                voxel_physics.hit_normal = Vec3::new(
+                    bytemuck::cast(result[data_index + 12]),
+                    bytemuck::cast(result[data_index + 13]),
+                    bytemuck::cast(result[data_index + 14]),
                 );
-                velocity.portal_rotation = Mat3::from_cols(
-                    Vec3::new(
-                        bytemuck::cast(result[data_index + 9]),
-                        bytemuck::cast(result[data_index + 10]),
-                        bytemuck::cast(result[data_index + 11]),
-                    ),
-                    Vec3::new(
-                        bytemuck::cast(result[data_index + 12]),
-                        bytemuck::cast(result[data_index + 13]),
-                        bytemuck::cast(result[data_index + 14]),
-                    ),
+                voxel_physics.portal_rotation = Mat3::from_cols(
                     Vec3::new(
                         bytemuck::cast(result[data_index + 15]),
                         bytemuck::cast(result[data_index + 16]),
                         bytemuck::cast(result[data_index + 17]),
+                    ),
+                    Vec3::new(
+                        bytemuck::cast(result[data_index + 18]),
+                        bytemuck::cast(result[data_index + 19]),
+                        bytemuck::cast(result[data_index + 20]),
+                    ),
+                    Vec3::new(
+                        bytemuck::cast(result[data_index + 21]),
+                        bytemuck::cast(result[data_index + 22]),
+                        bytemuck::cast(result[data_index + 23]),
                     ),
                 );
             }

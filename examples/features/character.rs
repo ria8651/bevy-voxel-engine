@@ -1,5 +1,5 @@
 use bevy::{input::mouse::MouseMotion, prelude::*, window::CursorGrabMode};
-use bevy_voxel_engine::Velocity;
+use bevy_voxel_engine::VoxelPhysics;
 
 const SPEED: f32 = 10.0;
 const SENSITIVITY: f32 = 0.004;
@@ -36,7 +36,7 @@ fn toggle_grab_cursor(window: &mut Window) {
 }
 
 fn update_character(
-    mut character: Query<(&mut Transform, &mut Velocity, &mut CharacterEntity)>,
+    mut character: Query<(&mut Transform, &mut VoxelPhysics, &mut CharacterEntity)>,
     keys: Res<Input<KeyCode>>,
     mut mouse_motion_events: EventReader<MouseMotion>,
     time: Res<Time>,
@@ -47,11 +47,11 @@ fn update_character(
         toggle_grab_cursor(window);
     }
 
-    let (mut transform, mut velocity, mut character) = character.single_mut();
+    let (mut transform, mut voxel_physics, mut character) = character.single_mut();
     let target_velocity;
     if window.cursor_grab_mode() == CursorGrabMode::Locked {
-        character.look_at = velocity.portal_rotation * character.look_at;
-        character.up = velocity.portal_rotation * character.up;
+        character.look_at = voxel_physics.portal_rotation * character.look_at;
+        character.up = voxel_physics.portal_rotation * character.up;
 
         // rotation
         let mut mouse_delta = Vec2::new(0.0, 0.0);
@@ -92,19 +92,19 @@ fn update_character(
                 + input.x * transform.local_x()
                 + input.y * transform.local_y();
         } else {
-            if velocity.velocity.y == 0.0 {
+            if voxel_physics.velocity.y == 0.0 {
                 character.grounded = true;
             }
             if input.y > 0.0 && character.grounded {
-                velocity.velocity.y = 5.0;
+                voxel_physics.velocity.y = 5.0;
                 character.grounded = false;
             }
-            velocity.velocity += Vec3::new(0.0, -9.81 * time.delta_seconds(), 0.0);
+            voxel_physics.velocity += Vec3::new(0.0, -9.81 * time.delta_seconds(), 0.0);
 
             let plane_forward = transform.local_x().cross(Vec3::Y).normalize();
             target_velocity = input.z * plane_forward
                 + input.x * transform.local_x()
-                + velocity.velocity.y * Vec3::Y;
+                + voxel_physics.velocity.y * Vec3::Y;
         }
     } else {
         target_velocity = Vec3::splat(0.0);
@@ -118,8 +118,8 @@ fn update_character(
         0.01
     };
 
-    velocity.velocity = lerp(
-        velocity.velocity,
+    voxel_physics.velocity = lerp(
+        voxel_physics.velocity,
         target_velocity,
         acceleration,
         time.delta_seconds(),
