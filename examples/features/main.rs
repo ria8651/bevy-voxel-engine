@@ -5,6 +5,7 @@ use bevy::{
 use bevy_obj::*;
 use bevy_voxel_engine::*;
 use character::CharacterEntity;
+use rand::Rng;
 use std::f32::consts::PI;
 
 mod character;
@@ -37,6 +38,7 @@ fn main() {
         .add_system(update)
         .add_system(shoot)
         // .add_system(update_velocitys)
+        .add_system(update_fire)
         .add_system(spawn_portals);
 
     let dot = bevy_mod_debugdump::get_render_graph(&mut app);
@@ -151,7 +153,7 @@ fn setup(
                 ),
                 flags: Flags::COLLISION_FLAG | Flags::ANIMATION_FLAG,
             },
-            transform: Transform::from_scale(Vec3::splat(1.0)).looking_at(Vec3::Z, Vec3::Y),
+            transform: Transform::from_scale(Vec3::splat(3.0)).looking_at(Vec3::Z, Vec3::Y),
             ..default()
         },
         Suzanne,
@@ -236,7 +238,10 @@ fn shoot(
     if input.just_pressed(MouseButton::Left) {
         commands.spawn((
             Transform::from_translation(transform.translation),
-            Particle { material: 120 },
+            Particle {
+                material: 120,
+                flags: Flags::ANIMATION_FLAG,
+            },
             VoxelPhysics::new(
                 -transform.local_z() * 50.0,
                 Vec3::new(0.0, -9.81, 0.0),
@@ -267,9 +272,22 @@ fn shoot(
             },
             Box {
                 material: 14,
+                flags: Flags::ANIMATION_FLAG,
                 half_size: IVec3::new(3, 3, 3),
             },
         ));
+    }
+}
+
+fn update_fire(mut particle_query: Query<(Entity, &mut Particle)>, mut commands: Commands) {
+    let mut rand = rand::thread_rng();
+    for (entity, mut particle) in particle_query.iter_mut() {
+        if particle.material >= 9 && particle.material <= 13 {
+            particle.material += rand.gen_range(0.0..1.02) as u8;
+            if particle.material == 11 {
+                commands.entity(entity).despawn();
+            }
+        }
     }
 }
 
@@ -326,6 +344,29 @@ fn spawn_portals(
                 let mut transform = portal_query.get_mut(entity).unwrap();
                 transform.translation = pos;
                 transform.look_at(pos + normal, up);
+            }
+
+            if bullet.bullet_type == 0 {
+                let mut rng = rand::thread_rng();
+                for _ in 0..100 {
+                    commands.spawn((
+                        Transform::from_translation(transform.translation),
+                        Particle {
+                            material: 9,
+                            flags: Flags::NONE,
+                        },
+                        VoxelPhysics::new(
+                            Vec3::new(
+                                rng.gen_range(-1.0..1.0),
+                                rng.gen_range(-1.0..1.0),
+                                rng.gen_range(-1.0..1.0),
+                            ) * 10.0,
+                            Vec3::new(0.0, -9.81, 0.0),
+                            bevy_voxel_engine::CollisionEffect::None,
+                        ),
+                        Bullet { bullet_type: 3 },
+                    ));
+                }
             }
         }
     }

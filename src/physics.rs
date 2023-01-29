@@ -243,6 +243,7 @@ pub fn extract_animation_data(
         type_buffer.push_object(0, |type_buffer| {
             type_buffer.push_ivec3(pos);
             type_buffer.push_u32(particle.material as u32);
+            type_buffer.push_u32(particle.flags as u32);
         });
     }
 
@@ -252,6 +253,7 @@ pub fn extract_animation_data(
         type_buffer.push_object(1, |type_buffer| {
             type_buffer.push_ivec3(pos);
             type_buffer.push_u32(edges.material as u32);
+            type_buffer.push_u32(edges.flags as u32);
             type_buffer.push_ivec3(edges.half_size);
         });
     }
@@ -262,6 +264,7 @@ pub fn extract_animation_data(
         type_buffer.push_object(2, |type_buffer| {
             type_buffer.push_ivec3(pos);
             type_buffer.push_u32(boxes.material as u32);
+            type_buffer.push_u32(boxes.flags as u32);
             type_buffer.push_ivec3(boxes.half_size);
         });
     }

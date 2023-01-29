@@ -18,6 +18,7 @@ mod voxel_pipeline;
 #[derive(Component)]
 pub struct Particle {
     pub material: u8,
+    pub flags: u8,
 }
 
 /// normal must be a normalized voxel normal
@@ -27,12 +28,14 @@ pub struct Portal;
 #[derive(Component)]
 pub struct Edges {
     pub material: u8,
+    pub flags: u8,
     pub half_size: IVec3,
 }
 
 #[derive(Component)]
 pub struct Box {
     pub material: u8,
+    pub flags: u8,
     pub half_size: IVec3,
 }
 

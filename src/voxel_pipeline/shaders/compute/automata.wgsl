@@ -149,4 +149,33 @@ fn automata(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
             }
         }
     }
+
+    // fire
+    if (material.x >= 9u && material.x <= 13u) {
+        let rand = hash(pos_time_seed + 10u);
+        let i = i32(5.0 * rand.x);
+
+        var offset: vec3<i32>;
+        if (i == 0) {
+            offset = vec3(1, 1, 0);
+        } else if (i == 1) {
+            offset = vec3(-1, 1, 0);
+        } else if (i == 2) {
+            offset = vec3(0, 1, 1);
+        } else if (i == 3) {
+            offset = vec3(0, 1, -1);
+        } else if (i == 4) {
+            offset = vec3(0, 1, 0);
+        }
+
+        let new_pos = pos + offset;
+        let new_mat = get_texture_value(new_pos);
+        if (in_texture_bounds(new_pos) && new_mat.x == 0u && u32(rand.z * 1.05) == 0u) {
+            let new_material = min(material.x + u32(rand.y * 1.3), 13u);
+            let flags = 0u;
+            textureStore(voxel_world, new_pos.zyx, vec4(new_material | (flags << 8u)));
+        }
+
+        textureStore(voxel_world, pos.zyx, vec4(0u));
+    }
 }

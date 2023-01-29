@@ -50,17 +50,17 @@ fn animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
             bitcast<i32>(animation_data[data_index + 1]),
             bitcast<i32>(animation_data[data_index + 2]),
         );
+        let material = animation_data[data_index + 3];
+        let flags = animation_data[data_index + 4];
         if (data_type == 0) {
             // particle
-            let material = animation_data[data_index + 3];
-            write_pos(texture_pos, material, ANIMATION_FLAG);
+            write_pos(texture_pos, material, flags);
         } else if (data_type == 1) {
             // edges
-            let material = animation_data[data_index + 3];
             let half_size = vec3(
-                bitcast<i32>(animation_data[data_index + 4]),
                 bitcast<i32>(animation_data[data_index + 5]),
                 bitcast<i32>(animation_data[data_index + 6]),
+                bitcast<i32>(animation_data[data_index + 7]),
             );
             for (var x = -half_size.x; x <= half_size.x; x++) {
                 for (var y = -half_size.y; y <= half_size.y; y++) {
@@ -69,7 +69,7 @@ fn animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                         if (abs(pos.x) == half_size.x || abs(pos.y) == half_size.y) {
                             if (abs(pos.x) == half_size.x || abs(pos.z) == half_size.z) {
                                 if (abs(pos.y) == half_size.y || abs(pos.z) == half_size.z) {
-                                    write_pos(texture_pos + pos, material, ANIMATION_FLAG | COLLISION_FLAG);
+                                    write_pos(texture_pos + pos, material, flags);
                                 }
                             }
                         }
@@ -78,17 +78,16 @@ fn animation(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
             }
         } else if (data_type == 2) {
             // boxes
-            let material = animation_data[data_index + 3];
             let half_size = vec3(
-                bitcast<i32>(animation_data[data_index + 4]),
                 bitcast<i32>(animation_data[data_index + 5]),
                 bitcast<i32>(animation_data[data_index + 6]),
+                bitcast<i32>(animation_data[data_index + 7]),
             );
             for (var x = -half_size.x; x <= half_size.x; x++) {
                 for (var y = -half_size.y; y <= half_size.y; y++) {
                     for (var z = -half_size.z; z <= half_size.z; z++) {
                         let pos = vec3(x, y, z);
-                        write_pos(texture_pos + pos, material, ANIMATION_FLAG); //  | COLLISION_FLAG
+                        write_pos(texture_pos + pos, material, flags);
                     }
                 }
             }

@@ -3,7 +3,8 @@ use bevy::{
     prelude::*,
 };
 use bevy_voxel_engine::{
-    BevyVoxelEnginePlugin, Edges, LoadVoxelWorld, Portal, VoxelCameraBundle, VoxelizationBundle,
+    BevyVoxelEnginePlugin, Edges, Flags, LoadVoxelWorld, Portal, VoxelCameraBundle,
+    VoxelizationBundle,
 };
 
 fn main() {
@@ -46,6 +47,7 @@ fn setup(
         Portal,
         Edges {
             material: 23,
+            flags: Flags::ANIMATION_FLAG,
             half_size: IVec3::new(0, 10, 7),
         },
         Transform::from_xyz(-5.0, 0.0, -5.0),
@@ -54,6 +56,7 @@ fn setup(
         Portal,
         Edges {
             material: 23,
+            flags: Flags::ANIMATION_FLAG,
             half_size: IVec3::new(0, 10, 7),
         },
         Transform::from_xyz(-5.0, 0.0, 3.0),

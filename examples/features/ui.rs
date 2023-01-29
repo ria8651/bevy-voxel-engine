@@ -8,7 +8,7 @@ use bevy_egui::{
     EguiContext, EguiPlugin,
 };
 use bevy_voxel_engine::{
-    DenoiseSettings, LoadVoxelWorld, RenderGraphSettings, TraceSettings, VoxelPhysics,
+    DenoiseSettings, LoadVoxelWorld, RenderGraphSettings, TraceSettings, VoxelPhysics, Flags,
 };
 use rand::Rng;
 
@@ -99,6 +99,7 @@ fn ui_system(
                             Transform::from_xyz(0.0, 0.0, 0.0),
                             Particle {
                                 material: rng.gen_range(100..104),
+                                flags: Flags::ANIMATION_FLAG,
                             },
                             VoxelPhysics::new(
                                 Vec3::new(
