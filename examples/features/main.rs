@@ -26,20 +26,28 @@ struct CharacterPortals {
     portal2: Entity,
 }
 
+#[derive(Component)]
+struct Gun;
+
 fn main() {
     let mut app = App::new();
-    app.add_plugins(DefaultPlugins)
-        .add_plugin(ObjPlugin)
-        .add_plugin(BevyVoxelEnginePlugin)
-        .add_plugin(character::Character)
-        .add_plugin(ui::UiPlugin)
-        .add_plugin(fps_counter::FpsCounter)
-        .add_startup_system(setup)
-        .add_system(update)
-        .add_system(shoot)
-        // .add_system(update_velocitys)
-        .add_system(update_fire)
-        .add_system(spawn_portals);
+    app.add_plugins(DefaultPlugins.set(AssetPlugin {
+        // Tell the asset server to watch for asset changes on disk:
+        watch_for_changes: true,
+        ..default()
+    }))
+    .add_plugin(ObjPlugin)
+    .add_plugin(BevyVoxelEnginePlugin)
+    .add_plugin(character::Character)
+    .add_plugin(ui::UiPlugin)
+    .add_plugin(fps_counter::FpsCounter)
+    .add_startup_system(setup)
+    .add_system(update)
+    .add_system(shoot)
+    // .add_system(update_velocitys)
+    .add_system(update_fire)
+    .add_system(update_guns)
+    .add_system(spawn_portals);
 
     let dot = bevy_mod_debugdump::get_render_graph(&mut app);
     std::fs::write("render-graph.dot", dot).expect("Failed to write render-graph.dot");
@@ -157,6 +165,19 @@ fn setup(
             ..default()
         },
         Suzanne,
+    ));
+
+    // portal gun
+    commands.spawn((
+        VoxelizationBundle {
+            mesh_handle: asset_server.load("models/guns/portal_gun.obj"),
+            voxelization_material: VoxelizationMaterial {
+                material: VoxelizationMaterialType::Material(1),
+                flags: Flags::ANIMATION_FLAG,
+            },
+            ..default()
+        },
+        Gun,
     ));
 
     // rotated portal
@@ -291,6 +312,17 @@ fn update_fire(mut particle_query: Query<(Entity, &mut Particle)>, mut commands:
     }
 }
 
+fn update_guns(
+    character_query: Query<&Transform, (With<CharacterEntity>, Without<Gun>)>,
+    mut guns: Query<&mut Transform, With<Gun>>,
+) {
+    let character_transform = character_query.single();
+    for mut gun_transform in guns.iter_mut() {
+        gun_transform.translation = character_transform.translation;
+        gun_transform.rotation = gun_transform.rotation.slerp(character_transform.rotation, 0.1);
+    }
+}
+
 // fn update_velocitys(
 //     mut commands: Commands,
 //     mut velocity_query: Query<(&Transform, &mut VoxelPhysics, Entity), With<Bullet>>,
@@ -364,7 +396,6 @@ fn spawn_portals(
                             Vec3::new(0.0, -9.81, 0.0),
                             bevy_voxel_engine::CollisionEffect::None,
                         ),
-                        Bullet { bullet_type: 3 },
                     ));
                 }
             }

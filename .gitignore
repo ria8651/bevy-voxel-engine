@@ -2,3 +2,4 @@
 /.vscode
 trace-*
 render-graph.dot
+*.blend1

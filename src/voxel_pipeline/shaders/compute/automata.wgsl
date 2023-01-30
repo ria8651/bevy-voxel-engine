@@ -170,12 +170,14 @@ fn automata(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
 
         let new_pos = pos + offset;
         let new_mat = get_texture_value(new_pos);
-        if (in_texture_bounds(new_pos) && new_mat.x == 0u && u32(rand.z * 1.05) == 0u) {
+        if (in_texture_bounds(new_pos) && new_mat.x == 0u && rand.z > 0.08) {
             let new_material = min(material.x + u32(rand.y * 1.3), 13u);
             let flags = 0u;
             textureStore(voxel_world, new_pos.zyx, vec4(new_material | (flags << 8u)));
         }
 
-        textureStore(voxel_world, pos.zyx, vec4(0u));
+        if (rand.y < (f32(material.x) + 7.0) / 20.0) {
+            textureStore(voxel_world, pos.zyx, vec4(0u));
+        }
     }
 }
