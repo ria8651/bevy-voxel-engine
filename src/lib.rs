@@ -173,6 +173,7 @@ pub enum LoadVoxelWorld {
 
 #[allow(non_snake_case, dead_code)]
 pub mod Flags {
+    pub const AUTOMATA_FLAG: u8 = 128; // 0b10000000
     pub const PORTAL_FLAG: u8 = 64; // 0b01000000
     pub const ANIMATION_FLAG: u8 = 32; // 0b00100000
     pub const COLLISION_FLAG: u8 = 16; // 0b00010000

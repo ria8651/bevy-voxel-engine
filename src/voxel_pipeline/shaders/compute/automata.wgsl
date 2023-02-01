@@ -152,7 +152,7 @@ fn automata(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
 
     // fire
     if (material.x >= 9u && material.x <= 13u) {
-        let rand = hash(pos_time_seed + 10u);
+        let rand = hash(pos_time_seed + 20u);
         let i = i32(5.0 * rand.x);
 
         var offset: vec3<i32>;
@@ -172,12 +172,41 @@ fn automata(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
         let new_mat = get_texture_value(new_pos);
         if (in_texture_bounds(new_pos) && new_mat.x == 0u && rand.z > 0.08) {
             let new_material = min(material.x + u32(rand.y * 1.3), 13u);
-            let flags = 0u;
+            let flags = AUTOMATA_FLAG;
             textureStore(voxel_world, new_pos.zyx, vec4(new_material | (flags << 8u)));
         }
 
-        if (rand.y < (f32(material.x) + 7.0) / 20.0) {
+        if (rand.y < (f32(material.x) + 7.0) / 20.0 && (material.y & AUTOMATA_FLAG) > 0u) {
             textureStore(voxel_world, pos.zyx, vec4(0u));
+        }
+    }
+
+    // fire spreading
+    let rand = hash(pos_time_seed + 30u);
+    if (material.x >= 9u && material.x <= 10u && rand.x < 0.1) {
+        // pick a random offset to check
+        let i = i32(6.0 * rand.y);
+
+        var offset: vec3<i32>;
+        if (i == 0) {
+            offset = vec3(1, 0, 0);
+        } else if (i == 1) {
+            offset = vec3(-1, 0, 0);
+        } else if (i == 2) {
+            offset = vec3(0, 1, 0);
+        } else if (i == 3) {
+            offset = vec3(0, -1, 0);
+        } else if (i == 4) {
+            offset = vec3(0, 0, 1);
+        } else if (i == 5) {
+            offset = vec3(0, 0, -1);
+        }
+
+        let new_pos = pos + offset;
+        let new_mat = get_texture_value(new_pos);
+
+        if (in_texture_bounds(new_pos) && new_mat.x != 0u && (new_mat.y & COLLISION_FLAG) > 0u) {
+            textureStore(voxel_world, new_pos.zyx, vec4(material.x | (COLLISION_FLAG << 8u)));
         }
     }
 }

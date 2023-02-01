@@ -151,22 +151,6 @@ fn setup(
             ));
         });
 
-    // voxelized mesh
-    commands.spawn((
-        VoxelizationBundle {
-            mesh_handle: asset_server.load("models/suzanne.obj"),
-            voxelization_material: VoxelizationMaterial {
-                material: VoxelizationMaterialType::Texture(
-                    asset_server.load("models/suzanne.png"),
-                ),
-                flags: Flags::COLLISION_FLAG | Flags::ANIMATION_FLAG,
-            },
-            transform: Transform::from_scale(Vec3::splat(3.0)).looking_at(Vec3::Z, Vec3::Y),
-            ..default()
-        },
-        Suzanne,
-    ));
-
     // portal gun
     commands.spawn((
         VoxelizationBundle {
@@ -180,36 +164,52 @@ fn setup(
         Gun,
     ));
 
-    // rotated portal
-    let pos = vec![Vec3::new(5.0, 0.0, -5.0), Vec3::new(-5.0, 0.0, 5.0)];
-    for i in 0..2 {
-        commands
-            .spawn((
-                VoxelizationBundle {
-                    mesh_handle: asset_server.load("models/portal.obj"),
-                    transform: Transform::from_translation(pos[i])
-                        .looking_at(Vec3::ZERO, Vec3::Y)
-                        .with_scale(Vec3::new(i as f32 * 2.0 - 1.0, 1.0, i as f32 * 2.0 - 1.0)),
-                    voxelization_material: VoxelizationMaterial {
-                        flags: Flags::ANIMATION_FLAG | Flags::PORTAL_FLAG,
-                        ..default()
-                    },
-                    ..default()
-                },
-                Portal,
-            ))
-            .with_children(|parent| {
-                // portal border
-                parent.spawn(VoxelizationBundle {
-                    mesh_handle: asset_server.load("models/portal_frame.obj"),
-                    voxelization_material: VoxelizationMaterial {
-                        material: VoxelizationMaterialType::Material(120 + i as u8),
-                        flags: Flags::ANIMATION_FLAG | Flags::COLLISION_FLAG,
-                    },
-                    ..default()
-                });
-            });
-    }
+    // // rotated portal
+    // let pos = vec![Vec3::new(5.0, 0.0, -5.0), Vec3::new(-5.0, 0.0, 5.0)];
+    // for i in 0..2 {
+    //     commands
+    //         .spawn((
+    //             VoxelizationBundle {
+    //                 mesh_handle: asset_server.load("models/portal.obj"),
+    //                 transform: Transform::from_translation(pos[i])
+    //                     .looking_at(Vec3::ZERO, Vec3::Y)
+    //                     .with_scale(Vec3::new(i as f32 * 2.0 - 1.0, 1.0, i as f32 * 2.0 - 1.0)),
+    //                 voxelization_material: VoxelizationMaterial {
+    //                     flags: Flags::ANIMATION_FLAG | Flags::PORTAL_FLAG,
+    //                     ..default()
+    //                 },
+    //                 ..default()
+    //             },
+    //             Portal,
+    //         ))
+    //         .with_children(|parent| {
+    //             // portal border
+    //             parent.spawn(VoxelizationBundle {
+    //                 mesh_handle: asset_server.load("models/portal_frame.obj"),
+    //                 voxelization_material: VoxelizationMaterial {
+    //                     material: VoxelizationMaterialType::Material(120 + i as u8),
+    //                     flags: Flags::ANIMATION_FLAG | Flags::COLLISION_FLAG,
+    //                 },
+    //                 ..default()
+    //             });
+    //         });
+    // }
+
+    // // voxelized mesh
+    // commands.spawn((
+    //     VoxelizationBundle {
+    //         mesh_handle: asset_server.load("models/suzanne.obj"),
+    //         voxelization_material: VoxelizationMaterial {
+    //             material: VoxelizationMaterialType::Texture(
+    //                 asset_server.load("models/suzanne.png"),
+    //             ),
+    //             flags: Flags::COLLISION_FLAG | Flags::ANIMATION_FLAG,
+    //         },
+    //         transform: Transform::from_scale(Vec3::splat(3.0)).looking_at(Vec3::Z, Vec3::Y),
+    //         ..default()
+    //     },
+    //     Suzanne,
+    // ));
 }
 
 #[derive(Component)]
@@ -385,7 +385,7 @@ fn spawn_portals(
                         Transform::from_translation(transform.translation),
                         Particle {
                             material: 9,
-                            flags: Flags::NONE,
+                            flags: Flags::AUTOMATA_FLAG,
                         },
                         VoxelPhysics::new(
                             Vec3::new(
