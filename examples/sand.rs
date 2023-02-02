@@ -51,7 +51,7 @@ fn setup(
         },
         VoxelPhysics::new(
             Vec3::splat(0.0),
-            Vec3::new(0.0, -9.81, 0.0),
+            Vec3::splat(0.0),
             bevy_voxel_engine::CollisionEffect::None,
         ),
         BoxCollider {
@@ -71,7 +71,7 @@ fn setup(
             })),
             transform: Transform::from_xyz(5.0, 0.0, 5.0),
             voxelization_material: VoxelizationMaterial {
-                flags: Flags::SAND_FLAG | Flags::COLLISION_FLAG,
+                flags: Flags::NONE,
                 ..default()
             },
             ..default()
@@ -91,7 +91,7 @@ fn update(
     sand_spawner.translation = character.translation - character.local_z() * 10.0;
 
     if input.pressed(MouseButton::Left) {
-        sand_material.material = VoxelizationMaterialType::Material(10);
+        sand_material.material = VoxelizationMaterialType::Material(8);
     } else {
         sand_material.material = VoxelizationMaterialType::Material(0);
     }
