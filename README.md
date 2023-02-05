@@ -21,16 +21,24 @@ Bevy Voxel Engine is a voxel renderer for the [bevy](https://bevyengine.org/) ga
 ## Try it yourself
 
 Clone the repo and run
-```
+
+```bash
 cargo run --release --example features
 ```
+
 for the portal demo or
 
-```
+```bash
 cargo run --release --example sand
 ```
+
 for the sand demo.
 
-## Licence
+## License
 
-I haven't picked one yet, just create an issue if you want this released under a particular one.
+Licensed under either of
+
+* Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
+* MIT license ([LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
+
+at your option.
