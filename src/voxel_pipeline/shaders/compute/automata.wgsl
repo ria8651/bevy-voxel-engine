@@ -111,7 +111,7 @@ fn automata(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     //     }
     // }
 
-    let material = get_texture_value(pos);
+    // let material = get_texture_value(pos);
 
     // sand
     if (material.x != 0u && (material.y & SAND_FLAG) > 0u) {

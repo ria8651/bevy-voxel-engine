@@ -2,7 +2,6 @@ use super::voxel_world::VoxelData;
 use bevy::{
     asset::load_internal_asset,
     core_pipeline::fullscreen_vertex_shader::fullscreen_shader_vertex_state,
-    ecs::query::QueryItem,
     prelude::*,
     reflect::TypeUuid,
     render::{
@@ -10,7 +9,7 @@ use bevy::{
         render_resource::*,
         renderer::{RenderDevice, RenderQueue},
         view::{ExtractedView, ViewTarget},
-        RenderApp, RenderStage,
+        RenderApp, RenderSet,
     },
     utils::HashMap,
 };
@@ -62,7 +61,7 @@ impl Plugin for TracePlugin {
         app.sub_app_mut(RenderApp)
             .init_resource::<TracePipelineData>()
             .insert_resource(LastCameras(HashMap::new()))
-            .add_system_to_stage(RenderStage::Prepare, prepare_uniforms);
+            .add_system(prepare_uniforms.in_set(RenderSet::Prepare));
     }
 }
 
@@ -75,7 +74,7 @@ struct TracePipelineData {
     reprojection_bind_group_layout: BindGroupLayout,
 }
 
-#[derive(Component, Clone)]
+#[derive(Component, Clone, ExtractComponent)]
 pub struct TraceSettings {
     pub show_ray_steps: bool,
     pub indirect_lighting: bool,
@@ -84,15 +83,6 @@ pub struct TraceSettings {
     pub shadows: bool,
     pub misc_bool: bool,
     pub misc_float: f32,
-}
-
-impl ExtractComponent for TraceSettings {
-    type Query = &'static TraceSettings;
-    type Filter = ();
-
-    fn extract_component(item: QueryItem<'_, Self::Query>) -> Self {
-        item.clone()
-    }
 }
 
 impl Default for TraceSettings {
@@ -247,10 +237,10 @@ impl FromWorld for TracePipelineData {
 
         let trace_pipeline_descriptor = RenderPipelineDescriptor {
             label: Some("trace pipeline".into()),
-            layout: Some(vec![
+            layout: vec![
                 voxel_bind_group_layout.clone(),
                 trace_bind_group_layout.clone(),
-            ]),
+            ],
             vertex: fullscreen_shader_vertex_state(),
             fragment: Some(FragmentState {
                 shader: TRACE_SHADER_HANDLE.typed(),
@@ -265,13 +255,14 @@ impl FromWorld for TracePipelineData {
             primitive: PrimitiveState::default(),
             depth_stencil: None,
             multisample: MultisampleState::default(),
+            push_constant_ranges: vec![],
         };
         let reprojection_pipeline_descriptor = RenderPipelineDescriptor {
             label: Some("reprojection pipeline".into()),
-            layout: Some(vec![
+            layout: vec![
                 trace_bind_group_layout.clone(),
                 reprojection_bind_group_layout.clone(),
-            ]),
+            ],
             vertex: fullscreen_shader_vertex_state(),
             fragment: Some(FragmentState {
                 shader: REPROJECTION_SHADER_HANDLE.typed(),
@@ -286,13 +277,14 @@ impl FromWorld for TracePipelineData {
             primitive: PrimitiveState::default(),
             depth_stencil: None,
             multisample: MultisampleState::default(),
+            push_constant_ranges: vec![],
         };
         let accumulation_pipeline_descriptor = RenderPipelineDescriptor {
             label: Some("accumulation pipeline".into()),
-            layout: Some(vec![
+            layout: vec![
                 trace_bind_group_layout.clone(),
                 reprojection_bind_group_layout.clone(),
-            ]),
+            ],
             vertex: fullscreen_shader_vertex_state(),
             fragment: Some(FragmentState {
                 shader: REPROJECTION_SHADER_HANDLE.typed(),
@@ -307,9 +299,10 @@ impl FromWorld for TracePipelineData {
             primitive: PrimitiveState::default(),
             depth_stencil: None,
             multisample: MultisampleState::default(),
+            push_constant_ranges: vec![],
         };
 
-        let mut cache = render_world.resource_mut::<PipelineCache>();
+        let cache = render_world.resource::<PipelineCache>();
         let trace_pipeline_id = cache.queue_render_pipeline(trace_pipeline_descriptor);
         let reprojection_pipeline_id =
             cache.queue_render_pipeline(reprojection_pipeline_descriptor);

@@ -1,6 +1,10 @@
 use bevy::{
-    core_pipeline::{bloom::BloomSettings, fxaa::Fxaa},
+    core_pipeline::{
+        bloom::{BloomPrefilterSettings, BloomSettings},
+        fxaa::Fxaa,
+    },
     prelude::*,
+    render::pipelined_rendering::PipelinedRenderingPlugin,
 };
 use bevy_obj::*;
 use bevy_voxel_engine::*;
@@ -31,11 +35,15 @@ struct Gun;
 
 fn main() {
     let mut app = App::new();
-    app.add_plugins(DefaultPlugins.set(AssetPlugin {
-        // Tell the asset server to watch for asset changes on disk:
-        watch_for_changes: true,
-        ..default()
-    }))
+    app.add_plugins(
+        DefaultPlugins
+            .set(AssetPlugin {
+                // Tell the asset server to watch for asset changes on disk:
+                watch_for_changes: true,
+                ..default()
+            })
+            .disable::<PipelinedRenderingPlugin>(),
+    )
     .add_plugin(ObjPlugin)
     .add_plugin(BevyVoxelEnginePlugin)
     .add_plugin(character::Character)
@@ -49,9 +57,9 @@ fn main() {
     .add_system(update_guns)
     .add_system(spawn_portals);
 
-    let dot = bevy_mod_debugdump::get_render_graph(&mut app);
+    let settings = bevy_mod_debugdump::render_graph::Settings::default();
+    let dot = bevy_mod_debugdump::render_graph_dot(&mut app, &settings);
     std::fs::write("render-graph.dot", dot).expect("Failed to write render-graph.dot");
-    println!("Render graph written to render-graph.dot");
 
     app.run();
 }
@@ -130,7 +138,14 @@ fn setup(
             BoxCollider {
                 half_size: IVec3::new(2, 4, 2),
             },
-            BloomSettings::default(),
+            BloomSettings {
+                intensity: 0.25,
+                prefilter_settings: BloomPrefilterSettings {
+                    threshold: 0.6,
+                    ..default()
+                },
+                ..default()
+            },
             Fxaa::default(),
         ))
         .with_children(|parent| {
@@ -139,7 +154,7 @@ fn setup(
                 Camera3dBundle {
                     camera: Camera {
                         is_active: false,
-                        priority: 10, // render after the main camera
+                        order: 10, // render after the main camera
                         ..default()
                     },
                     projection,
@@ -319,7 +334,9 @@ fn update_guns(
     let character_transform = character_query.single();
     for mut gun_transform in guns.iter_mut() {
         gun_transform.translation = character_transform.translation;
-        gun_transform.rotation = gun_transform.rotation.slerp(character_transform.rotation, 0.1);
+        gun_transform.rotation = gun_transform
+            .rotation
+            .slerp(character_transform.rotation, 0.1);
     }
 }
 

@@ -8,7 +8,7 @@ use bevy::{
         extract_resource::{ExtractResource, ExtractResourcePlugin},
         render_resource::*,
         renderer::{RenderDevice, RenderQueue},
-        RenderApp, RenderStage,
+        RenderApp, RenderSet,
     },
 };
 use std::sync::Arc;
@@ -58,6 +58,7 @@ impl Plugin for VoxelWorldPlugin {
                 dimension: TextureDimension::D3,
                 format: TextureFormat::R16Uint,
                 usage: TextureUsages::STORAGE_BINDING | TextureUsages::COPY_DST,
+                view_formats: &[],
             },
             &gh.texture_data.clone(),
         );
@@ -141,9 +142,9 @@ impl Plugin for VoxelWorldPlugin {
                 bind_group_layout,
                 bind_group,
             })
-            .add_system_to_stage(RenderStage::Prepare, prepare_uniforms)
-            .add_system_to_stage(RenderStage::Prepare, load_voxel_world_prepare)
-            .add_system_to_stage(RenderStage::Queue, queue_bind_group);
+            .add_system(prepare_uniforms.in_set(RenderSet::Prepare))
+            .add_system(load_voxel_world_prepare.in_set(RenderSet::Prepare))
+            .add_system(queue_bind_group.in_set(RenderSet::Queue));
     }
 }
 
@@ -270,6 +271,7 @@ fn load_voxel_world_prepare(
                 dimension: TextureDimension::D3,
                 format: TextureFormat::R16Uint,
                 usage: TextureUsages::STORAGE_BINDING | TextureUsages::COPY_DST,
+                view_formats: &[],
             },
             &gh.texture_data,
         );

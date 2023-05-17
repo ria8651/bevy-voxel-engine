@@ -5,10 +5,10 @@ use bevy::{
 };
 use bevy_egui::{
     egui::{self, Slider},
-    EguiContext, EguiPlugin,
+    EguiContexts, EguiPlugin,
 };
 use bevy_voxel_engine::{
-    DenoiseSettings, LoadVoxelWorld, RenderGraphSettings, TraceSettings, VoxelPhysics, Flags,
+    DenoiseSettings, Flags, LoadVoxelWorld, RenderGraphSettings, TraceSettings, VoxelPhysics,
 };
 use rand::Rng;
 
@@ -22,7 +22,7 @@ impl Plugin for UiPlugin {
 
 fn ui_system(
     mut commands: Commands,
-    mut egui_context: ResMut<EguiContext>,
+    mut contexts: EguiContexts,
     particle_query: Query<Entity, (With<VoxelPhysics>, Without<CharacterEntity>)>,
     mut load_voxel_world: ResMut<LoadVoxelWorld>,
     mut render_graph_settings: ResMut<RenderGraphSettings>,
@@ -40,7 +40,7 @@ fn ui_system(
 
     egui::Window::new("Settings")
         .anchor(egui::Align2::RIGHT_TOP, [-5.0, 5.0])
-        .show(egui_context.ctx_mut(), |ui| {
+        .show(contexts.ctx_mut(), |ui| {
             if ui.button("Open File").clicked() {
                 // let path = rfd::AsyncFileDialog::new()
                 //     .add_filter("Magica Voxel VOX File", &["vox"])
@@ -69,22 +69,42 @@ fn ui_system(
                                 .text("Bloom"),
                         );
                     }
-                    if let Some(tonemapping) = tonemapping {
-                        let mut state = match tonemapping.as_ref() {
-                            Tonemapping::Enabled { .. } => true,
-                            Tonemapping::Disabled => false,
-                        };
-                        ui.checkbox(&mut state, "Tonemapping");
-                        match state {
-                            true => {
-                                *tonemapping.into_inner() = Tonemapping::Enabled {
-                                    deband_dither: true,
-                                };
-                            }
-                            false => {
-                                *tonemapping.into_inner() = Tonemapping::Disabled;
-                            }
-                        }
+                    if let Some(mut tonemapping) = tonemapping {
+                        egui::ComboBox::from_label("")
+                            .selected_text(format!("{:?}", tonemapping.as_mut()))
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(
+                                    tonemapping.as_mut(),
+                                    Tonemapping::AcesFitted,
+                                    "AcesFitted",
+                                );
+                                ui.selectable_value(tonemapping.as_mut(), Tonemapping::AgX, "AgX");
+                                ui.selectable_value(
+                                    tonemapping.as_mut(),
+                                    Tonemapping::BlenderFilmic,
+                                    "BlenderFilmic",
+                                );
+                                ui.selectable_value(
+                                    tonemapping.as_mut(),
+                                    Tonemapping::Reinhard,
+                                    "Reinhard",
+                                );
+                                ui.selectable_value(
+                                    tonemapping.as_mut(),
+                                    Tonemapping::ReinhardLuminance,
+                                    "ReinhardLuminance",
+                                );
+                                ui.selectable_value(
+                                    tonemapping.as_mut(),
+                                    Tonemapping::SomewhatBoringDisplayTransform,
+                                    "SomewhatBoringDisplayTransform",
+                                );
+                                ui.selectable_value(
+                                    tonemapping.as_mut(),
+                                    Tonemapping::None,
+                                    "None",
+                                );
+                            });
                     }
                     if let Some(fxaa) = fxaa {
                         ui.checkbox(&mut fxaa.into_inner().enabled, "FXAA");

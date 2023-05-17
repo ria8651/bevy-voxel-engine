@@ -70,7 +70,7 @@ impl render_graph::Node for DenoiseNode {
         let position = graph.get_input_texture("position")?;
 
         let bind_group = render_context
-            .render_device
+            .render_device()
             .create_bind_group(&BindGroupDescriptor {
                 label: None,
                 layout: &denoise_pipeline.bind_group_layout,
@@ -95,7 +95,7 @@ impl render_graph::Node for DenoiseNode {
             });
         let source_bind_group =
             render_context
-                .render_device
+                .render_device()
                 .create_bind_group(&BindGroupDescriptor {
                     label: None,
                     layout: &denoise_pipeline.pass_data_bind_group_layout,
@@ -112,7 +112,7 @@ impl render_graph::Node for DenoiseNode {
                 });
         let destination_bind_group =
             render_context
-                .render_device
+                .render_device()
                 .create_bind_group(&BindGroupDescriptor {
                     label: None,
                     layout: &denoise_pipeline.pass_data_bind_group_layout,
@@ -157,7 +157,7 @@ impl render_graph::Node for DenoiseNode {
 
         {
             let mut render_pass = render_context
-                .command_encoder
+                .command_encoder()
                 .begin_render_pass(&destination_descriptor);
 
             render_pass.set_pipeline(pipeline);
@@ -167,7 +167,7 @@ impl render_graph::Node for DenoiseNode {
         }
         {
             let mut render_pass = render_context
-                .command_encoder
+                .command_encoder()
                 .begin_render_pass(&source_descriptor);
 
             render_pass.set_pipeline(pipeline);
@@ -177,7 +177,7 @@ impl render_graph::Node for DenoiseNode {
         }
         {
             let mut render_pass = render_context
-                .command_encoder
+                .command_encoder()
                 .begin_render_pass(&destination_descriptor);
 
             render_pass.set_pipeline(pipeline);

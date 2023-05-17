@@ -20,13 +20,13 @@ use bevy::{
         mesh::MeshVertexBufferLayout,
         render_asset::RenderAssets,
         render_phase::{
-            AddRenderCommand, DrawFunctions, EntityRenderCommand, RenderCommandResult, RenderPhase,
-            SetItemPipeline, TrackedRenderPass,
+            AddRenderCommand, DrawFunctions, PhaseItem, RenderCommand, RenderCommandResult,
+            RenderPhase, SetItemPipeline, TrackedRenderPass,
         },
         render_resource::*,
         renderer::{RenderDevice, RenderQueue},
         view::ExtractedView,
-        RenderApp, RenderStage,
+        RenderApp, RenderSet,
     },
     utils::HashMap,
 };
@@ -55,8 +55,8 @@ impl Plugin for VoxelizationPlugin {
             .init_resource::<VoxelizationPipeline>()
             .init_resource::<SpecializedMeshPipelines<VoxelizationPipeline>>()
             .insert_resource(VoxelizationUniformsResource(HashMap::new()))
-            .add_system_to_stage(RenderStage::Queue, queue_bind_group)
-            .add_system_to_stage(RenderStage::Queue, queue_custom);
+            .add_system(queue_bind_group.in_set(RenderSet::Queue))
+            .add_system(queue_custom.in_set(RenderSet::Queue));
     }
 }
 
@@ -99,6 +99,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
             usage: TextureUsages::TEXTURE_BINDING
                 | TextureUsages::COPY_DST
                 | TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[TextureFormat::Bgra8UnormSrgb],
         },
         ..default()
     };
@@ -110,8 +111,8 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
         commands.spawn((
             Camera3dBundle {
                 camera: Camera {
-                    priority: -3 + i,
                     target: RenderTarget::Image(image_handle.clone()),
+                    order: -3 + i,
                     ..default()
                 },
                 camera_3d: Camera3d {
@@ -161,11 +162,10 @@ fn update_cameras(
             *projection = Projection::Orthographic(OrthographicProjection {
                 near: -side,
                 far: side,
-                left: side,
-                right: -side,
-                top: side,
-                bottom: -side,
-                scaling_mode: ScalingMode::None,
+                scaling_mode: ScalingMode::Fixed {
+                    width: 2.0 * side,
+                    height: 2.0 * side,
+                },
                 ..default()
             });
 
@@ -174,7 +174,7 @@ fn update_cameras(
     }
 }
 
-#[derive(Component, Clone)]
+#[derive(Component, Clone, ExtractComponent)]
 pub struct VoxelizationMaterial {
     pub material: VoxelizationMaterialType,
     pub flags: u8,
@@ -193,16 +193,6 @@ impl Default for VoxelizationMaterial {
 pub enum VoxelizationMaterialType {
     Texture(Handle<Image>),
     Material(u8),
-}
-
-impl ExtractComponent for VoxelizationMaterial {
-    type Query = Read<VoxelizationMaterial>;
-
-    type Filter = ();
-
-    fn extract_component(material: bevy::ecs::query::QueryItem<Self::Query>) -> Self {
-        material.clone()
-    }
 }
 
 #[derive(Clone, ShaderType)]
@@ -303,12 +293,12 @@ impl SpecializedMeshPipeline for VoxelizationPipeline {
         let mut descriptor = self.mesh_pipeline.specialize(key, layout)?;
         descriptor.vertex.shader = VOXELIZATION_SHADER_HANDLE.typed();
         descriptor.fragment.as_mut().unwrap().shader = VOXELIZATION_SHADER_HANDLE.typed();
-        descriptor.layout = Some(vec![
+        descriptor.layout = vec![
             self.mesh_pipeline.view_layout.clone(),
             self.mesh_pipeline.mesh_layout.clone(),
             self.world_bind_group_layout.clone(),
             self.voxelization_bind_group_layout.clone(),
-        ]);
+        ];
         descriptor.primitive.cull_mode = None;
         Ok(descriptor)
     }
@@ -317,7 +307,6 @@ impl SpecializedMeshPipeline for VoxelizationPipeline {
 fn queue_custom(
     transparent_3d_draw_functions: Res<DrawFunctions<Transparent3d>>,
     custom_pipeline: Res<VoxelizationPipeline>,
-    msaa: Res<Msaa>,
     mut pipelines: ResMut<SpecializedMeshPipelines<VoxelizationPipeline>>,
     mut pipeline_cache: ResMut<PipelineCache>,
     render_meshes: Res<RenderAssets<Mesh>>,
@@ -334,8 +323,7 @@ fn queue_custom(
         .get_id::<DrawCustom>()
         .unwrap();
 
-    let key = MeshPipelineKey::from_msaa_samples(msaa.samples)
-        | MeshPipelineKey::from_primitive_topology(PrimitiveTopology::TriangleList);
+    let key = MeshPipelineKey::from_primitive_topology(PrimitiveTopology::TriangleList);
 
     for (view, mut transparent_phase) in &mut views {
         let rangefinder = view.rangefinder3d();
@@ -429,12 +417,15 @@ fn queue_bind_group(
 
 struct SetVoxelWorldBindGroup<const I: usize>;
 
-impl<const I: usize> EntityRenderCommand for SetVoxelWorldBindGroup<I> {
+impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetVoxelWorldBindGroup<I> {
     type Param = SRes<VoxelData>;
+    type ViewWorldQuery = ();
+    type ItemWorldQuery = ();
 
     fn render<'w>(
-        _view: Entity,
-        _item: Entity,
+        _item: &P,
+        _view: (),
+        _entity: (),
         query: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
@@ -448,16 +439,19 @@ impl<const I: usize> EntityRenderCommand for SetVoxelWorldBindGroup<I> {
 
 struct SetVoxelizationBindGroup<const I: usize>;
 
-impl<const I: usize> EntityRenderCommand for SetVoxelizationBindGroup<I> {
+impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetVoxelizationBindGroup<I> {
     type Param = SQuery<Read<VoxelizationBindGroup>>;
+    type ViewWorldQuery = ();
+    type ItemWorldQuery = ();
 
     fn render<'w>(
-        _view: Entity,
-        item: Entity,
+        item: &P,
+        _view: (),
+        _entity: (),
         query: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
-        let voxelization_bind_group = query.get_inner(item).unwrap();
+        let voxelization_bind_group = query.get_inner(item.entity()).unwrap();
 
         pass.set_bind_group(I, voxelization_bind_group, &[]);
 

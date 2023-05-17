@@ -1,4 +1,8 @@
-use bevy::{input::mouse::MouseMotion, prelude::*, window::CursorGrabMode};
+use bevy::{
+    input::mouse::MouseMotion,
+    prelude::*,
+    window::{CursorGrabMode, PrimaryWindow},
+};
 use bevy_voxel_engine::VoxelPhysics;
 
 const SPEED: f32 = 10.0;
@@ -21,18 +25,18 @@ impl Plugin for Character {
     }
 }
 
-fn setup_character(mut windows: ResMut<Windows>) {
-    toggle_grab_cursor(windows.get_primary_mut().unwrap());
+fn setup_character(mut window: Query<&mut Window, With<PrimaryWindow>>) {
+    toggle_grab_cursor(&mut window.single_mut());
 }
 
 /// Grabs/ungrabs mouse cursor
 fn toggle_grab_cursor(window: &mut Window) {
-    window.set_cursor_grab_mode(match window.cursor_grab_mode() {
+    window.cursor.grab_mode = match window.cursor.grab_mode {
         CursorGrabMode::Locked => CursorGrabMode::None,
         CursorGrabMode::None => CursorGrabMode::Locked,
         _ => CursorGrabMode::Locked,
-    });
-    window.set_cursor_visibility(!window.cursor_visible());
+    };
+    window.cursor.visible = !window.cursor.visible;
 }
 
 fn update_character(
@@ -40,16 +44,16 @@ fn update_character(
     keys: Res<Input<KeyCode>>,
     mut mouse_motion_events: EventReader<MouseMotion>,
     time: Res<Time>,
-    mut windows: ResMut<Windows>,
+    mut window: Query<&mut Window, With<PrimaryWindow>>,
 ) {
-    let window = windows.get_primary_mut().unwrap();
+    let mut window = window.single_mut();
     if keys.just_pressed(KeyCode::Escape) {
-        toggle_grab_cursor(window);
+        toggle_grab_cursor(&mut window);
     }
 
     let (mut transform, mut voxel_physics, mut character) = character.single_mut();
     let target_velocity;
-    if window.cursor_grab_mode() == CursorGrabMode::Locked {
+    if window.cursor.grab_mode == CursorGrabMode::Locked {
         character.look_at = voxel_physics.portal_rotation * character.look_at;
         character.up = voxel_physics.portal_rotation * character.up;
 

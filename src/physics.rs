@@ -18,9 +18,9 @@ pub struct PhysicsPlugin;
 
 impl Plugin for PhysicsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_to_stage(CoreStage::PreUpdate, insert_physics_data)
-            .add_system_to_stage(CoreStage::PostUpdate, extract_physics_data)
-            .add_system_to_stage(CoreStage::PostUpdate, extract_animation_data);
+        app.add_system(insert_physics_data.in_base_set(CoreSet::PreUpdate))
+            .add_system(extract_physics_data.in_base_set(CoreSet::PostUpdate))
+            .add_system(extract_animation_data.in_base_set(CoreSet::PostUpdate));
     }
 }
 

@@ -89,7 +89,7 @@ struct HitInfo {
     steps: u32,
 };
 
-let IDENTITY = mat4x4<f32>(
+const IDENTITY = mat4x4<f32>(
     vec4<f32>(1.0, 0.0, 0.0, 0.0), 
     vec4<f32>(0.0, 1.0, 0.0, 0.0), 
     vec4<f32>(0.0, 0.0, 1.0, 0.0),
@@ -134,7 +134,7 @@ fn intersect_scene(r: Ray, steps: u32) -> HitInfo {
     return HitInfo(false, 0u, vec4(0.0), infinity, infinity, vec3(0.0), IDENTITY, steps);
 }
 
-let PI: f32 = 3.14159265358979323846264338327950288;
+const PI: f32 = 3.14159265358979323846264338327950288;
 
 /// physics_distance is in terms of t so make sure to normalize your 
 /// ray direction if you want it to be in world cordinates.

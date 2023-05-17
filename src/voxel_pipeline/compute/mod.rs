@@ -6,7 +6,7 @@ use bevy::{
         extract_resource::{ExtractResource, ExtractResourcePlugin},
         render_resource::*,
         renderer::{RenderDevice, RenderQueue},
-        RenderApp, RenderStage,
+        RenderApp, RenderSet,
     },
     utils::HashMap,
 };
@@ -14,6 +14,7 @@ use bevy::{
 pub mod animation;
 pub mod automata;
 pub mod clear;
+pub mod mip;
 pub mod physics;
 pub mod rebuild;
 
@@ -25,6 +26,8 @@ pub const AUTOMATA_SHADER_HANDLE: HandleUntyped =
     HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 2461997473694366307);
 pub const CLEAR_SHADER_HANDLE: HandleUntyped =
     HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 15320669235097444653);
+pub const MIP_SHADER_HANDLE: HandleUntyped =
+    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 6189143918759879663);
 pub const PHYSICS_SHADER_HANDLE: HandleUntyped =
     HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 5103938181551247167);
 pub const REBUILD_SHADER_HANDLE: HandleUntyped =
@@ -50,6 +53,12 @@ impl Plugin for ComputeResourcesPlugin {
             app,
             CLEAR_SHADER_HANDLE,
             "../shaders/compute/clear.wgsl",
+            Shader::from_wgsl
+        );
+        load_internal_asset!(
+            app,
+            MIP_SHADER_HANDLE,
+            "../shaders/compute/mip.wgsl",
             Shader::from_wgsl
         );
         load_internal_asset!(
@@ -171,7 +180,8 @@ impl Plugin for ComputeResourcesPlugin {
             .init_resource::<automata::Pipeline>()
             .init_resource::<physics::Pipeline>()
             .init_resource::<animation::Pipeline>()
-            .add_system_to_stage(RenderStage::Prepare, prepare_uniforms);
+            .init_resource::<mip::Pipeline>()
+            .add_system(prepare_uniforms.in_set(RenderSet::Prepare));
     }
 }
 

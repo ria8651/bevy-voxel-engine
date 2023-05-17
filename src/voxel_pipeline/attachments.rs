@@ -1,6 +1,5 @@
 use crate::TraceSettings;
 use bevy::{
-    ecs::query::QueryItem,
     prelude::*,
     render::{
         extract_component::{ExtractComponent, ExtractComponentPlugin},
@@ -16,26 +15,17 @@ pub struct AttachmentsPlugin;
 impl Plugin for AttachmentsPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(ExtractComponentPlugin::<RenderAttachments>::default())
-            .add_system_to_stage(CoreStage::PostUpdate, add_render_attachments)
-            .add_system_to_stage(CoreStage::PostUpdate, resize_attachments);
+            .add_system(add_render_attachments.in_base_set(CoreSet::PostUpdate))
+            .add_system(resize_attachments.in_base_set(CoreSet::PostUpdate));
     }
 }
 
-#[derive(Component, Clone)]
+#[derive(Component, Clone, ExtractComponent)]
 pub struct RenderAttachments {
     current_size: UVec2,
     pub accumulation: Handle<Image>,
     pub normal: Handle<Image>,
     pub position: Handle<Image>,
-}
-
-impl ExtractComponent for RenderAttachments {
-    type Query = &'static Self;
-    type Filter = ();
-
-    fn extract_component(item: QueryItem<'_, Self::Query>) -> Self {
-        item.clone()
-    }
 }
 
 fn add_render_attachments(
@@ -78,13 +68,11 @@ fn add_render_attachments(
 }
 
 fn resize_attachments(
-    windows: Res<Windows>,
     mut images: ResMut<Assets<Image>>,
     mut query: Query<(&mut RenderAttachments, &Camera)>,
 ) {
     for (i, (mut render_attachments, camera)) in query.iter_mut().enumerate() {
-        let render_target_info = camera.target.get_render_target_info(&windows, &images);
-        let size = render_target_info.unwrap().physical_size;
+        let size = camera.physical_viewport_size().unwrap();
 
         if size != render_attachments.current_size {
             render_attachments.current_size = size;

@@ -7,12 +7,12 @@ use bevy::{
     render::{
         render_graph::{self, NodeRunError, RenderGraphContext},
         render_resource::*,
-        renderer::RenderContext,
+        renderer::{RenderContext, RenderQueue},
     },
 };
 use std::borrow::Cow;
 
-pub struct ClearNode;
+pub struct MipNode;
 
 #[derive(Resource)]
 pub struct Pipeline(CachedComputePipelineId);
@@ -23,20 +23,20 @@ impl FromWorld for Pipeline {
 
         let pipeline_cache = world.resource_mut::<PipelineCache>();
 
-        let update_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
-            label: Some(Cow::from("clear pipeline")),
+        let mip_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
+            label: Some(Cow::from("mip pipeline")),
             layout: vec![voxel_bind_group_layout],
-            shader: super::CLEAR_SHADER_HANDLE.typed(),
+            shader: super::MIP_SHADER_HANDLE.typed(),
             shader_defs: vec![],
-            entry_point: Cow::from("clear"),
+            entry_point: Cow::from("mip"),
             push_constant_ranges: vec![],
         });
 
-        Pipeline(update_pipeline)
+        Pipeline(mip_pipeline)
     }
 }
 
-impl render_graph::Node for ClearNode {
+impl render_graph::Node for MipNode {
     fn run(
         &self,
         _graph: &mut RenderGraphContext,
@@ -46,10 +46,11 @@ impl render_graph::Node for ClearNode {
         let voxel_data = world.resource::<VoxelData>();
         let voxel_uniforms = world.resource::<VoxelUniforms>();
         let pipeline_cache = world.resource::<PipelineCache>();
+        let _render_queue = world.resource::<RenderQueue>();
         let dispatch_size = voxel_uniforms.texture_size / 4;
         let render_graph_settings = world.get_resource::<RenderGraphSettings>().unwrap();
 
-        if !render_graph_settings.clear {
+        if !render_graph_settings.mip {
             return Ok(());
         }
 

@@ -84,7 +84,7 @@ impl render_graph::Node for TraceNode {
 
         let trace_bind_group =
             render_context
-                .render_device
+                .render_device()
                 .create_bind_group(&BindGroupDescriptor {
                     label: None,
                     layout: &trace_pipeline_data.trace_bind_group_layout,
@@ -109,7 +109,7 @@ impl render_graph::Node for TraceNode {
                 });
         let source_bind_group =
             render_context
-                .render_device
+                .render_device()
                 .create_bind_group(&BindGroupDescriptor {
                     label: None,
                     layout: &trace_pipeline_data.reprojection_bind_group_layout,
@@ -120,7 +120,7 @@ impl render_graph::Node for TraceNode {
                 });
         let destination_bind_group =
             render_context
-                .render_device
+                .render_device()
                 .create_bind_group(&BindGroupDescriptor {
                     label: None,
                     layout: &trace_pipeline_data.reprojection_bind_group_layout,
@@ -157,7 +157,7 @@ impl render_graph::Node for TraceNode {
 
         {
             let mut render_pass = render_context
-                .command_encoder
+                .command_encoder()
                 .begin_render_pass(&destination_descriptor);
 
             render_pass.set_bind_group(0, &voxel_data.bind_group, &[]);
@@ -168,7 +168,7 @@ impl render_graph::Node for TraceNode {
         }
         {
             let mut render_pass = render_context
-                .command_encoder
+                .command_encoder()
                 .begin_render_pass(&source_descriptor);
 
             render_pass.set_bind_group(0, &trace_bind_group, &[]);
@@ -179,7 +179,7 @@ impl render_graph::Node for TraceNode {
         }
         {
             let mut render_pass = render_context
-                .command_encoder
+                .command_encoder()
                 .begin_render_pass(&destination_descriptor);
             
             render_pass.set_bind_group(0, &trace_bind_group, &[]);

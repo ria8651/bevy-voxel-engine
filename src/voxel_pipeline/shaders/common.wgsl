@@ -1,12 +1,12 @@
 #define_import_path bevy_voxel_engine::common
 
-let AUTOMATA_FLAG = 128u; // 0b10000000
-let PORTAL_FLAG = 64u; // 0b01000000
-let ANIMATION_FLAG = 32u; // 0b00100000
-let COLLISION_FLAG = 16u; // 0b00010000
-let SAND_FLAG = 8u; // 0b00001000
+const AUTOMATA_FLAG = 128u; // 0b10000000
+const PORTAL_FLAG = 64u; // 0b01000000
+const ANIMATION_FLAG = 32u; // 0b00100000
+const COLLISION_FLAG = 16u; // 0b00010000
+const SAND_FLAG = 8u; // 0b00001000
 
-let VOXELS_PER_METER: f32 = 4.0;
+const VOXELS_PER_METER: f32 = 4.0;
 
 struct Portal {
     transformation: mat4x4<f32>,
@@ -44,11 +44,11 @@ fn get_clip_space(frag_pos: vec4<f32>, dimensions: vec2<f32>) -> vec2<f32> {
     return clip_space;
 }
 
-let k: u32 = 1103515245u;
-let PRIME32_2: u32 = 2246822519u;
-let PRIME32_3: u32 = 3266489917u;
-let PRIME32_4: u32 = 668265263u;
-let PRIME32_5: u32 = 374761393u;
+const k: u32 = 1103515245u;
+const PRIME32_2: u32 = 2246822519u;
+const PRIME32_3: u32 = 3266489917u;
+const PRIME32_4: u32 = 668265263u;
+const PRIME32_5: u32 = 374761393u;
 fn xxhash32_base(p: vec3<u32>) -> u32 {
 	var h32 =  p.z + PRIME32_5 + p.x * PRIME32_3;
 	h32 = PRIME32_4 * ((h32 << 17u) | (h32 >> (32u - 17u)));
@@ -81,14 +81,14 @@ fn hash(v: vec3<u32>) -> vec3<f32> {
     return vec3<f32>((v >> vec3(1u)) & vec3(0x7fffffffu)) / f32(0x7fffffff);
 }
 fn old_hash(x: vec3<u32>) -> vec3<f32> {
-    let x = ((x >> vec3<u32>(8u)) ^ x.yzx) * k;
-    let x = ((x >> vec3<u32>(8u)) ^ x.yzx) * k;
+    let x1 = ((x >> vec3<u32>(8u)) ^ x.yzx) * k;
+    let x2 = ((x >> vec3<u32>(8u)) ^ x.yzx) * k;
     let x = ((x >> vec3<u32>(8u)) ^ x.yzx) * k;
     
     return vec3<f32>(x) * (1.0 / f32(0xffffffffu));
 }
 
-let pi = 3.14159265359;
+const pi = 3.14159265359;
 
 fn cosine_hemisphere(n: vec3<f32>, seed: vec3<u32>) -> vec3<f32> {
     let u = hash(seed);

@@ -1,8 +1,8 @@
 use self::{
     attachments::{AttachmentsNode, AttachmentsPlugin},
     compute::{
-        animation::AnimationNode, automata::AutomataNode, clear::ClearNode, physics::PhysicsNode,
-        rebuild::RebuildNode, ComputeResourcesPlugin,
+        animation::AnimationNode, automata::AutomataNode, clear::ClearNode, mip::MipNode,
+        physics::PhysicsNode, rebuild::RebuildNode, ComputeResourcesPlugin,
     },
     denoise::{DenoiseNode, DenoisePlugin},
     trace::{TraceNode, TracePlugin},
@@ -71,62 +71,36 @@ impl Plugin for RenderPlugin {
         voxel_graph.add_node("fxaa", fxaa);
         voxel_graph.add_node("ui", ui);
         voxel_graph.add_node("upscaling", upscaling);
-        voxel_graph
-            .add_slot_edge(input_node_id, "view_entity", "attachments", "view")
-            .unwrap();
-        voxel_graph
-            .add_slot_edge(input_node_id, "view_entity", "trace", "view")
-            .unwrap();
-        voxel_graph
-            .add_slot_edge(input_node_id, "view_entity", "denoise", "view")
-            .unwrap();
-        voxel_graph
-            .add_slot_edge(input_node_id, "view_entity", "bloom", "view")
-            .unwrap();
-        voxel_graph
-            .add_slot_edge(input_node_id, "view_entity", "tonemapping", "view")
-            .unwrap();
-        voxel_graph
-            .add_slot_edge(input_node_id, "view_entity", "fxaa", "view")
-            .unwrap();
-        voxel_graph
-            .add_slot_edge(input_node_id, "view_entity", "ui", "view")
-            .unwrap();
-        voxel_graph
-            .add_slot_edge(input_node_id, "view_entity", "upscaling", "view")
-            .unwrap();
-        voxel_graph.add_node_edge("trace", "denoise").unwrap();
-        voxel_graph.add_node_edge("denoise", "bloom").unwrap();
-        voxel_graph.add_node_edge("bloom", "tonemapping").unwrap();
-        voxel_graph.add_node_edge("tonemapping", "fxaa").unwrap();
-        voxel_graph.add_node_edge("fxaa", "ui").unwrap();
-        voxel_graph.add_node_edge("ui", "upscaling").unwrap();
-        voxel_graph
-            .add_slot_edge("attachments", "accumulation", "trace", "accumulation")
-            .unwrap();
-        voxel_graph
-            .add_slot_edge("attachments", "normal", "trace", "normal")
-            .unwrap();
-        voxel_graph
-            .add_slot_edge("attachments", "position", "trace", "position")
-            .unwrap();
-        voxel_graph
-            .add_slot_edge("attachments", "accumulation", "denoise", "accumulation")
-            .unwrap();
-        voxel_graph
-            .add_slot_edge("attachments", "normal", "denoise", "normal")
-            .unwrap();
-        voxel_graph
-            .add_slot_edge("attachments", "position", "denoise", "position")
-            .unwrap();
+        voxel_graph.add_slot_edge(input_node_id, "view_entity", "attachments", "view");
+        voxel_graph.add_slot_edge(input_node_id, "view_entity", "trace", "view");
+        voxel_graph.add_slot_edge(input_node_id, "view_entity", "denoise", "view");
+        voxel_graph.add_slot_edge(input_node_id, "view_entity", "bloom", "view");
+        voxel_graph.add_slot_edge(input_node_id, "view_entity", "tonemapping", "view");
+        voxel_graph.add_slot_edge(input_node_id, "view_entity", "fxaa", "view");
+        voxel_graph.add_slot_edge(input_node_id, "view_entity", "ui", "view");
+        voxel_graph.add_slot_edge(input_node_id, "view_entity", "upscaling", "view");
+        voxel_graph.add_node_edge("trace", "denoise");
+        voxel_graph.add_node_edge("denoise", "bloom");
+        voxel_graph.add_node_edge("bloom", "tonemapping");
+        voxel_graph.add_node_edge("tonemapping", "fxaa");
+        voxel_graph.add_node_edge("fxaa", "ui");
+        voxel_graph.add_node_edge("ui", "upscaling");
+        voxel_graph.add_slot_edge("attachments", "accumulation", "trace", "accumulation");
+        voxel_graph.add_slot_edge("attachments", "normal", "trace", "normal");
+        voxel_graph.add_slot_edge("attachments", "position", "trace", "position");
+        voxel_graph.add_slot_edge("attachments", "accumulation", "denoise", "accumulation");
+        voxel_graph.add_slot_edge("attachments", "normal", "denoise", "normal");
+        voxel_graph.add_slot_edge("attachments", "position", "denoise", "position");
 
         // voxel render graph compute
         let rebuild = RebuildNode;
+        let mip = MipNode;
         let physics = PhysicsNode;
         voxel_graph.add_node("rebuild", rebuild);
+        voxel_graph.add_node("mip", mip);
         voxel_graph.add_node("physics", physics);
-        voxel_graph.add_node_edge("rebuild", "physics").unwrap();
-        voxel_graph.add_node_edge("physics", "trace").unwrap();
+        voxel_graph.add_node_edge("rebuild", "physics");
+        voxel_graph.add_node_edge("physics", "trace");
 
         // main graph compute
         let mut graph = render_app.world.resource_mut::<RenderGraph>();
@@ -136,9 +110,9 @@ impl Plugin for RenderPlugin {
         graph.add_node("clear", clear);
         graph.add_node("automata", automata);
         graph.add_node("animation", animation);
-        graph.add_node_edge("clear", "automata").unwrap();
-        graph.add_node_edge("automata", "animation").unwrap();
-        graph.add_node_edge("animation", CAMERA_DRIVER).unwrap();
+        graph.add_node_edge("clear", "automata");
+        graph.add_node_edge("automata", "animation");
+        graph.add_node_edge("animation", CAMERA_DRIVER);
 
         // insert the voxel graph into the main render graph
         graph.add_sub_graph("voxel", voxel_graph);
@@ -152,6 +126,7 @@ pub struct RenderGraphSettings {
     pub animation: bool,
     pub voxelization: bool,
     pub rebuild: bool,
+    pub mip: bool,
     pub physics: bool,
     pub trace: bool,
     pub denoise: bool,
@@ -165,6 +140,7 @@ impl Default for RenderGraphSettings {
             animation: true,
             voxelization: true,
             rebuild: true,
+            mip: true,
             physics: true,
             trace: true,
             denoise: false,

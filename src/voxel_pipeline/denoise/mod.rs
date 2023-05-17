@@ -8,7 +8,7 @@ use bevy::{
         render_resource::*,
         renderer::{RenderDevice, RenderQueue},
         view::ViewTarget,
-        RenderApp, RenderStage,
+        RenderApp, RenderSet,
     },
 };
 pub use node::DenoiseNode;
@@ -43,7 +43,7 @@ impl Plugin for DenoisePlugin {
 
         app.sub_app_mut(RenderApp)
             .init_resource::<DenoisePipeline>()
-            .add_system_to_stage(RenderStage::Prepare, prepare_pass_data);
+            .add_system(prepare_pass_data.in_set(RenderSet::Prepare));
     }
 }
 
@@ -166,10 +166,10 @@ impl FromWorld for DenoisePipeline {
 
         let pipeline_descriptor = RenderPipelineDescriptor {
             label: Some("denoise pipeline".into()),
-            layout: Some(vec![
+            layout: vec![
                 bind_group_layout.clone(),
                 pass_data_bind_group_layout.clone(),
-            ]),
+            ],
             vertex: fullscreen_shader_vertex_state(),
             fragment: Some(FragmentState {
                 shader: DENOISE_SHADER_HANDLE.typed(),
@@ -184,9 +184,10 @@ impl FromWorld for DenoisePipeline {
             primitive: PrimitiveState::default(),
             depth_stencil: None,
             multisample: MultisampleState::default(),
+            push_constant_ranges: vec![],
         };
 
-        let mut cache = render_world.resource_mut::<PipelineCache>();
+        let cache = render_world.resource_mut::<PipelineCache>();
         let pipeline_id = cache.queue_render_pipeline(pipeline_descriptor);
 
         let uniform_buffer = render_world

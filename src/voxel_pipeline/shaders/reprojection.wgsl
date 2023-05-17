@@ -41,8 +41,8 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
         // let max_col = max(max(max(sample1, sample3), max(sample5, sample7)), sample0);
 
         // mix with samples from last frame
-        let last_clip = trace_uniforms.last_camera * vec4(position, 1.0);
-        let last_clip = vec2(1.0, -1.0) * last_clip.xy / last_clip.w;
+        let last_clip_oweigh = trace_uniforms.last_camera * vec4(position, 1.0);
+        let last_clip = vec2(1.0, -1.0) * last_clip_oweigh.xy / last_clip_oweigh.w;
         if (all(last_clip > vec2(-1.0)) && all(last_clip < vec2(1.0))) {
             let last_texture = (last_clip * 0.5 + 0.5) * resolution;
             let accumulation = textureLoad(accumulation_attachment, vec2<i32>(last_texture)).rgb;

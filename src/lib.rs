@@ -126,9 +126,7 @@ impl Default for VoxelCameraBundle {
     fn default() -> Self {
         Self {
             camera_render_graph: CameraRenderGraph::new("voxel"),
-            tonemapping: Tonemapping::Enabled {
-                deband_dither: true,
-            },
+            tonemapping: Tonemapping::ReinhardLuminance,
             camera: Camera {
                 hdr: true,
                 ..default()
@@ -158,7 +156,7 @@ pub struct BevyVoxelEnginePlugin;
 
 impl Plugin for BevyVoxelEnginePlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(Msaa { samples: 1 })
+        app.insert_resource(Msaa::Off)
             .add_plugin(PhysicsPlugin)
             .add_plugin(RenderPlugin);
     }

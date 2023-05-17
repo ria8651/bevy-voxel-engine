@@ -1,5 +1,4 @@
 #import bevy_core_pipeline::fullscreen_vertex_shader
-#import bevy_core_pipeline::tonemapping
 
 struct Uniforms {
     offsets: array<vec4<f32>, 25>,
@@ -50,14 +49,14 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
         let colour_weight = min(exp(-dist2 / c_phi), 1.0);
 
         let new_normal = textureLoad(normal_attachment, new_sample_pos).rgb;
-        let diff = normal - new_normal;
-        let dist2 = dot(diff, diff);
-        let normal_weight = min(exp(-dist2 / n_phi), 1.0);
+        let diff_normal = normal - new_normal;
+        let dist2_normal = dot(diff_normal, diff_normal);
+        let normal_weight = min(exp(-dist2_normal / n_phi), 1.0);
         
         let new_position = textureLoad(position_attachment, new_sample_pos).rgb;
-        let diff = position - new_position;
-        let dist2 = dot(diff, diff);
-        let position_weight = min(exp(-dist2 / p_phi), 1.0);
+        let diff_pos = position - new_position;
+        let dist2_pos = dot(diff_pos, diff_pos);
+        let position_weight = min(exp(-dist2_pos / p_phi), 1.0);
 
         // new denoised frame
         let weight = colour_weight * normal_weight * position_weight;

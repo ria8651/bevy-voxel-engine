@@ -18,8 +18,8 @@ var position: texture_storage_2d<rgba32float, read_write>;
 // note: raytracing.wgsl requires common.wgsl and for you to define u, voxel_world and gh before you import it
 #import bevy_voxel_engine::raytracing
 
-let light_dir = vec3<f32>(0.8, -1.0, 0.8);
-let light_colour = vec3<f32>(1.0, 1.0, 1.0);
+const light_dir = vec3<f32>(0.8, -1.0, 0.8);
+const light_colour = vec3<f32>(1.0, 1.0, 1.0);
 
 fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed: vec3<u32>, shadow_samples: u32) -> vec3<f32> {
     var lighting = vec3(0.0);
@@ -91,10 +91,10 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     var clip_space = vec2(1.0, -1.0) * ((in.uv + jitter) * 2.0 - 1.0);
     var output_colour = vec3(0.0);
 
-    let pos = trace_uniforms.camera_inverse * vec4(clip_space.x, clip_space.y, 1.0, 1.0);
-    let dir = trace_uniforms.camera_inverse * vec4(clip_space.x, clip_space.y, 0.01, 1.0);
-    let pos = pos.xyz / pos.w;
-    let dir = normalize(dir.xyz / dir.w - pos);
+    let pos1 = trace_uniforms.camera_inverse * vec4(clip_space.x, clip_space.y, 1.0, 1.0);
+    let dir1 = trace_uniforms.camera_inverse * vec4(clip_space.x, clip_space.y, 0.01, 1.0);
+    let pos = pos1.xyz / pos1.w;
+    let dir = normalize(dir1.xyz / dir1.w - pos);
     var ray = Ray(pos, dir);
 
     let hit = shoot_ray(ray, 0.0, 0u);
@@ -127,8 +127,8 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
             let ao = voxel_ao(texture_coords, hit.normal.zxy, hit.normal.yzx);
             let uv = glmod(vec2(dot(hit.normal * texture_coords.yzx, vec3(1.0)), dot(hit.normal * texture_coords.zxy, vec3(1.0))), vec2(1.0));
 
-            let interpolated_ao = mix(mix(ao.z, ao.w, uv.x), mix(ao.y, ao.x, uv.x), uv.y);
-            let interpolated_ao = pow(interpolated_ao, 1.0 / 3.0);
+            let interpolated_ao_pweig = mix(mix(ao.z, ao.w, uv.x), mix(ao.y, ao.x, uv.x), uv.y);
+            let interpolated_ao = pow(interpolated_ao_pweig, 1.0 / 3.0);
 
             indirect_lighting = vec3(interpolated_ao * 0.3);
         }
