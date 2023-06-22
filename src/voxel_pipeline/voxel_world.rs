@@ -93,6 +93,7 @@ impl Plugin for VoxelWorldPlugin {
         let texture_sampler = render_device.create_sampler(&SamplerDescriptor {
             mag_filter: FilterMode::Linear,
             min_filter: FilterMode::Linear,
+            mipmap_filter: FilterMode::Linear,
             ..default()
         });
 

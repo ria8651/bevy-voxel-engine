@@ -42,9 +42,13 @@ fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed
                     shadow -= f32(shadow_hit.hit) / f32(shadow_samples);
                 }
             } else {
+                // let shadow_ray = Ray(pos, -light_dir);
+                // let shadow_hit = shoot_ray(shadow_ray, 0.0, 0u);
+                // shadow = f32(!shadow_hit.hit);
+
                 let shadow_ray = Ray(pos, -light_dir);
-                let shadow_hit = shoot_ray(shadow_ray, 0.0, 0u);
-                shadow = f32(!shadow_hit.hit);
+                let col = vct(shadow_ray, 0.1);
+                shadow = 1.0 - col.a;
             }
         }
 
@@ -84,6 +88,39 @@ fn glmod(x: vec2<f32>, y: vec2<f32>) -> vec2<f32> {
     return x - y * floor(x / y);
 }
 
+fn vct(ray: Ray, angle: f32) -> vec4<f32> {
+    var color = vec4(0.0);
+    var steps = 0u;
+    // var distance = 0.025;
+    var distance = 0.3 * angle;
+    var tcpotr = ray.pos + ray.dir * distance;
+    tcpotr = tcpotr * VOXELS_PER_METER / f32(voxel_uniforms.texture_size) + 0.5;
+    loop {
+        let size = distance * tan(angle);
+        let mip_level = log2(size * f32(voxel_uniforms.texture_size));
+
+        let col = textureSampleLevel(mip, texture_sampler, tcpotr.zyx, mip_level);
+        color += col;
+        if color.a > 1.0 {
+            color.a = 1.0;
+            break;
+        }
+
+        tcpotr += ray.dir * size;
+        distance += size;
+        if any(tcpotr < vec3(0.0)) || any(tcpotr >= vec3(1.0)) {
+            break;
+        }
+
+        steps += 1u;
+        if steps > 200u {
+            break;
+        }
+    }
+
+    return color;
+}
+
 @fragment
 fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     let seed = vec3<u32>(in.position.xyz) * 100u + u32(trace_uniforms.time * 120.0) * 15236u;
@@ -107,34 +144,7 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     var samples = 0.0;
     if hit.hit {
         // direct lighting
-        // let direct_lighting = calculate_direct(hit.material, hit.pos, hit.normal, seed + 1u, trace_uniforms.samples);
-        let direct_lighting = max(dot(hit.normal, -normalize(light_dir)), 0.0);
-
-        // vct
-        var shadow = 0.0;
-        var steps = 0u;
-        let shadow_ray = Ray(hit.pos, -normalize(light_dir));
-        let step = 0.005;
-        var tcpotr = shadow_ray.pos + shadow_ray.dir * step;
-        tcpotr = tcpotr * VOXELS_PER_METER / f32(voxel_uniforms.texture_size) + 0.5;
-        loop {
-            let col = textureSampleLevel(mip, texture_sampler, tcpotr.zyx, 0.0);
-            shadow += col.a;
-            if shadow > 1.0 {
-                shadow = 1.0;
-                break;
-            }
-
-            tcpotr += shadow_ray.dir * step;
-            if any(tcpotr < vec3(0.0)) || any(tcpotr >= vec3(1.0)) {
-                break;
-            }
-
-            steps += 1u;
-            if steps > 1000u {
-                break;
-            }
-        }
+        let direct_lighting = calculate_direct(hit.material, hit.pos, hit.normal, seed + 1u, trace_uniforms.samples);
 
         // indirect lighting
         var indirect_lighting = vec3(0.0);
@@ -153,19 +163,29 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
                 indirect_lighting += lighting / f32(trace_uniforms.samples);
             }
         } else {
-            // aproximate indirect with ambient and voxel ao
-            let texture_coords = hit.pos * VOXELS_PER_METER + f32(voxel_uniforms.texture_size) / 2.0;
-            let ao = voxel_ao(texture_coords, hit.normal.zxy, hit.normal.yzx);
-            let uv = glmod(vec2(dot(hit.normal * texture_coords.yzx, vec3(1.0)), dot(hit.normal * texture_coords.zxy, vec3(1.0))), vec2(1.0));
+            // // aproximate indirect with ambient and voxel ao
+            // let texture_coords = hit.pos * VOXELS_PER_METER + f32(voxel_uniforms.texture_size) / 2.0;
+            // let ao = voxel_ao(texture_coords, hit.normal.zxy, hit.normal.yzx);
+            // let uv = glmod(vec2(dot(hit.normal * texture_coords.yzx, vec3(1.0)), dot(hit.normal * texture_coords.zxy, vec3(1.0))), vec2(1.0));
 
-            let interpolated_ao_pweig = mix(mix(ao.z, ao.w, uv.x), mix(ao.y, ao.x, uv.x), uv.y);
-            let interpolated_ao = pow(interpolated_ao_pweig, 1.0 / 3.0);
+            // let interpolated_ao_pweig = mix(mix(ao.z, ao.w, uv.x), mix(ao.y, ao.x, uv.x), uv.y);
+            // let interpolated_ao = pow(interpolated_ao_pweig, 1.0 / 3.0);
 
-            indirect_lighting = vec3(interpolated_ao * 0.3);
+            // indirect_lighting = vec3(interpolated_ao * 0.3);
+        
+            var color = vct(Ray(hit.pos, vec3(0.0, 1.0, 0.0)), 0.5);
+            color += vct(Ray(hit.pos, vec3(cos(0.5) * cos(1.257 * 0.0), sin(0.5), sin(1.257 * 0.0))), 0.5);
+            color += vct(Ray(hit.pos, vec3(cos(0.5) * cos(1.257 * 1.0), sin(0.5), sin(1.257 * 1.0))), 0.5);
+            color += vct(Ray(hit.pos, vec3(cos(0.5) * cos(1.257 * 2.0), sin(0.5), sin(1.257 * 2.0))), 0.5);
+            color += vct(Ray(hit.pos, vec3(cos(0.5) * cos(1.257 * 3.0), sin(0.5), sin(1.257 * 3.0))), 0.5);
+            color += vct(Ray(hit.pos, vec3(cos(0.5) * cos(1.257 * 4.0), sin(0.5), sin(1.257 * 4.0))), 0.5);
+            color /= 6.0;
+            // indirect_lighting = color.rgb / color.a / 100.0;
+            indirect_lighting = vec3(0.3 * (1.0 - color.a));
         }
 
         // final blend
-        output_colour = (indirect_lighting + direct_lighting * (1.0 - shadow)) * hit.material.rgb;
+        output_colour = (indirect_lighting + direct_lighting) * hit.material.rgb;
 
         // let posing = (hit.pos - hit.normal * 0.01) * VOXELS_PER_METER / f32(voxel_uniforms.texture_size) + 0.5;
         // output_colour = textureSampleLevel(mip, texture_sampler, posing.zyx, (1.0 - trace_uniforms.misc_float) * f32(textureNumLevels(mip))).rgb;

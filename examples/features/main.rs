@@ -395,27 +395,27 @@ fn spawn_portals(
                 transform.look_at(pos + normal, up);
             }
 
-            if bullet.bullet_type == 0 {
-                let mut rng = rand::thread_rng();
-                for _ in 0..100 {
-                    commands.spawn((
-                        Transform::from_translation(transform.translation),
-                        Particle {
-                            material: 9,
-                            flags: Flags::AUTOMATA_FLAG,
-                        },
-                        VoxelPhysics::new(
-                            Vec3::new(
-                                rng.gen_range(-1.0..1.0),
-                                rng.gen_range(-1.0..1.0),
-                                rng.gen_range(-1.0..1.0),
-                            ) * 10.0,
-                            Vec3::new(0.0, -9.81, 0.0),
-                            bevy_voxel_engine::CollisionEffect::None,
-                        ),
-                    ));
-                }
-            }
+            // if bullet.bullet_type == 0 {
+            //     let mut rng = rand::thread_rng();
+            //     for _ in 0..100 {
+            //         commands.spawn((
+            //             Transform::from_translation(transform.translation),
+            //             Particle {
+            //                 material: 9,
+            //                 flags: Flags::AUTOMATA_FLAG,
+            //             },
+            //             VoxelPhysics::new(
+            //                 Vec3::new(
+            //                     rng.gen_range(-1.0..1.0),
+            //                     rng.gen_range(-1.0..1.0),
+            //                     rng.gen_range(-1.0..1.0),
+            //                 ) * 10.0,
+            //                 Vec3::new(0.0, -9.81, 0.0),
+            //                 bevy_voxel_engine::CollisionEffect::None,
+            //             ),
+            //         ));
+            //     }
+            // }
         }
     }
 }
