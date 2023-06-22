@@ -27,14 +27,14 @@ const light_colour = vec3<f32>(1.0, 1.0, 1.0);
 
 fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed: vec3<u32>, shadow_samples: u32) -> vec3<f32> {
     var lighting = vec3(0.0);
-    if (material.a == 0.0) {
+    if material.a == 0.0 {
         // diffuse
         let diffuse = max(dot(normal, -normalize(light_dir)), 0.0);
 
         // shadow
         var shadow = 1.0;
-        if (trace_uniforms.shadows != 0u) {
-            if (trace_uniforms.indirect_lighting != 0u) {
+        if trace_uniforms.shadows != 0u {
+            if trace_uniforms.indirect_lighting != 0u {
                 for (var i = 0u; i < shadow_samples; i += 1u) {
                     let rand = hash(seed + i) * 2.0 - 1.0;
                     let shadow_ray = Ray(pos, -light_dir + rand * 0.1);
@@ -56,7 +56,7 @@ fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed
 }
 
 fn get_voxel(pos: vec3<f32>) -> f32 {
-    if (any(pos < vec3(0.0)) || any(pos >= vec3(f32(voxel_uniforms.texture_size)))) {
+    if any(pos < vec3(0.0)) || any(pos >= vec3(f32(voxel_uniforms.texture_size))) {
         return 0.0;
     }
 
@@ -105,19 +105,19 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     var steps = hit.steps;
 
     var samples = 0.0;
-    if (hit.hit) {
+    if hit.hit {
         // direct lighting
         let direct_lighting = calculate_direct(hit.material, hit.pos, hit.normal, seed + 1u, trace_uniforms.samples);
 
         // indirect lighting
         var indirect_lighting = vec3(0.0);
-        if (trace_uniforms.indirect_lighting != 0u) {
+        if trace_uniforms.indirect_lighting != 0u {
             // raytraced indirect lighting
             for (var i = 0u; i < trace_uniforms.samples; i += 1u) {
                 let indirect_dir = cosine_hemisphere(hit.normal, seed + i);
                 let indirect_hit = shoot_ray(Ray(hit.pos, indirect_dir), 0.0, 0u);
                 var lighting = vec3(0.0);
-                if (indirect_hit.hit) {
+                if indirect_hit.hit {
                     lighting = calculate_direct(indirect_hit.material, indirect_hit.pos, indirect_hit.normal, seed + 3u, 1u);
                 } else {
                     lighting = vec3(0.2);
@@ -141,14 +141,13 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
         output_colour = (indirect_lighting + direct_lighting) * hit.material.rgb;
 
         let posing = (hit.pos - hit.normal * 0.01) * VOXELS_PER_METER / f32(voxel_uniforms.texture_size) + 0.5;
-        // let posing = vec3(in.uv, trace_uniforms.misc_float);
-        output_colour = textureSampleLevel(mip, texture_sampler, posing.zyx, trace_uniforms.misc_float).rgb;
+        output_colour = textureSampleLevel(mip, texture_sampler, posing.zyx, (1.0 - trace_uniforms.misc_float) * f32(textureNumLevels(mip))).rgb;
     } else {
         // output_colour = vec3<f32>(0.2);
         output_colour = skybox(ray.dir, 10.0);
     }
 
-    if (trace_uniforms.show_ray_steps != 0u) {
+    if trace_uniforms.show_ray_steps != 0u {
         output_colour = vec3<f32>(f32(steps) / 100.0);
     }
 

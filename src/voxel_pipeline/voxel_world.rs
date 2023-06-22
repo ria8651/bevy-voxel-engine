@@ -73,24 +73,20 @@ impl Plugin for VoxelWorldPlugin {
 
         // mip texture
         let mip_count = gh.texture_size.trailing_zeros();
-        let mip_texture = render_device.create_texture_with_data(
-            &render_queue,
-            &TextureDescriptor {
-                label: None,
-                size: Extent3d {
-                    width: gh.texture_size,
-                    height: gh.texture_size,
-                    depth_or_array_layers: gh.texture_size,
-                },
-                mip_level_count: mip_count,
-                sample_count: 1,
-                dimension: TextureDimension::D3,
-                format: TextureFormat::Rgba8Unorm,
-                usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
-                view_formats: &[],
+        let mip_texture = render_device.create_texture(&TextureDescriptor {
+            label: None,
+            size: Extent3d {
+                width: gh.texture_size,
+                height: gh.texture_size,
+                depth_or_array_layers: gh.texture_size,
             },
-            &vec![255; (gh.texture_size * gh.texture_size * gh.texture_size * 5) as usize],
-        );
+            mip_level_count: mip_count,
+            sample_count: 1,
+            dimension: TextureDimension::D3,
+            format: TextureFormat::Rgba8Unorm,
+            usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
         let mip_texture_view = mip_texture.create_view(&TextureViewDescriptor::default());
 
         // sampler
@@ -336,24 +332,20 @@ fn load_voxel_world_prepare(
 
         // mip texture
         let mip_count = gh.texture_size.trailing_zeros();
-        let mip_texture = render_device.create_texture_with_data(
-            &render_queue,
-            &TextureDescriptor {
-                label: None,
-                size: Extent3d {
-                    width: gh.texture_size,
-                    height: gh.texture_size,
-                    depth_or_array_layers: gh.texture_size,
-                },
-                mip_level_count: mip_count,
-                sample_count: 1,
-                dimension: TextureDimension::D3,
-                format: TextureFormat::Rgba8Unorm,
-                usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
-                view_formats: &[],
+        let mip_texture = render_device.create_texture(&TextureDescriptor {
+            label: None,
+            size: Extent3d {
+                width: gh.texture_size,
+                height: gh.texture_size,
+                depth_or_array_layers: gh.texture_size,
             },
-            &vec![255; (gh.texture_size * gh.texture_size * gh.texture_size * 5) as usize],
-        );
+            mip_level_count: mip_count,
+            sample_count: 1,
+            dimension: TextureDimension::D3,
+            format: TextureFormat::Rgba8Unorm,
+            usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
         voxel_data.mip_texture = mip_texture;
     }
 }
