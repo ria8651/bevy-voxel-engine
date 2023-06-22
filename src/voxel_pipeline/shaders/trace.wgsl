@@ -107,7 +107,34 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     var samples = 0.0;
     if hit.hit {
         // direct lighting
-        let direct_lighting = calculate_direct(hit.material, hit.pos, hit.normal, seed + 1u, trace_uniforms.samples);
+        // let direct_lighting = calculate_direct(hit.material, hit.pos, hit.normal, seed + 1u, trace_uniforms.samples);
+        let direct_lighting = max(dot(hit.normal, -normalize(light_dir)), 0.0);
+
+        // vct
+        var shadow = 0.0;
+        var steps = 0u;
+        let shadow_ray = Ray(hit.pos, -normalize(light_dir));
+        let step = 0.005;
+        var tcpotr = shadow_ray.pos + shadow_ray.dir * step;
+        tcpotr = tcpotr * VOXELS_PER_METER / f32(voxel_uniforms.texture_size) + 0.5;
+        loop {
+            let col = textureSampleLevel(mip, texture_sampler, tcpotr.zyx, 0.0);
+            shadow += col.a;
+            if shadow > 1.0 {
+                shadow = 1.0;
+                break;
+            }
+
+            tcpotr += shadow_ray.dir * step;
+            if any(tcpotr < vec3(0.0)) || any(tcpotr >= vec3(1.0)) {
+                break;
+            }
+
+            steps += 1u;
+            if steps > 1000u {
+                break;
+            }
+        }
 
         // indirect lighting
         var indirect_lighting = vec3(0.0);
@@ -138,10 +165,10 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
         }
 
         // final blend
-        output_colour = (indirect_lighting + direct_lighting) * hit.material.rgb;
+        output_colour = (indirect_lighting + direct_lighting * (1.0 - shadow)) * hit.material.rgb;
 
-        let posing = (hit.pos - hit.normal * 0.01) * VOXELS_PER_METER / f32(voxel_uniforms.texture_size) + 0.5;
-        output_colour = textureSampleLevel(mip, texture_sampler, posing.zyx, (1.0 - trace_uniforms.misc_float) * f32(textureNumLevels(mip))).rgb;
+        // let posing = (hit.pos - hit.normal * 0.01) * VOXELS_PER_METER / f32(voxel_uniforms.texture_size) + 0.5;
+        // output_colour = textureSampleLevel(mip, texture_sampler, posing.zyx, (1.0 - trace_uniforms.misc_float) * f32(textureNumLevels(mip))).rgb;
     } else {
         // output_colour = vec3<f32>(0.2);
         output_colour = skybox(ray.dir, 10.0);
@@ -150,9 +177,6 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     if trace_uniforms.show_ray_steps != 0u {
         output_colour = vec3<f32>(f32(steps) / 100.0);
     }
-
-    // output_colour = (hit.pos + hit.portal_offset) * 2.0;
-    // output_colour = hit.pos * 2.0;
 
     output_colour = max(output_colour, vec3(0.0));
     textureStore(normal, vec2<i32>(in.position.xy), vec4(hit.normal, 0.0));
