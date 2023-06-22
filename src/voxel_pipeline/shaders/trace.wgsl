@@ -25,38 +25,38 @@ var position: texture_storage_2d<rgba32float, read_write>;
 const light_dir = vec3<f32>(0.8, -1.0, 0.8);
 const light_colour = vec3<f32>(1.0, 1.0, 1.0);
 
-fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed: vec3<u32>, shadow_samples: u32) -> vec3<f32> {
-    var lighting = vec3(0.0);
-    if material.a == 0.0 {
-        // diffuse
-        let diffuse = max(dot(normal, -normalize(light_dir)), 0.0);
+fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, mode: u32, seed: vec3<u32>, shadow_samples: u32) -> vec3<f32> {
+    // diffuse
+    let diffuse = max(dot(normal, -normalize(light_dir)), 0.0);
 
-        // shadow
-        var shadow = 1.0;
-        if trace_uniforms.shadows != 0u {
-            if trace_uniforms.indirect_lighting != 0u {
-                for (var i = 0u; i < shadow_samples; i += 1u) {
-                    let rand = hash(seed + i) * 2.0 - 1.0;
-                    let shadow_ray = Ray(pos, -light_dir + rand * 0.1);
-                    let shadow_hit = shoot_ray(shadow_ray, 0.0, 0u);
-                    shadow -= f32(shadow_hit.hit) / f32(shadow_samples);
-                }
-            } else {
-                // let shadow_ray = Ray(pos, -light_dir);
-                // let shadow_hit = shoot_ray(shadow_ray, 0.0, 0u);
-                // shadow = f32(!shadow_hit.hit);
-
-                let shadow_ray = Ray(pos, -light_dir);
-                let col = vct(shadow_ray, 0.1);
-                shadow = 1.0 - col.a;
+    // shadow
+    var shadow = 1.0;
+    if trace_uniforms.shadows != 0u {
+        if mode == 1u {
+            let shadow_ray = Ray(pos, -light_dir);
+            let col = vct(shadow_ray, 0.1);
+            shadow = 1.0 - col.a;
+        } else if mode == 2u {
+            for (var i = 0u; i < shadow_samples; i += 1u) {
+                let rand = hash(seed + i) * 2.0 - 1.0;
+                let shadow_ray = Ray(pos, -light_dir + rand * 0.1);
+                let shadow_hit = shoot_ray(shadow_ray, 0.0, 0u);
+                shadow -= f32(shadow_hit.hit) / f32(shadow_samples);
             }
+        } else {
+            let shadow_ray = Ray(pos, -light_dir);
+            let shadow_hit = shoot_ray(shadow_ray, 0.0, 0u);
+            shadow = f32(!shadow_hit.hit);
         }
-
-        lighting = diffuse * shadow * light_colour;
-    } else {
-        lighting = vec3(material.rgb);
     }
-    return lighting;
+
+    // emissive
+    var emissive = vec3(0.0);
+    if material.a != 0.0 {
+        emissive = vec3(material.rgb);
+    }
+
+    return diffuse * shadow * light_colour + emissive;
 }
 
 fn get_voxel(pos: vec3<f32>) -> f32 {
@@ -141,21 +141,52 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     let hit = shoot_ray(ray, 0.0, 0u);
     var steps = hit.steps;
 
+    let mode = u32(in.uv.y * 3.0);
+    // let mode = 1u;
+
     var samples = 0.0;
     if hit.hit {
         // direct lighting
-        let direct_lighting = calculate_direct(hit.material, hit.pos, hit.normal, seed + 1u, trace_uniforms.samples);
+        let direct_lighting = calculate_direct(hit.material, hit.pos, hit.normal, mode, seed + 1u, trace_uniforms.samples);
 
         // indirect lighting
         var indirect_lighting = vec3(0.0);
-        if trace_uniforms.indirect_lighting != 0u {
+        if mode == 1u {
+            // voxel ao
+            let texture_coords = hit.pos * VOXELS_PER_METER + f32(voxel_uniforms.texture_size) / 2.0;
+            let ao = voxel_ao(texture_coords, hit.normal.zxy, hit.normal.yzx);
+            let uv = glmod(vec2(dot(hit.normal * texture_coords.yzx, vec3(1.0)), dot(hit.normal * texture_coords.zxy, vec3(1.0))), vec2(1.0));
+
+            let interpolated_ao_pweig = mix(mix(ao.z, ao.w, uv.x), mix(ao.y, ao.x, uv.x), uv.y);
+            let voxel_ao = pow(interpolated_ao_pweig, 1.0 / 3.0);
+
+            // voxel cone tracing
+            let up = hit.normal;
+            var right = cross(up, vec3(0.0, 0.0, 1.0));
+            if all(right == vec3(0.0)) {
+                right = cross(up, vec3(0.0, 1.0, 0.0));
+            }
+            let forward = normalize(cross(right, up));
+
+            var color = vct(Ray(hit.pos, up), 0.5);
+            color += vct(Ray(hit.pos, cos(0.5) * cos(1.257 * 0.0) * right + sin(0.5) * up + cos(0.5) * sin(1.257 * 0.0) * forward), 0.5);
+            color += vct(Ray(hit.pos, cos(0.5) * cos(1.257 * 1.0) * right + sin(0.5) * up + cos(0.5) * sin(1.257 * 1.0) * forward), 0.5);
+            color += vct(Ray(hit.pos, cos(0.5) * cos(1.257 * 2.0) * right + sin(0.5) * up + cos(0.5) * sin(1.257 * 2.0) * forward), 0.5);
+            color += vct(Ray(hit.pos, cos(0.5) * cos(1.257 * 3.0) * right + sin(0.5) * up + cos(0.5) * sin(1.257 * 3.0) * forward), 0.5);
+            color += vct(Ray(hit.pos, cos(0.5) * cos(1.257 * 4.0) * right + sin(0.5) * up + cos(0.5) * sin(1.257 * 4.0) * forward), 0.5);
+            color /= 6.0;
+            let sky = (1.0 - color.a);
+            let indirect = color.rgb * color.a * 0.1;
+
+            indirect_lighting = vec3(0.3 * voxel_ao * sky);
+        } else if mode == 2u {
             // raytraced indirect lighting
             for (var i = 0u; i < trace_uniforms.samples; i += 1u) {
                 let indirect_dir = cosine_hemisphere(hit.normal, seed + i);
                 let indirect_hit = shoot_ray(Ray(hit.pos, indirect_dir), 0.0, 0u);
                 var lighting = vec3(0.0);
                 if indirect_hit.hit {
-                    lighting = calculate_direct(indirect_hit.material, indirect_hit.pos, indirect_hit.normal, seed + 3u, 1u);
+                    lighting = calculate_direct(indirect_hit.material, indirect_hit.pos, indirect_hit.normal, mode, seed + 3u, 1u);
                 } else {
                     lighting = vec3(0.2);
                     // lighting = skybox(indirect_dir, 10.0);
@@ -163,25 +194,15 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
                 indirect_lighting += lighting / f32(trace_uniforms.samples);
             }
         } else {
-            // // aproximate indirect with ambient and voxel ao
-            // let texture_coords = hit.pos * VOXELS_PER_METER + f32(voxel_uniforms.texture_size) / 2.0;
-            // let ao = voxel_ao(texture_coords, hit.normal.zxy, hit.normal.yzx);
-            // let uv = glmod(vec2(dot(hit.normal * texture_coords.yzx, vec3(1.0)), dot(hit.normal * texture_coords.zxy, vec3(1.0))), vec2(1.0));
+            // voxel ao
+            let texture_coords = hit.pos * VOXELS_PER_METER + f32(voxel_uniforms.texture_size) / 2.0;
+            let ao = voxel_ao(texture_coords, hit.normal.zxy, hit.normal.yzx);
+            let uv = glmod(vec2(dot(hit.normal * texture_coords.yzx, vec3(1.0)), dot(hit.normal * texture_coords.zxy, vec3(1.0))), vec2(1.0));
 
-            // let interpolated_ao_pweig = mix(mix(ao.z, ao.w, uv.x), mix(ao.y, ao.x, uv.x), uv.y);
-            // let interpolated_ao = pow(interpolated_ao_pweig, 1.0 / 3.0);
+            let interpolated_ao_pweig = mix(mix(ao.z, ao.w, uv.x), mix(ao.y, ao.x, uv.x), uv.y);
+            let voxel_ao = pow(interpolated_ao_pweig, 1.0 / 3.0);
 
-            // indirect_lighting = vec3(interpolated_ao * 0.3);
-        
-            var color = vct(Ray(hit.pos, vec3(0.0, 1.0, 0.0)), 0.5);
-            color += vct(Ray(hit.pos, vec3(cos(0.5) * cos(1.257 * 0.0), sin(0.5), sin(1.257 * 0.0))), 0.5);
-            color += vct(Ray(hit.pos, vec3(cos(0.5) * cos(1.257 * 1.0), sin(0.5), sin(1.257 * 1.0))), 0.5);
-            color += vct(Ray(hit.pos, vec3(cos(0.5) * cos(1.257 * 2.0), sin(0.5), sin(1.257 * 2.0))), 0.5);
-            color += vct(Ray(hit.pos, vec3(cos(0.5) * cos(1.257 * 3.0), sin(0.5), sin(1.257 * 3.0))), 0.5);
-            color += vct(Ray(hit.pos, vec3(cos(0.5) * cos(1.257 * 4.0), sin(0.5), sin(1.257 * 4.0))), 0.5);
-            color /= 6.0;
-            // indirect_lighting = color.rgb / color.a / 100.0;
-            indirect_lighting = vec3(0.3 * (1.0 - color.a));
+            indirect_lighting = vec3(0.3 * voxel_ao);
         }
 
         // final blend
