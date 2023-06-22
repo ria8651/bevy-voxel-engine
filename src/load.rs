@@ -11,18 +11,10 @@ pub struct GH {
 #[derive(Clone, Deref, DerefMut)]
 pub struct Pallete([[f32; 4]; 256]);
 
-const fn num_bits<T>() -> usize {
-    std::mem::size_of::<T>() * 8
-}
-fn log_2(x: u32) -> u32 {
-    assert!(x > 0);
-    num_bits::<u32>() as u32 - x.leading_zeros() - 1
-}
-
 impl GH {
     pub fn empty(texture_size: u32) -> Self {
         let mut levels = [0; 8];
-        let i = log_2(texture_size) - 3;
+        let i = texture_size.trailing_zeros() - 3;
         for i in 0..i {
             levels[i as usize] = 1 << (i + 3);
         }

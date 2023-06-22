@@ -7,6 +7,10 @@ var<uniform> voxel_uniforms: VoxelUniforms;
 var voxel_world: texture_storage_3d<r16uint, read_write>;
 @group(0) @binding(2)
 var<storage, read_write> gh: array<u32>;
+@group(0) @binding(3)
+var mip: texture_3d<f32>;
+@group(0) @binding(4)
+var texture_sampler: sampler;
 
 @group(1) @binding(0)
 var<uniform> trace_uniforms: TraceUniforms;
@@ -135,6 +139,10 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
 
         // final blend
         output_colour = (indirect_lighting + direct_lighting) * hit.material.rgb;
+
+        let posing = (hit.pos - hit.normal * 0.01) * VOXELS_PER_METER / f32(voxel_uniforms.texture_size) + 0.5;
+        // let posing = vec3(in.uv, trace_uniforms.misc_float);
+        output_colour = textureSampleLevel(mip, texture_sampler, posing.zyx, trace_uniforms.misc_float).rgb;
     } else {
         // output_colour = vec3<f32>(0.2);
         output_colour = skybox(ray.dir, 10.0);

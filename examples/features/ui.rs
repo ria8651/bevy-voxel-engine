@@ -185,6 +185,7 @@ fn ui_system(
                 ui.checkbox(&mut render_graph_settings.animation, "animation");
                 ui.checkbox(&mut render_graph_settings.voxelization, "voxelization");
                 ui.checkbox(&mut render_graph_settings.rebuild, "rebuild");
+                ui.checkbox(&mut render_graph_settings.mip, "mip");
                 ui.checkbox(&mut render_graph_settings.physics, "physics");
                 ui.checkbox(&mut render_graph_settings.trace, "trace");
                 ui.checkbox(&mut render_graph_settings.denoise, "denoise");

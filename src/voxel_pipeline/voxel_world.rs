@@ -71,6 +71,35 @@ impl Plugin for VoxelWorldPlugin {
             usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
         });
 
+        // mip texture
+        let mip_count = gh.texture_size.trailing_zeros();
+        let mip_texture = render_device.create_texture_with_data(
+            &render_queue,
+            &TextureDescriptor {
+                label: None,
+                size: Extent3d {
+                    width: gh.texture_size,
+                    height: gh.texture_size,
+                    depth_or_array_layers: gh.texture_size,
+                },
+                mip_level_count: mip_count,
+                sample_count: 1,
+                dimension: TextureDimension::D3,
+                format: TextureFormat::Rgba8Unorm,
+                usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            },
+            &vec![255; (gh.texture_size * gh.texture_size * gh.texture_size * 5) as usize],
+        );
+        let mip_texture_view = mip_texture.create_view(&TextureViewDescriptor::default());
+
+        // sampler
+        let texture_sampler = render_device.create_sampler(&SamplerDescriptor {
+            mag_filter: FilterMode::Linear,
+            min_filter: FilterMode::Linear,
+            ..default()
+        });
+
         let bind_group_layout =
             render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
                 label: Some("voxelization bind group layout"),
@@ -105,6 +134,22 @@ impl Plugin for VoxelWorldPlugin {
                         },
                         count: None,
                     },
+                    BindGroupLayoutEntry {
+                        binding: 3,
+                        visibility: ShaderStages::FRAGMENT | ShaderStages::COMPUTE,
+                        ty: BindingType::Texture {
+                            sample_type: TextureSampleType::Float { filterable: true },
+                            view_dimension: TextureViewDimension::D3,
+                            multisampled: false,
+                        },
+                        count: None,
+                    },
+                    BindGroupLayoutEntry {
+                        binding: 4,
+                        visibility: ShaderStages::FRAGMENT | ShaderStages::COMPUTE,
+                        ty: BindingType::Sampler(SamplerBindingType::Filtering),
+                        count: None,
+                    },
                 ],
             });
 
@@ -124,6 +169,14 @@ impl Plugin for VoxelWorldPlugin {
                     binding: 2,
                     resource: grid_heierachy.as_entire_binding(),
                 },
+                BindGroupEntry {
+                    binding: 3,
+                    resource: BindingResource::TextureView(&mip_texture_view),
+                },
+                BindGroupEntry {
+                    binding: 4,
+                    resource: BindingResource::Sampler(&texture_sampler),
+                },
             ],
         });
 
@@ -139,6 +192,8 @@ impl Plugin for VoxelWorldPlugin {
                 uniform_buffer,
                 voxel_world,
                 grid_heierachy,
+                mip_texture,
+                texture_sampler,
                 bind_group_layout,
                 bind_group,
             })
@@ -153,6 +208,8 @@ pub struct VoxelData {
     pub uniform_buffer: UniformBuffer<VoxelUniforms>,
     pub voxel_world: TextureView,
     pub grid_heierachy: Buffer,
+    pub mip_texture: Texture,
+    pub texture_sampler: Sampler,
     pub bind_group_layout: BindGroupLayout,
     pub bind_group: BindGroup,
 }
@@ -276,6 +333,28 @@ fn load_voxel_world_prepare(
             &gh.texture_data,
         );
         voxel_data.voxel_world = voxel_world.create_view(&TextureViewDescriptor::default());
+
+        // mip texture
+        let mip_count = gh.texture_size.trailing_zeros();
+        let mip_texture = render_device.create_texture_with_data(
+            &render_queue,
+            &TextureDescriptor {
+                label: None,
+                size: Extent3d {
+                    width: gh.texture_size,
+                    height: gh.texture_size,
+                    depth_or_array_layers: gh.texture_size,
+                },
+                mip_level_count: mip_count,
+                sample_count: 1,
+                dimension: TextureDimension::D3,
+                format: TextureFormat::Rgba8Unorm,
+                usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            },
+            &vec![255; (gh.texture_size * gh.texture_size * gh.texture_size * 5) as usize],
+        );
+        voxel_data.mip_texture = mip_texture;
     }
 }
 
@@ -295,6 +374,18 @@ fn queue_bind_group(render_device: Res<RenderDevice>, mut voxel_data: ResMut<Vox
             BindGroupEntry {
                 binding: 2,
                 resource: voxel_data.grid_heierachy.as_entire_binding(),
+            },
+            BindGroupEntry {
+                binding: 3,
+                resource: BindingResource::TextureView(
+                    &voxel_data
+                        .mip_texture
+                        .create_view(&TextureViewDescriptor::default()),
+                ),
+            },
+            BindGroupEntry {
+                binding: 4,
+                resource: BindingResource::Sampler(&voxel_data.texture_sampler),
             },
         ],
     });

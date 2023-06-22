@@ -99,6 +99,7 @@ impl Plugin for RenderPlugin {
         voxel_graph.add_node("rebuild", rebuild);
         voxel_graph.add_node("mip", mip);
         voxel_graph.add_node("physics", physics);
+        voxel_graph.add_node_edge("mip", "rebuild");
         voxel_graph.add_node_edge("rebuild", "physics");
         voxel_graph.add_node_edge("physics", "trace");
 
