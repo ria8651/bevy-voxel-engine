@@ -1,4 +1,5 @@
-use super::{character::CharacterEntity, Bullet, Particle, VoxelizationPreviewCamera};
+use super::character::CharacterEntity;
+use bevy_voxel_engine::{Bullet, Particle, VoxelizationPreviewCamera};
 use bevy::{
     core_pipeline::{bloom::BloomSettings, fxaa::Fxaa, tonemapping::Tonemapping},
     prelude::*,
@@ -16,7 +17,8 @@ pub struct UiPlugin;
 
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(EguiPlugin).add_systems(Update, ui_system);
+        app.add_plugins(EguiPlugin)
+            .add_systems(Update, ui_system);
     }
 }
 

@@ -303,7 +303,7 @@ impl SpecializedMeshPipeline for VoxelizationPipeline {
         descriptor.fragment.as_mut().unwrap().shader = VOXELIZATION_SHADER_HANDLE;
         descriptor.layout = vec![
             self.mesh_pipeline.get_view_layout(MeshPipelineViewLayoutKey::MULTISAMPLED).clone(),
-            //self.mesh_pipeline.mesh_layouts.clone(),
+            self.mesh_pipeline.mesh_layouts.model_only.clone(), // TODO?
             self.world_bind_group_layout.clone(),
             self.voxelization_bind_group_layout.clone(),
         ];
@@ -345,6 +345,7 @@ fn queue_custom(
                 let pipeline = pipelines
                     .specialize(&mut pipeline_cache, &custom_pipeline, key, &mesh.layout)
                     .unwrap();
+                
                 transparent_phase.add(Transparent3d {
                     entity,
                     pipeline,

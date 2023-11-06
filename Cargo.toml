@@ -19,7 +19,7 @@ bevy = { version = "0.12", default-features = false, features = [
     "png",
     "tonemapping_luts"
 ] }
-bytemuck = "1.10"
+bytemuck = "1.14.0"
 dot_vox = "5.1"
 wgpu = "0.17.0"
 

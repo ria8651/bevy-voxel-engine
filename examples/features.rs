@@ -4,7 +4,6 @@ use bevy::{
         fxaa::Fxaa,
     },
     prelude::*,
-    render::pipelined_rendering::PipelinedRenderingPlugin,
 };
 use bevy_obj::*;
 use bevy_voxel_engine::*;
@@ -15,8 +14,8 @@ use std::f32::consts::PI;
 #[path = "common/character.rs"]
 mod character;
 
-//#[path = "common/fps_counter.rs"]
-//mod fps_counter;
+#[path = "common/fps_counter.rs"]
+mod fps_counter;
 
 #[path = "common/ui.rs"]
 mod ui;
@@ -40,16 +39,12 @@ struct Gun;
 
 fn main() {
     let mut app = App::new();
-    app.add_plugins(
-        DefaultPlugins
-            .set(AssetPlugin::default())
-            .disable::<PipelinedRenderingPlugin>(),
-    )
+    app.add_plugins(DefaultPlugins)
     .add_plugins(ObjPlugin)
     .add_plugins(BevyVoxelEnginePlugin)
     .add_plugins(character::Character)
     .add_plugins(ui::UiPlugin)
-    //.add_plugin(fps_counter::FpsCounter)
+    .add_plugins(fps_counter::FpsCounter)
     .add_systems(Startup, setup)
     .add_systems(Update, update_suzanne)
     .add_systems(Update, shoot)

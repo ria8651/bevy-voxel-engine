@@ -126,7 +126,7 @@ impl Default for VoxelCameraBundle {
     fn default() -> Self {
         Self {
             camera_render_graph: CameraRenderGraph::new("voxel"),
-            tonemapping: Tonemapping::ReinhardLuminance,
+            tonemapping: Tonemapping::AcesFitted,
             camera: Camera {
                 hdr: true,
                 ..default()
@@ -149,7 +149,8 @@ pub struct VoxelizationBundle {
     pub transform: Transform,
     pub global_transform: GlobalTransform,
     pub visibility: Visibility,
-    //pub computed_visibility: ComputedVisibility,
+    pub inherited_visibility: InheritedVisibility,
+    pub view_visibility: ViewVisibility,
 }
 
 pub struct BevyVoxelEnginePlugin;

@@ -101,9 +101,7 @@ pub fn insert_physics_data(
         drop(data);
         physics_data.physics_buffer_cpu.unmap();
 
-        if result[0] == 0 {
-            println!("{:?}", result);
-            
+        if result[0] == 0 {            
             warn!("No physics data returned from the gpu!");
             return;
         }

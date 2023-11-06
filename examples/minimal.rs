@@ -72,6 +72,7 @@ fn setup(
         Fxaa::default(),
     ));
 
+    /*
     // portal pair
     commands.spawn((
         Portal,
@@ -91,6 +92,7 @@ fn setup(
         },
         Transform::from_xyz(-5.0, 0.0, 3.0),
     ));
+    */
 
 
 }

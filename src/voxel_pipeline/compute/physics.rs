@@ -36,6 +36,7 @@ impl FromWorld for Pipeline {
 }
 
 impl render_graph::Node for PhysicsNode {
+
     fn run(
         &self,
         _graph: &mut RenderGraphContext,
@@ -46,7 +47,7 @@ impl render_graph::Node for PhysicsNode {
         let compute_data = world.resource::<ComputeData>();
         let pipeline_cache = world.resource::<PipelineCache>();
         let physics_data = world.resource::<PhysicsData>();
-        let render_graph_settings = world.get_resource::<RenderGraphSettings>().unwrap();
+        let render_graph_settings = world.resource::<RenderGraphSettings>();
 
         if !render_graph_settings.physics {
             return Ok(());

@@ -55,7 +55,7 @@ impl Plugin for TracePlugin {
     }
 
     fn finish(&self, app: &mut App) {
-        // setup custom render pipeline
+        // Setup custom render pipeline
         app.sub_app_mut(RenderApp)
             .init_resource::<TracePipelineData>()
             .insert_resource(LastCameras(HashMap::new()))

@@ -17,11 +17,11 @@ mod fps_counter;
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugin(BevyVoxelEnginePlugin)
-        .add_plugin(character::Character)
-        .add_plugin(fps_counter::FpsCounter)
-        .add_startup_system(setup)
-        .add_system(Update, update)
+        .add_plugins(BevyVoxelEnginePlugin)
+        .add_plugins(character::Character)
+        .add_plugins(fps_counter::FpsCounter)
+        .add_systems(Startup, setup)
+        .add_systems(Update, update)
         .run();
 }
 

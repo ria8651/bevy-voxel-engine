@@ -126,7 +126,7 @@ impl render_graph::Node for AttachmentsNode {
         world: &World,
     ) -> Result<(), NodeRunError> {
         let view_entity = graph.view_entity();
-        let gpu_images = world.get_resource::<RenderAssets<Image>>().unwrap();
+        let gpu_images = world.resource::<RenderAssets<Image>>();
 
         let render_attachments = match self.query.get_manual(world, view_entity) {
             Ok(result) => result,

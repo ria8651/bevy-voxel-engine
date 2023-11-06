@@ -29,16 +29,12 @@ impl Plugin for VoxelWorldPlugin {
         let render_device = app
             .sub_app(RenderApp)
             .world
-            .get_resource::<RenderDevice>()
-            .unwrap()
-            .clone();
+            .resource::<RenderDevice>();
 
         let render_queue = app
             .sub_app(RenderApp)
             .world
-            .get_resource::<RenderQueue>()
-            .unwrap()
-            .clone();
+            .resource::<RenderQueue>();
 
         let gh = GH::empty(128);
         let buffer_size = gh.get_buffer_size();
@@ -196,7 +192,7 @@ impl Plugin for VoxelWorldPlugin {
                 },
             ],
         );
-        
+
         app.insert_resource(voxel_uniforms);
 
         let render_app = app.sub_app_mut(RenderApp);
