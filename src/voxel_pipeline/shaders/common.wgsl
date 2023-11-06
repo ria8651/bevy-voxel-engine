@@ -1,0 +1,568 @@
+#define_import_path bevy_voxel_engine::common
+
+const AUTOMATA_FLAG = 128u; // 0b10000000
+const PORTAL_FLAG = 64u; // 0b01000000
+const ANIMATION_FLAG = 32u; // 0b00100000
+const COLLISION_FLAG = 16u; // 0b00010000
+const SAND_FLAG = 8u; // 0b00001000
+
+const VOXELS_PER_METER: f32 = 4.0;
+
+const PI: f32 = 3.14159265358979323846264338327950288;
+
+struct Portal {
+    transformation: mat4x4<f32>,
+    position: vec3<f32>,
+    normal: vec3<f32>,
+}
+
+struct VoxelUniforms {
+    materials: array<vec4<f32>, 256>,
+    portals: array<Portal, 32>,
+    levels: array<vec4<u32>, 8>,
+    offsets: array<vec4<u32>, 8>,
+    texture_size: u32,
+};
+
+struct TraceUniforms {
+    camera: mat4x4<f32>,
+    camera_inverse: mat4x4<f32>,
+    last_camera: mat4x4<f32>,
+    projection: mat4x4<f32>,
+    time: f32,
+    show_ray_steps: u32,
+    samples: u32,
+    shadows: u32,
+};
+
+fn get_clip_space(frag_pos: vec4<f32>, dimensions: vec2<f32>) -> vec2<f32> {
+    var clip_space = frag_pos.xy / dimensions * 2.0;
+    clip_space = clip_space - 1.0;
+    clip_space = clip_space * vec2<f32>(1.0, -1.0);
+    return clip_space;
+}
+
+// pcg3d
+// http://www.jcgt.org/published/0009/03/02/
+fn hash(value: vec3<u32>) -> vec3<f32> {
+    var v = value * 1664525u + 1013904223u;
+
+    v.x += v.y*v.z;
+    v.y += v.z*v.x;
+    v.z += v.x*v.y;
+
+    v ^= v >> vec3(16u);
+
+    v.x += v.y*v.z;
+    v.y += v.z*v.x;
+    v.z += v.x*v.y;
+
+    return vec3<f32>((v >> vec3(1u)) & vec3(0x7fffffffu)) / f32(0x7fffffff);
+}
+
+fn cosine_hemisphere(n: vec3<f32>, seed: vec3<u32>) -> vec3<f32> {
+    let u = hash(seed);
+
+    let r = sqrt(u.x);
+    let theta = 2.0 * PI * u.y;
+ 
+    let  b = normalize(cross(n, vec3<f32>(0.0, 1.0, 1.0)));
+    let  t = cross(b, n);
+    
+    return normalize(r * sin(theta) * b + sqrt(1.0 - u.x) * n + r * cos(theta) * t);
+}
+
+struct Ray {
+    pos: vec3<f32>,
+    dir: vec3<f32>,
+};
+
+// returns the closest intersection and the furthest intersection
+fn ray_box_dist(r: Ray, vmin: vec3<f32>, vmax: vec3<f32>) -> vec2<f32> {
+    let v1 = (vmin.x - r.pos.x) / r.dir.x;
+    let v2 = (vmax.x - r.pos.x) / r.dir.x;
+    let v3 = (vmin.y - r.pos.y) / r.dir.y;
+    let v4 = (vmax.y - r.pos.y) / r.dir.y;
+    let v5 = (vmin.z - r.pos.z) / r.dir.z;
+    let v6 = (vmax.z - r.pos.z) / r.dir.z;
+    let v7 = max(max(min(v1, v2), min(v3, v4)), min(v5, v6));
+    let v8 = min(min(max(v1, v2), max(v3, v4)), max(v5, v6));
+    if (v8 < 0.0 || v7 > v8) {
+        return vec2(0.0);
+    }
+
+    return vec2(v7, v8);
+}
+
+fn ray_plane(r: Ray, pos: vec3<f32>, normal: vec3<f32>) -> vec4<f32> {
+    let denom = dot(normal, r.dir);
+    if (denom < 0.00001) {
+        let t = dot(normal, pos - r.pos) / denom;
+        if (t >= 0.0) {
+            let pos = r.pos + r.dir * t;
+            return vec4(pos, t);
+        }
+    }
+    return vec4(0.0);
+}
+
+fn in_bounds(v: vec3<f32>) -> bool {
+    let s = step(vec3<f32>(-1.0), v) - step(vec3<f32>(1.0), v);
+    return (s.x * s.y * s.z) > 0.5;
+}
+
+fn clip_aabb(hist: vec3<f32>, min_aabb: vec3<f32>, max_aabb: vec3<f32>) -> vec3<f32> {
+    let p_clip = 0.5 * (max_aabb + min_aabb);
+    let e_clip = 0.5 * (max_aabb - min_aabb);
+
+    let v_clip = hist - p_clip;
+    let v_unit = v_clip / e_clip;
+    let a_unit = abs(v_unit);
+    let max_unit = max(a_unit.x, max(a_unit.y, a_unit.z));
+
+    if (max_unit > 1.0) {
+        return p_clip + v_clip / max_unit;
+    } else {
+        return hist; // point inside aabb
+    }
+}
+
+struct SkyboxInfo {
+    sun_pos: vec3<f32>,
+    sun_dir: vec3<f32>,
+    sky_color: vec3<f32>,
+};
+
+fn skybox(dir: vec3<f32>, time_of_day: f32) -> SkyboxInfo {
+    //let time_of_day: f32 = 12.0;
+
+    var col = vec3<f32>(0.0, 0.0, 0.0);
+
+    var sunset_dark: array<vec3<f32>, 4u> = array<vec3<f32>, 4u>(
+        vec3<f32>(0.3720705509185791, 0.3037080764770508, 0.26548632979393005),
+        vec3<f32>(0.4461638331413269, 0.3940589129924774, 0.42567673325538635),
+        vec3<f32>(0.16514907777309418, 0.4046129286289215, 0.8799446225166321),
+        vec3<f32>(-0.00000000000000007057075514128395, -0.08647964149713516, -0.26904296875)
+    );
+    var sunset_bright: array<vec3<f32>, 4u> = array<vec3<f32>, 4u>(
+        vec3<f32>(0.38976746797561646, 0.3156035840511322, 0.27932655811309814),
+        vec3<f32>(1.2874523401260376, 1.0100154876708984, 0.8623254299163818),
+        vec3<f32>(0.1260504275560379, 0.23134452104568481, 0.5261799693107605),
+        vec3<f32>(-0.09298685193061829, -0.0733446329832077, -0.19287726283073425)
+    );
+    var day: array<vec3<f32>, 4u> = array<vec3<f32>, 4u>(
+        vec3<f32>(0.05101049691438675, 0.0975874736905098, 0.14233364164829254),
+        vec3<f32>(0.721604585647583, 0.8130766749382019, 0.9907063245773315),
+        vec3<f32>(0.23738746345043182, 0.6037047505378723, 1.279274582862854),
+        vec3<f32>(-0.000000000000000483417267228435, 0.13545893132686615, -0.0000000000000014694301099188)
+    );
+
+    let t = ((time_of_day + 4.0) * ((360.0 / 24.0) * 0.017453292519943295));
+    let sun_pos = normalize(vec3<f32>(0.0, -(sin(t)), cos(t)));
+
+    {
+        let brightness: f32 = ((1.5 * smoothstep((80.0 * 0.017453292519943295), (0.0 * 0.017453292519943295), acos(dot(dir, sun_pos)))) - 0.5);
+        let sunset = array<vec3<f32>, 4u>(
+            mix(sunset_dark[0], sunset_bright[0], vec3<f32>(brightness)),
+            mix(sunset_dark[1], sunset_bright[1], vec3<f32>(brightness)),
+            mix(sunset_dark[2], sunset_bright[2], vec3<f32>(brightness)),
+            mix(sunset_dark[3], sunset_bright[3], vec3<f32>(brightness))
+        );
+
+        let sun: f32 = smoothstep((100.0 * 0.017453292519943295), (60.0 * 0.017453292519943295), acos(dot(sun_pos, vec3<f32>(0.0, 1.0, 0.0))));
+        let a: vec3<f32> = mix(sunset[0], day[0], vec3<f32>(sun));
+        let b: vec3<f32> = mix(sunset[1], day[1], vec3<f32>(sun));
+        let c: vec3<f32> = mix(sunset[2], day[2], vec3<f32>(sun));
+        let d: vec3<f32> = mix(sunset[3], day[3], vec3<f32>(sun));
+
+        let sky = smoothstep((90.0 * 0.017453292519943295), (60.0 * 0.017453292519943295), acos(dot(dir, vec3<f32>(0.0, 1.0, 0.0))));
+
+        col = (col + (((b - d) * sin((vec3<f32>(1.0) / (((vec3<f32>(sky) / c) + vec3<f32>((2.0 / (180.0 * 0.017453292519943295)))) - a)))) + d));
+    }
+
+    let sun_col = ((0.009999999776482582 * vec3<f32>(1.0, 0.949999988079071, 0.949999988079071)) / vec3<f32>(acos(dot(sun_pos, dir))));
+    col = max((col + (0.5 * sun_col)), sun_col);
+
+    let sun_dir = normalize(-sun_pos);
+
+    return SkyboxInfo(sun_pos, sun_dir, col);
+}
+
+fn rotate_axis(p: vec3<f32>, axis: vec3<f32>, angle: f32) -> vec3<f32> {
+    return mix(dot(axis, p) * axis, p, cos(angle)) + cross(axis, p) * sin(angle);
+}
+
+fn create_rot_mat(axis: vec3<f32>, angle: f32) -> mat3x3<f32> {
+    var axis1: vec3<f32>;
+    var angle1: f32;
+    var s: f32;
+    var c: f32;
+    var oc: f32;
+
+    axis1 = axis;
+    angle1 = angle;
+    let e5: vec3<f32> = axis1;
+    axis1 = normalize(e5);
+    let e8: f32 = angle1;
+    s = sin(e8);
+    let e12: f32 = angle1;
+    c = cos(e12);
+    let e16: f32 = c;
+    oc = (1.0 - e16);
+    let e19: f32 = oc;
+    let e20: vec3<f32> = axis1;
+    let e23: vec3<f32> = axis1;
+    let e26: f32 = c;
+    let e28: f32 = oc;
+    let e29: vec3<f32> = axis1;
+    let e32: vec3<f32> = axis1;
+    let e35: vec3<f32> = axis1;
+    let e37: f32 = s;
+    let e40: f32 = oc;
+    let e41: vec3<f32> = axis1;
+    let e44: vec3<f32> = axis1;
+    let e47: vec3<f32> = axis1;
+    let e49: f32 = s;
+    let e52: f32 = oc;
+    let e53: vec3<f32> = axis1;
+    let e56: vec3<f32> = axis1;
+    let e59: vec3<f32> = axis1;
+    let e61: f32 = s;
+    let e64: f32 = oc;
+    let e65: vec3<f32> = axis1;
+    let e68: vec3<f32> = axis1;
+    let e71: f32 = c;
+    let e73: f32 = oc;
+    let e74: vec3<f32> = axis1;
+    let e77: vec3<f32> = axis1;
+    let e80: vec3<f32> = axis1;
+    let e82: f32 = s;
+    let e85: f32 = oc;
+    let e86: vec3<f32> = axis1;
+    let e89: vec3<f32> = axis1;
+    let e92: vec3<f32> = axis1;
+    let e94: f32 = s;
+    let e97: f32 = oc;
+    let e98: vec3<f32> = axis1;
+    let e101: vec3<f32> = axis1;
+    let e104: vec3<f32> = axis1;
+    let e106: f32 = s;
+    let e109: f32 = oc;
+    let e110: vec3<f32> = axis1;
+    let e113: vec3<f32> = axis1;
+    let e116: f32 = c;
+    return mat3x3<f32>(vec3<f32>((((e19 * e20.x) * e23.x) + e26), (((e28 * e29.x) * e32.y) - (e35.z * e37)), (((e40 * e41.z) * e44.x) + (e47.y * e49))), vec3<f32>((((e52 * e53.x) * e56.y) + (e59.z * e61)), (((e64 * e65.y) * e68.y) + e71), (((e73 * e74.y) * e77.z) - (e80.x * e82))), vec3<f32>((((e85 * e86.z) * e89.x) - (e92.y * e94)), (((e97 * e98.y) * e101.z) + (e104.x * e106)), (((e109 * e110.z) * e113.z) + e116)));
+}
+
+// #reigon simplex noise
+fn mod289_(x: vec3<f32>) -> vec3<f32> {
+    var x1: vec3<f32>;
+
+    x1 = x;
+    let e2: vec3<f32> = x1;
+    let e3: vec3<f32> = x1;
+    let e8: vec3<f32> = x1;
+    return (e2 - (floor((e8 * (1.0 / 289.0))) * 289.0));
+}
+
+fn mod289_1(x2: vec4<f32>) -> vec4<f32> {
+    var x3: vec4<f32>;
+
+    x3 = x2;
+    let e2: vec4<f32> = x3;
+    let e3: vec4<f32> = x3;
+    let e8: vec4<f32> = x3;
+    return (e2 - (floor((e8 * (1.0 / 289.0))) * 289.0));
+}
+
+fn permute(x4: vec4<f32>) -> vec4<f32> {
+    var x5: vec4<f32>;
+
+    x5 = x4;
+    let e2: vec4<f32> = x5;
+    let e8: vec4<f32> = x5;
+    let e10: vec4<f32> = x5;
+    let e16: vec4<f32> = x5;
+    let e18: vec4<f32> = mod289_1((((e10 * 34.0) + vec4<f32>(1.0)) * e16));
+    return e18;
+}
+
+fn taylorInvSqrt(r: vec4<f32>) -> vec4<f32> {
+    var r1: vec4<f32>;
+
+    r1 = r;
+    let e4: vec4<f32> = r1;
+    return (vec4<f32>(1.7928428649902344) - (0.8537347316741943 * e4));
+}
+
+fn snoise(v: vec3<f32>) -> f32 {
+    var v1: vec3<f32>;
+    var C: vec2<f32> = vec2<f32>(0.16666666666666666, 0.3333333333333333);
+    var D: vec4<f32> = vec4<f32>(0.0, 0.5, 1.0, 2.0);
+    var i: vec3<f32>;
+    var x0_: vec3<f32>;
+    var g: vec3<f32>;
+    var l: vec3<f32>;
+    var i1_: vec3<f32>;
+    var i2_: vec3<f32>;
+    var x1_: vec3<f32>;
+    var x2_: vec3<f32>;
+    var x3_: vec3<f32>;
+    var p: vec4<f32>;
+    var n_: f32 = 0.1428571492433548;
+    var ns: vec3<f32>;
+    var j: vec4<f32>;
+    var x_: vec4<f32>;
+    var y_: vec4<f32>;
+    var x6: vec4<f32>;
+    var y: vec4<f32>;
+    var h: vec4<f32>;
+    var b0_: vec4<f32>;
+    var b1_: vec4<f32>;
+    var s0_: vec4<f32>;
+    var s1_: vec4<f32>;
+    var sh: vec4<f32>;
+    var a0_: vec4<f32>;
+    var a1_: vec4<f32>;
+    var p0_: vec3<f32>;
+    var p1_: vec3<f32>;
+    var p2_: vec3<f32>;
+    var p3_: vec3<f32>;
+    var norm: vec4<f32>;
+    var m: vec4<f32>;
+
+    v1 = v;
+    let e16: vec3<f32> = v1;
+    let e18: vec2<f32> = C;
+    let e20: vec3<f32> = v1;
+    let e21: vec2<f32> = C;
+    let e26: vec3<f32> = v1;
+    let e28: vec2<f32> = C;
+    let e30: vec3<f32> = v1;
+    let e31: vec2<f32> = C;
+    i = floor((e26 + vec3<f32>(dot(e30, e31.yyy))));
+    let e38: vec3<f32> = v1;
+    let e39: vec3<f32> = i;
+    let e42: vec2<f32> = C;
+    let e44: vec3<f32> = i;
+    let e45: vec2<f32> = C;
+    x0_ = ((e38 - e39) + vec3<f32>(dot(e44, e45.xxx)));
+    let e51: vec3<f32> = x0_;
+    let e53: vec3<f32> = x0_;
+    let e55: vec3<f32> = x0_;
+    let e57: vec3<f32> = x0_;
+    g = step(e55.yzx, e57.xyz);
+    let e62: vec3<f32> = g;
+    l = (vec3<f32>(1.0) - e62);
+    let e66: vec3<f32> = g;
+    let e68: vec3<f32> = l;
+    let e70: vec3<f32> = g;
+    let e72: vec3<f32> = l;
+    i1_ = min(e70.xyz, e72.zxy);
+    let e76: vec3<f32> = g;
+    let e78: vec3<f32> = l;
+    let e80: vec3<f32> = g;
+    let e82: vec3<f32> = l;
+    i2_ = max(e80.xyz, e82.zxy);
+    let e86: vec3<f32> = x0_;
+    let e87: vec3<f32> = i1_;
+    let e89: vec2<f32> = C;
+    x1_ = ((e86 - e87) + e89.xxx);
+    let e93: vec3<f32> = x0_;
+    let e94: vec3<f32> = i2_;
+    let e96: vec2<f32> = C;
+    x2_ = ((e93 - e94) + e96.yyy);
+    let e100: vec3<f32> = x0_;
+    let e101: vec4<f32> = D;
+    x3_ = (e100 - e101.yyy);
+    let e106: vec3<f32> = i;
+    let e107: vec3<f32> = mod289_(e106);
+    i = e107;
+    let e108: vec3<f32> = i;
+    let e111: vec3<f32> = i1_;
+    let e113: vec3<f32> = i2_;
+    let e119: vec3<f32> = i;
+    let e122: vec3<f32> = i1_;
+    let e124: vec3<f32> = i2_;
+    let e130: vec4<f32> = permute((vec4<f32>(e119.z) + vec4<f32>(0.0, e122.z, e124.z, 1.0)));
+    let e131: vec3<f32> = i;
+    let e136: vec3<f32> = i1_;
+    let e138: vec3<f32> = i2_;
+    let e143: vec3<f32> = i;
+    let e146: vec3<f32> = i1_;
+    let e148: vec3<f32> = i2_;
+    let e154: vec3<f32> = i;
+    let e157: vec3<f32> = i1_;
+    let e159: vec3<f32> = i2_;
+    let e165: vec4<f32> = permute((vec4<f32>(e154.z) + vec4<f32>(0.0, e157.z, e159.z, 1.0)));
+    let e166: vec3<f32> = i;
+    let e171: vec3<f32> = i1_;
+    let e173: vec3<f32> = i2_;
+    let e178: vec4<f32> = permute(((e165 + vec4<f32>(e166.y)) + vec4<f32>(0.0, e171.y, e173.y, 1.0)));
+    let e179: vec3<f32> = i;
+    let e184: vec3<f32> = i1_;
+    let e186: vec3<f32> = i2_;
+    let e191: vec3<f32> = i;
+    let e194: vec3<f32> = i1_;
+    let e196: vec3<f32> = i2_;
+    let e202: vec3<f32> = i;
+    let e205: vec3<f32> = i1_;
+    let e207: vec3<f32> = i2_;
+    let e213: vec4<f32> = permute((vec4<f32>(e202.z) + vec4<f32>(0.0, e205.z, e207.z, 1.0)));
+    let e214: vec3<f32> = i;
+    let e219: vec3<f32> = i1_;
+    let e221: vec3<f32> = i2_;
+    let e226: vec3<f32> = i;
+    let e229: vec3<f32> = i1_;
+    let e231: vec3<f32> = i2_;
+    let e237: vec3<f32> = i;
+    let e240: vec3<f32> = i1_;
+    let e242: vec3<f32> = i2_;
+    let e248: vec4<f32> = permute((vec4<f32>(e237.z) + vec4<f32>(0.0, e240.z, e242.z, 1.0)));
+    let e249: vec3<f32> = i;
+    let e254: vec3<f32> = i1_;
+    let e256: vec3<f32> = i2_;
+    let e261: vec4<f32> = permute(((e248 + vec4<f32>(e249.y)) + vec4<f32>(0.0, e254.y, e256.y, 1.0)));
+    let e262: vec3<f32> = i;
+    let e267: vec3<f32> = i1_;
+    let e269: vec3<f32> = i2_;
+    let e274: vec4<f32> = permute(((e261 + vec4<f32>(e262.x)) + vec4<f32>(0.0, e267.x, e269.x, 1.0)));
+    p = e274;
+    let e278: f32 = n_;
+    let e279: vec4<f32> = D;
+    let e282: vec4<f32> = D;
+    ns = ((e278 * e279.wyz) - e282.xzx);
+    let e286: vec4<f32> = p;
+    let e288: vec4<f32> = p;
+    let e289: vec3<f32> = ns;
+    let e292: vec3<f32> = ns;
+    let e295: vec4<f32> = p;
+    let e296: vec3<f32> = ns;
+    let e299: vec3<f32> = ns;
+    j = (e286 - (49.0 * floor(((e295 * e296.z) * e299.z))));
+    let e306: vec4<f32> = j;
+    let e307: vec3<f32> = ns;
+    let e310: vec4<f32> = j;
+    let e311: vec3<f32> = ns;
+    x_ = floor((e310 * e311.z));
+    let e316: vec4<f32> = j;
+    let e318: vec4<f32> = x_;
+    let e321: vec4<f32> = j;
+    let e323: vec4<f32> = x_;
+    y_ = floor((e321 - (7.0 * e323)));
+    let e328: vec4<f32> = x_;
+    let e329: vec3<f32> = ns;
+    let e332: vec3<f32> = ns;
+    x6 = ((e328 * e329.x) + e332.yyyy);
+    let e336: vec4<f32> = y_;
+    let e337: vec3<f32> = ns;
+    let e340: vec3<f32> = ns;
+    y = ((e336 * e337.x) + e340.yyyy);
+    let e346: vec4<f32> = x6;
+    let e351: vec4<f32> = y;
+    h = ((vec4<f32>(1.0) - abs(e346)) - abs(e351));
+    let e355: vec4<f32> = x6;
+    let e357: vec4<f32> = y;
+    b0_ = vec4<f32>(e355.xy, e357.xy);
+    let e361: vec4<f32> = x6;
+    let e363: vec4<f32> = y;
+    b1_ = vec4<f32>(e361.zw, e363.zw);
+    let e368: vec4<f32> = b0_;
+    s0_ = ((floor(e368) * 2.0) + vec4<f32>(1.0));
+    let e377: vec4<f32> = b1_;
+    s1_ = ((floor(e377) * 2.0) + vec4<f32>(1.0));
+    let e388: vec4<f32> = h;
+    sh = -(step(e388, vec4<f32>(0.0)));
+    let e394: vec4<f32> = b0_;
+    let e396: vec4<f32> = s0_;
+    let e398: vec4<f32> = sh;
+    a0_ = (e394.xzyw + (e396.xzyw * e398.xxyy));
+    let e403: vec4<f32> = b1_;
+    let e405: vec4<f32> = s1_;
+    let e407: vec4<f32> = sh;
+    a1_ = (e403.xzyw + (e405.xzyw * e407.zzww));
+    let e412: vec4<f32> = a0_;
+    let e414: vec4<f32> = h;
+    p0_ = vec3<f32>(e412.xy, e414.x);
+    let e418: vec4<f32> = a0_;
+    let e420: vec4<f32> = h;
+    p1_ = vec3<f32>(e418.zw, e420.y);
+    let e424: vec4<f32> = a1_;
+    let e426: vec4<f32> = h;
+    p2_ = vec3<f32>(e424.xy, e426.z);
+    let e430: vec4<f32> = a1_;
+    let e432: vec4<f32> = h;
+    p3_ = vec3<f32>(e430.zw, e432.w);
+    let e438: vec3<f32> = p0_;
+    let e439: vec3<f32> = p0_;
+    let e443: vec3<f32> = p1_;
+    let e444: vec3<f32> = p1_;
+    let e448: vec3<f32> = p2_;
+    let e449: vec3<f32> = p2_;
+    let e453: vec3<f32> = p3_;
+    let e454: vec3<f32> = p3_;
+    let e459: vec3<f32> = p0_;
+    let e460: vec3<f32> = p0_;
+    let e464: vec3<f32> = p1_;
+    let e465: vec3<f32> = p1_;
+    let e469: vec3<f32> = p2_;
+    let e470: vec3<f32> = p2_;
+    let e474: vec3<f32> = p3_;
+    let e475: vec3<f32> = p3_;
+    let e478: vec4<f32> = taylorInvSqrt(vec4<f32>(dot(e459, e460), dot(e464, e465), dot(e469, e470), dot(e474, e475)));
+    norm = e478;
+    let e480: vec3<f32> = p0_;
+    let e481: vec4<f32> = norm;
+    p0_ = (e480 * e481.x);
+    let e484: vec3<f32> = p1_;
+    let e485: vec4<f32> = norm;
+    p1_ = (e484 * e485.y);
+    let e488: vec3<f32> = p2_;
+    let e489: vec4<f32> = norm;
+    p2_ = (e488 * e489.z);
+    let e492: vec3<f32> = p3_;
+    let e493: vec4<f32> = norm;
+    p3_ = (e492 * e493.w);
+    let e499: vec3<f32> = x0_;
+    let e500: vec3<f32> = x0_;
+    let e504: vec3<f32> = x1_;
+    let e505: vec3<f32> = x1_;
+    let e509: vec3<f32> = x2_;
+    let e510: vec3<f32> = x2_;
+    let e514: vec3<f32> = x3_;
+    let e515: vec3<f32> = x3_;
+    let e524: vec3<f32> = x0_;
+    let e525: vec3<f32> = x0_;
+    let e529: vec3<f32> = x1_;
+    let e530: vec3<f32> = x1_;
+    let e534: vec3<f32> = x2_;
+    let e535: vec3<f32> = x2_;
+    let e539: vec3<f32> = x3_;
+    let e540: vec3<f32> = x3_;
+    m = max((vec4<f32>(0.6000000238418579) - vec4<f32>(dot(e524, e525), dot(e529, e530), dot(e534, e535), dot(e539, e540))), vec4<f32>(0.0));
+    let e549: vec4<f32> = m;
+    let e550: vec4<f32> = m;
+    m = (e549 * e550);
+    let e553: vec4<f32> = m;
+    let e554: vec4<f32> = m;
+    let e558: vec3<f32> = p0_;
+    let e559: vec3<f32> = x0_;
+    let e563: vec3<f32> = p1_;
+    let e564: vec3<f32> = x1_;
+    let e568: vec3<f32> = p2_;
+    let e569: vec3<f32> = x2_;
+    let e573: vec3<f32> = p3_;
+    let e574: vec3<f32> = x3_;
+    let e577: vec4<f32> = m;
+    let e578: vec4<f32> = m;
+    let e582: vec3<f32> = p0_;
+    let e583: vec3<f32> = x0_;
+    let e587: vec3<f32> = p1_;
+    let e588: vec3<f32> = x1_;
+    let e592: vec3<f32> = p2_;
+    let e593: vec3<f32> = x2_;
+    let e597: vec3<f32> = p3_;
+    let e598: vec3<f32> = x3_;
+    return (42.0 * dot((e577 * e578), vec4<f32>(dot(e582, e583), dot(e587, e588), dot(e592, e593), dot(e597, e598))));
+}
+// #endreigon
