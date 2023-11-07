@@ -46,7 +46,7 @@ impl render_graph::Node for AnimationNode {
         let compute_data = world.resource::<ComputeData>();
         let pipeline_cache = world.resource::<PipelineCache>();
         let animation_data = world.resource::<AnimationData>();
-        let render_graph_settings = world.get_resource::<RenderGraphSettings>().unwrap();
+        let render_graph_settings = world.resource::<RenderGraphSettings>();
 
         if !render_graph_settings.animation {
             return Ok(());

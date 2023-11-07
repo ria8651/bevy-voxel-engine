@@ -47,7 +47,7 @@ impl render_graph::Node for ClearNode {
         let voxel_uniforms = world.resource::<VoxelUniforms>();
         let pipeline_cache = world.resource::<PipelineCache>();
         let dispatch_size = voxel_uniforms.texture_size / 4;
-        let render_graph_settings = world.get_resource::<RenderGraphSettings>().unwrap();
+        let render_graph_settings = world.resource::<RenderGraphSettings>();
 
         if !render_graph_settings.clear {
             return Ok(());

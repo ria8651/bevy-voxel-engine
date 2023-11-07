@@ -32,10 +32,10 @@ struct DirectLightningInfo {
 };
 
 fn calculate_direct(sun_dir: vec3<f32>, sky_color: vec3<f32>, material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed: vec3<u32>, shadow_samples: u32) -> DirectLightningInfo {
-    // diffuse
+    // Diffuse
     let diffuse = max(dot(normal, -normalize(sun_dir)), 0.0);
 
-    // shadow
+    // Shadow
     var shadow = 1.0;
 
     if trace_uniforms.shadows != 0u {
@@ -44,7 +44,7 @@ fn calculate_direct(sun_dir: vec3<f32>, sky_color: vec3<f32>, material: vec4<f32
         shadow = f32(!shadow_hit.hit);
     }
 
-    // emissive
+    // Emissive
     var emissive = vec3(0.0);
     if material.a != 0.0 {
         emissive = vec3(material.rgb);
@@ -111,7 +111,7 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     let seed = vec3<u32>(in.position.xyz) * 100u + u32(trace_uniforms.time * 120.0) * 15236u;
     let resolution = vec2<f32>(textureDimensions(normal));
     var clip_space = vec2(1.0, -1.0) * (in.uv * 2.0 - 1.0);
-    var output_colour = vec3(0.0);
+    var output_color = vec3(0.0);
 
     let pos1 = trace_uniforms.camera_inverse * vec4(clip_space.x, clip_space.y, 1.0, 1.0);
     let dir1 = trace_uniforms.camera_inverse * vec4(clip_space.x, clip_space.y, 0.01, 1.0);
@@ -142,20 +142,19 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
 
         let sun_progress = calculate_sun_progress(skybox_info.sun_dir);
 
-        output_colour = (indirect_lighting_color + direct_lighting.color) * hit.material.rgb * sun_progress;
+        output_color = (indirect_lighting_color + direct_lighting.color) * hit.material.rgb * sun_progress;
     } else {
-        // output_colour = vec3<f32>(0.2);
-        output_colour = skybox_info.sky_color;
+        output_color = skybox_info.sky_color;
     }
 
     if trace_uniforms.show_ray_steps != 0u {
-        output_colour = vec3<f32>(f32(steps) / 100.0);
+        output_color = vec3<f32>(f32(steps) / 100.0);
     }
 
-    output_colour = max(output_colour, vec3(0.0));
+    output_color = max(output_color, vec3(0.0));
 
     textureStore(normal, vec2<i32>(in.position.xy), vec4(hit.normal, 0.0));
     textureStore(position, vec2<i32>(in.position.xy), vec4(hit.reprojection_pos, 0.0));
 
-    return vec4<f32>(output_colour, 1.0);
+    return vec4<f32>(output_color, 1.0);
 }

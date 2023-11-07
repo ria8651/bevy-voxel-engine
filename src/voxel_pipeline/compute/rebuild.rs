@@ -49,7 +49,7 @@ impl render_graph::Node for RebuildNode {
         let pipeline_cache = world.resource::<PipelineCache>();
         let render_queue = world.resource::<RenderQueue>();
         let dispatch_size = voxel_uniforms.texture_size / 4;
-        let render_graph_settings = world.get_resource::<RenderGraphSettings>().unwrap();
+        let render_graph_settings = world.resource::<RenderGraphSettings>();
 
         if !render_graph_settings.rebuild {
             return Ok(());
@@ -66,7 +66,7 @@ impl render_graph::Node for RebuildNode {
             None => return Ok(()),
         };
 
-        // clear the old grid hierarchy so we can build a new one
+        // Clear the old grid hierarchy so we can build a new one
         render_queue.write_buffer(
             &voxel_data.grid_hierarchy,
             0,

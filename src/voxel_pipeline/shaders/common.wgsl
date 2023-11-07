@@ -134,8 +134,6 @@ struct SkyboxInfo {
 };
 
 fn skybox(dir: vec3<f32>, time_of_day: f32) -> SkyboxInfo {
-    //let time_of_day: f32 = 12.0;
-
     var col = vec3<f32>(0.0, 0.0, 0.0);
 
     var sunset_dark: array<vec3<f32>, 4u> = array<vec3<f32>, 4u>(
@@ -157,11 +155,11 @@ fn skybox(dir: vec3<f32>, time_of_day: f32) -> SkyboxInfo {
         vec3<f32>(-0.000000000000000483417267228435, 0.13545893132686615, -0.0000000000000014694301099188)
     );
 
-    let t = ((time_of_day + 4.0) * ((360.0 / 24.0) * 0.017453292519943295));
+    let t = ((time_of_day + 4.0) * ((360.0 / 24.0) * PI / 180.0));
     let sun_pos = normalize(vec3<f32>(0.0, -(sin(t)), cos(t)));
 
     {
-        let brightness: f32 = ((1.5 * smoothstep((80.0 * 0.017453292519943295), (0.0 * 0.017453292519943295), acos(dot(dir, sun_pos)))) - 0.5);
+        let brightness: f32 = ((1.5 * smoothstep((80.0 * PI / 180.0), 0.0, acos(dot(dir, sun_pos)))) - 0.5);
         let sunset = array<vec3<f32>, 4u>(
             mix(sunset_dark[0], sunset_bright[0], vec3<f32>(brightness)),
             mix(sunset_dark[1], sunset_bright[1], vec3<f32>(brightness)),
@@ -169,18 +167,28 @@ fn skybox(dir: vec3<f32>, time_of_day: f32) -> SkyboxInfo {
             mix(sunset_dark[3], sunset_bright[3], vec3<f32>(brightness))
         );
 
-        let sun: f32 = smoothstep((100.0 * 0.017453292519943295), (60.0 * 0.017453292519943295), acos(dot(sun_pos, vec3<f32>(0.0, 1.0, 0.0))));
+        let sun: f32 = smoothstep(
+            (100.0 * PI / 180.0), 
+            (60.0 * PI / 180.0), 
+            acos(dot(sun_pos, vec3<f32>(0.0, 1.0, 0.0)))
+        );
+        
         let a: vec3<f32> = mix(sunset[0], day[0], vec3<f32>(sun));
         let b: vec3<f32> = mix(sunset[1], day[1], vec3<f32>(sun));
         let c: vec3<f32> = mix(sunset[2], day[2], vec3<f32>(sun));
         let d: vec3<f32> = mix(sunset[3], day[3], vec3<f32>(sun));
 
-        let sky = smoothstep((90.0 * 0.017453292519943295), (60.0 * 0.017453292519943295), acos(dot(dir, vec3<f32>(0.0, 1.0, 0.0))));
+        let sky = smoothstep((90.0 * PI / 180.0), (60.0 * PI / 180.0), acos(dot(dir, vec3<f32>(0.0, 1.0, 0.0))));
 
-        col = (col + (((b - d) * sin((vec3<f32>(1.0) / (((vec3<f32>(sky) / c) + vec3<f32>((2.0 / (180.0 * 0.017453292519943295)))) - a)))) + d));
+        col = (col + (((b - d) * sin((vec3<f32>(1.0) / (((vec3<f32>(sky) / c) + vec3<f32>((2.0 / PI))) - a)))) + d));
     }
 
-    let sun_col = ((0.009999999776482582 * vec3<f32>(1.0, 0.949999988079071, 0.949999988079071)) / vec3<f32>(acos(dot(sun_pos, dir))));
+    let sun_col = ((0.009999999776482582 * vec3<f32>(
+        1.0, 
+        0.949999988079071, 
+        0.949999988079071
+    )) / vec3<f32>(acos(dot(sun_pos, dir))));
+    
     col = max((col + (0.5 * sun_col)), sun_col);
 
     let sun_dir = normalize(-sun_pos);

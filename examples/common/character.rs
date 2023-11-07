@@ -84,7 +84,7 @@ fn update_character(
 
         transform.look_at(character_pos + character.look_at, character.up);
 
-         // Movement
+        // Movement
 
         let mut input = Vec3::new(
             (keys.pressed(KeyCode::D) as i32 - keys.pressed(KeyCode::A) as i32) as f32,

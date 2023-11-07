@@ -55,8 +55,10 @@ impl Plugin for TracePlugin {
     }
 
     fn finish(&self, app: &mut App) {
+        let render_app = app.sub_app_mut(RenderApp);
+
         // Setup custom render pipeline
-        app.sub_app_mut(RenderApp)
+        render_app
             .init_resource::<TracePipelineData>()
             .insert_resource(LastCameras(HashMap::new()))
             .add_systems(Render, prepare_uniforms.in_set(RenderSet::Prepare));
