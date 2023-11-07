@@ -17,13 +17,7 @@ use std::sync::Arc;
 pub struct VoxelWorldPlugin;
 
 impl Plugin for VoxelWorldPlugin {
-    fn build(&self, app: &mut App) {
-        app.insert_resource(LoadVoxelWorld::None)
-            .insert_resource(NewGH::None)
-            .add_plugins(ExtractResourcePlugin::<NewGH>::default())
-            .add_plugins(ExtractResourcePlugin::<VoxelUniforms>::default())
-            .add_systems(Update, load_voxel_world);
-    }
+    fn build(&self, _app: &mut App) {}
 
     fn finish(&self, app: &mut App) {
         let render_device = app
@@ -48,7 +42,7 @@ impl Plugin for VoxelWorldPlugin {
             offsets[i] = UVec4::new(gh_offsets[i], 0, 0, 0);
         }
     
-        // uniforms
+        // Uniforms
         let voxel_uniforms = VoxelUniforms {
             pallete: gh.pallete.into(),
             portals: [ExtractedPortal::default(); 32],
@@ -59,7 +53,7 @@ impl Plugin for VoxelWorldPlugin {
         let mut uniform_buffer = UniformBuffer::from(voxel_uniforms.clone());
         uniform_buffer.write_buffer(&render_device, &render_queue);
 
-        // texture
+        // Texture
         let voxel_world = render_device.create_texture_with_data(
             &render_queue,
             &TextureDescriptor {
@@ -80,14 +74,14 @@ impl Plugin for VoxelWorldPlugin {
         );
         let voxel_world = voxel_world.create_view(&TextureViewDescriptor::default());
 
-        // storage
+        // Storage
         let grid_hierarchy = render_device.create_buffer_with_data(&BufferInitDescriptor {
             contents: &vec![0; buffer_size],
             label: None,
             usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
         });
 
-        // mip texture
+        // Mip texture
         let mip_count = gh.texture_size.trailing_zeros();
         let mip_texture = render_device.create_texture(&TextureDescriptor {
             label: None,
@@ -105,7 +99,7 @@ impl Plugin for VoxelWorldPlugin {
         });
         let mip_texture_view = mip_texture.create_view(&TextureViewDescriptor::default());
 
-        // sampler
+        // Sampler
         let texture_sampler = render_device.create_sampler(&SamplerDescriptor {
             mag_filter: FilterMode::Linear,
             min_filter: FilterMode::Linear,
@@ -193,7 +187,12 @@ impl Plugin for VoxelWorldPlugin {
             ],
         );
 
-        app.insert_resource(voxel_uniforms);
+        app.insert_resource(LoadVoxelWorld::None)
+            .insert_resource(NewGH::None)
+            .insert_resource(voxel_uniforms)
+            .add_plugins(ExtractResourcePlugin::<NewGH>::default())
+            .add_plugins(ExtractResourcePlugin::<VoxelUniforms>::default())
+            .add_systems(Update, load_voxel_world);
 
         let render_app = app.sub_app_mut(RenderApp);
 

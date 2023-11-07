@@ -65,16 +65,12 @@ impl Plugin for ComputeResourcesPlugin {
         let render_device = app
             .sub_app(RenderApp)
             .world
-            .get_resource::<RenderDevice>()
-            .unwrap()
-            .clone();
+            .resource::<RenderDevice>();
 
         let render_queue = app
             .sub_app(RenderApp)
             .world
-            .get_resource::<RenderQueue>()
-            .unwrap()
-            .clone();
+            .resource::<RenderQueue>();
 
         let mut uniform_buffer = UniformBuffer::from(ComputeUniforms {
             time: 0.0,

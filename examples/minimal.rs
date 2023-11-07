@@ -1,5 +1,5 @@
 use bevy::{
-    core_pipeline::{bloom::BloomSettings, fxaa::Fxaa},
+    core_pipeline::fxaa::Fxaa,
     prelude::*,
 };
 use bevy_voxel_engine::{
@@ -34,7 +34,7 @@ fn setup(
     mut load_voxel_world: ResMut<LoadVoxelWorld>,
     mut _meshes: ResMut<Assets<Mesh>>,
 ) {
-    // voxel world
+    // Voxel world
     *load_voxel_world = LoadVoxelWorld::File("assets/monu9.vox".to_string());
 
     // character
@@ -67,8 +67,6 @@ fn setup(
         BoxCollider {
             half_size: IVec3::new(2, 4, 2),
         },
-        // supports bloom and fxaa
-        BloomSettings::default(),
         Fxaa::default(),
     ));
 

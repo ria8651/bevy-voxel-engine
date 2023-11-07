@@ -1,5 +1,4 @@
-use super::character::CharacterEntity;
-use bevy_voxel_engine::{Bullet, Particle, VoxelizationPreviewCamera};
+use super::{character::CharacterEntity, Bullet, Particle, VoxelizationPreviewCamera};
 use bevy::{
     core_pipeline::{bloom::BloomSettings, fxaa::Fxaa, tonemapping::Tonemapping},
     prelude::*,
