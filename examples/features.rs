@@ -176,7 +176,6 @@ fn setup(
     ));
     */
 
-    /*
     // rotated portal
     let pos = vec![Vec3::new(5.0, 0.0, -5.0), Vec3::new(-5.0, 0.0, 5.0)];
     
@@ -224,7 +223,6 @@ fn setup(
         },
         Suzanne,
     ));
-    */
 }
 
 #[derive(Component)]

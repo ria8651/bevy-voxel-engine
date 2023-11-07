@@ -122,8 +122,8 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     let hit = shoot_ray(ray, 0.0, 0u);
     var steps = hit.steps;
 
-    let timespan = 0.5;
-    let w = clamp((trace_uniforms.time * timespan) % 24.0, 0.0, 24.0);
+    let timespan = 0.1;
+    let w = clamp((trace_uniforms.time * timespan + 12.0) % 24.0, 0.0, 24.0);
     let skybox_info = skybox(ray.dir, w);
 
     var samples = 0.0;
