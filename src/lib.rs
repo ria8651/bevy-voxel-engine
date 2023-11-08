@@ -1,5 +1,4 @@
 use bevy::{
-    core_pipeline::tonemapping::Tonemapping,
     prelude::*,
     render::{camera::CameraRenderGraph, primitives::Frustum, view::VisibleEntities},
 };
@@ -118,7 +117,6 @@ pub struct VoxelCameraBundle {
     pub transform: Transform,
     pub global_transform: GlobalTransform,
     pub camera_3d: Camera3d,
-    pub tonemapping: Tonemapping,
     pub trace_settings: TraceSettings,
 }
 
@@ -126,7 +124,6 @@ impl Default for VoxelCameraBundle {
     fn default() -> Self {
         Self {
             camera_render_graph: CameraRenderGraph::new("voxel"),
-            tonemapping: Tonemapping::AcesFitted,
             camera: Camera {
                 hdr: true,
                 ..default()

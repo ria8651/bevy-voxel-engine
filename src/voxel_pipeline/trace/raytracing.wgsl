@@ -136,10 +136,9 @@ fn intersect_scene(r: Ray, steps: u32) -> HitInfo {
 /// ray direction if you want it to be in world cordinates.
 /// only hits voxels that have any of the flags set or hits everything if flags is 0
 fn shoot_ray(r: Ray, physics_distance: f32, flags: u32) -> HitInfo {
-    let wtr = VOXELS_PER_METER * 2.0 / f32(voxel_uniforms.texture_size); // world to render ratio
-    let rtw = f32(voxel_uniforms.texture_size) / (VOXELS_PER_METER * 2.0); // render to world ratio
+    let wtr = VOXELS_PER_METER * 2.0 / f32(voxel_uniforms.texture_size); // world to render
+    let rtw = f32(voxel_uniforms.texture_size) / (VOXELS_PER_METER * 2.0); // render to world
 
-    let physics_distance2 = physics_distance * wtr;
     var pos = r.pos * wtr;
     let dir_mask = vec3<f32>(r.dir == vec3(0.0));
     var dir = r.dir + dir_mask * 0.000001;
@@ -149,8 +148,8 @@ fn shoot_ray(r: Ray, physics_distance: f32, flags: u32) -> HitInfo {
         // Get position on surface of the octree
         let dist = ray_box_dist(Ray(pos, dir), vec3(-1.0), vec3(1.0)).x;
         if (dist == 0.0) {
-            if (physics_distance2 > 0.0) {
-                return HitInfo(false, 0u, vec4(0.0), (pos + dir * physics_distance2) * rtw, vec3(0.0), vec3(0.0), IDENTITY, 1u);
+            if (physics_distance * wtr > 0.0) {
+                return HitInfo(false, 0u, vec4(0.0), (pos + dir * physics_distance * wtr * wtr) * rtw, vec3(0.0), vec3(0.0), IDENTITY, 1u);
             }
             return intersect_scene(Ray(pos, dir), 1u);
         }
@@ -202,13 +201,13 @@ fn shoot_ray(r: Ray, physics_distance: f32, flags: u32) -> HitInfo {
             }
         }
 
-        if (t_current + distance > physics_distance && physics_distance > 0.0) {
-            return HitInfo(false, 0u, vec4(0.0), (pos + dir * (physics_distance - distance)) * rtw, vec3(0.0), vec3(0.0), portal_mat, steps);
+        if (t_current + distance > physics_distance * wtr && physics_distance > 0.0) {
+            return HitInfo(false, 0u, vec4(0.0), (pos + dir * (physics_distance * wtr - distance)) * rtw, vec3(0.0), vec3(0.0), portal_mat, steps);
         }
 
         if (!in_bounds(tcpotr)) {
             if (physics_distance > 0.0) {
-                return HitInfo(false, 0u, vec4(0.0), (pos + dir * (physics_distance - distance)) * rtw, vec3(0.0), vec3(0.0), portal_mat, steps);
+                return HitInfo(false, 0u, vec4(0.0), (pos + dir * (physics_distance * wtr - distance)) * rtw, vec3(0.0), vec3(0.0), portal_mat, steps);
             }
             return intersect_scene(Ray(pos, dir), steps);
         }

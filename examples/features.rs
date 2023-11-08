@@ -1,8 +1,5 @@
 use bevy::{
-    core_pipeline::{
-        bloom::{BloomPrefilterSettings, BloomSettings},
-        fxaa::Fxaa,
-    },
+    core_pipeline::{bloom::BloomSettings, fxaa::Fxaa, tonemapping::Tonemapping},
     prelude::*,
 };
 use bevy_obj::*;
@@ -105,7 +102,7 @@ fn setup(
     }
 
     // character
-    let character_transform = Transform::from_xyz(0.0, 40.0, -1.0).looking_at(Vec3::ZERO, Vec3::Y);
+    let character_transform = Transform::from_xyz(0.0, 20.0, -1.0).looking_at(Vec3::ZERO, Vec3::Y);
 
     let projection = Projection::Perspective(PerspectiveProjection {
         fov: PI / 2.0,
@@ -137,14 +134,8 @@ fn setup(
             BoxCollider {
                 half_size: IVec3::new(4, 8, 4),
             },
-            BloomSettings {
-                intensity: 0.25,
-                prefilter_settings: BloomPrefilterSettings {
-                    threshold: 0.6,
-                    ..default()
-                },
-                ..default()
-            },
+            Tonemapping::SomewhatBoringDisplayTransform,
+            BloomSettings::default(),
             Fxaa::default(),
         ))
         .with_children(|parent| {
@@ -402,8 +393,6 @@ fn spawn_stuff(
             }
 
             if bullet.bullet_type == 0 {
-                println!("hit");
-
                 let mut rng = rand::thread_rng();
                 for _ in 0..100 {
                     commands.spawn((

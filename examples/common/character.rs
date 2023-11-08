@@ -108,11 +108,15 @@ fn update_character(
             }
 
             if input.y > 0.0 && character.grounded {
-                voxel_physics.velocity.y += 10.0;
+                voxel_physics.velocity.y = 10.0;
                 character.grounded = false;
             }
 
-            voxel_physics.velocity += Vec3::new(0.0, -9.81 * time.delta_seconds(), 0.0);
+            let gravity = match voxel_physics.velocity.y > 0.0 {
+                true => -9.81,
+                false => -15.0,
+            };
+            voxel_physics.velocity += gravity * time.delta_seconds() * Vec3::Y;
 
             let plane_forward = transform.local_x().cross(Vec3::Y).normalize();
 
