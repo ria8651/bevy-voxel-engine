@@ -47,14 +47,7 @@ fn main() {
     .add_systems(Startup, setup)
     .add_systems(
         Update,
-        (
-            update_suzanne,
-            shoot,
-            update_fire,
-            spawn_stuff,
-            update_velocitys,
-            update_guns,
-        ),
+        (update_suzanne, shoot, update_fire, spawn_stuff, update_guns),
     );
 
     // let settings = bevy_mod_debugdump::render_graph::Settings::default();
@@ -83,7 +76,9 @@ fn setup(
                         mesh_handle: asset_server.load("models/portal.obj"),
                         transform: Transform::from_xyz(0.0, 100.0, 0.0)
                             .looking_at(Vec3::ZERO, Vec3::Y)
-                            .with_scale(Vec3::new(4.0, 4.0, i as f32 * 2.0 - 1.0)),
+                            .with_scale(
+                                Vec3::new(i as f32 * 2.0 - 1.0, 1.0, i as f32 * 2.0 - 1.0),
+                            ),
                         voxelization_material: VoxelizationMaterial {
                             flags: Flags::ANIMATION_FLAG | Flags::PORTAL_FLAG,
                             ..default()
@@ -139,7 +134,7 @@ fn setup(
                 CollisionEffect::None,
             ),
             BoxCollider {
-                half_size: IVec3::new(4, 8, 4),
+                half_size: IVec3::new(2, 4, 2),
             },
             Tonemapping::SomewhatBoringDisplayTransform,
             BloomSettings::default(),
@@ -343,24 +338,6 @@ fn update_guns(
             .rotation
             .slerp(character_transform.rotation, 0.1);
     }
-}
-
-fn update_velocitys(// mut commands: Commands,
-    // mut velocity_query: Query<(&Transform, &mut VoxelPhysics, Entity), With<Bullet>>,
-    // time: Res<Time>,
-) {
-    // let (to_destroy, ) = channel::unbounded();
-    // velocity_query.for_each_mut(|(_transform, mut velocity, _entity)| {
-    //     velocity.velocity += Vec3::new(0.0, -9.81 * time.delta_seconds(), 0.0);
-    //     let e = animation::world_to_render(transform.translation.abs(), uniforms.texture_size);
-    //     if e.x > 1.0 || e.y > 1.0 || e.z > 1.0 {
-    //         to_destroy.push(entity).unwrap();
-    //     }
-    // });
-
-    // while let Ok(entity) = to_destroy.pop() {
-    //     commands.entity(entity).despawn();
-    // }
 }
 
 fn spawn_stuff(

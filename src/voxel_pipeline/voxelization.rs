@@ -9,14 +9,13 @@ use bevy::{
         SystemParamItem,
     },
     pbr::{
-        DrawMesh, MeshPipeline, MeshPipelineKey, MeshPipelineViewLayoutKey, RenderMeshInstances,
-        SetMeshBindGroup, SetMeshViewBindGroup,
+        DrawMesh, MeshPipeline, MeshPipelineKey, RenderMeshInstances, SetMeshBindGroup,
+        SetMeshViewBindGroup,
     },
     prelude::*,
     render::{
         camera::{RenderTarget, ScalingMode},
         extract_component::{ExtractComponent, ExtractComponentPlugin},
-        extract_resource::{ExtractResource, ExtractResourcePlugin},
         mesh::MeshVertexBufferLayout,
         render_asset::RenderAssets,
         render_phase::{
@@ -25,6 +24,7 @@ use bevy::{
         },
         render_resource::*,
         renderer::{RenderDevice, RenderQueue},
+        texture::FallbackImage,
         view::ExtractedView,
         Render, RenderApp, RenderSet,
     },
@@ -44,8 +44,7 @@ impl Plugin for VoxelizationPlugin {
             Shader::from_wgsl
         );
 
-        app.add_plugins(ExtractResourcePlugin::<FallbackImage>::default())
-            .add_plugins(ExtractComponentPlugin::<VoxelizationMaterial>::default())
+        app.add_plugins(ExtractComponentPlugin::<VoxelizationMaterial>::default())
             .add_systems(Startup, setup)
             .add_systems(Update, update_cameras);
     }
@@ -56,8 +55,13 @@ impl Plugin for VoxelizationPlugin {
             .init_resource::<VoxelizationPipeline>()
             .init_resource::<SpecializedMeshPipelines<VoxelizationPipeline>>()
             .insert_resource(VoxelizationUniformsResource(HashMap::new()))
-            .add_systems(Render, queue_bind_group.in_set(RenderSet::Queue))
-            .add_systems(Render, queue_custom.in_set(RenderSet::Queue));
+            .add_systems(
+                Render,
+                (
+                    queue_custom.in_set(RenderSet::QueueMeshes),
+                    queue_bind_group.in_set(RenderSet::Queue),
+                ),
+            );
     }
 }
 
@@ -68,21 +72,6 @@ struct VoxelizationImage(Handle<Image>);
 struct VoxelizationCamera;
 
 fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
-    // create fallback image
-    let mut image = Image::new_fill(
-        Extent3d {
-            width: 1,
-            height: 1,
-            depth_or_array_layers: 1,
-        },
-        TextureDimension::D2,
-        &[10, 0, 0, 0],
-        TextureFormat::Rgba8Unorm,
-    );
-    image.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING;
-    let image = images.add(image);
-    commands.insert_resource(FallbackImage(image));
-
     // image that is the size of the render world to create the correct ammount of fragments
     let size = Extent3d {
         width: 1,
@@ -140,7 +129,7 @@ fn update_cameras(
     if voxelization_image.size().x as u32 != voxel_uniforms.texture_size {
         // Update cameras
         debug!(
-            "Updating {} voxelization cameras to as resolution of {}",
+            "Updating {} voxelization cameras to a resolution of {}",
             voxelization_cameras.iter().len(),
             voxel_uniforms.texture_size
         );
@@ -235,9 +224,6 @@ pub struct VoxelizationPipeline {
     voxelization_bind_group_layout: BindGroupLayout,
 }
 
-#[derive(Resource, Clone, ExtractResource, Deref, DerefMut)]
-struct FallbackImage(Handle<Image>);
-
 impl FromWorld for VoxelizationPipeline {
     fn from_world(world: &mut World) -> Self {
         let render_device = world.resource::<RenderDevice>();
@@ -296,17 +282,25 @@ impl SpecializedMeshPipeline for VoxelizationPipeline {
         layout: &MeshVertexBufferLayout,
     ) -> Result<RenderPipelineDescriptor, SpecializedMeshPipelineError> {
         let mut descriptor = self.mesh_pipeline.specialize(key, layout)?;
+
         descriptor.vertex.shader = VOXELIZATION_SHADER_HANDLE;
         descriptor.fragment.as_mut().unwrap().shader = VOXELIZATION_SHADER_HANDLE;
+
+        // 
+        descriptor
+            .vertex
+            .shader_defs
+            .push("MESH_BINDGROUP_1".into());
+
         descriptor.layout = vec![
-            self.mesh_pipeline
-                .get_view_layout(MeshPipelineViewLayoutKey::MULTISAMPLED)
-                .clone(),
-            //self.mesh_pipeline.mesh_layouts.model_only.clone(), // TODO: Is it necessary?
+            self.mesh_pipeline.get_view_layout(key.into()).clone(),
+            self.mesh_pipeline.mesh_layouts.model_only.clone(),
             self.world_bind_group_layout.clone(),
             self.voxelization_bind_group_layout.clone(),
         ];
+
         descriptor.primitive.cull_mode = None;
+
         Ok(descriptor)
     }
 }
@@ -317,8 +311,8 @@ fn queue_custom(
     mut pipelines: ResMut<SpecializedMeshPipelines<VoxelizationPipeline>>,
     mut pipeline_cache: ResMut<PipelineCache>,
     render_meshes: Res<RenderAssets<Mesh>>,
+    material_meshes: Query<Entity, With<VoxelizationMaterial>>,
     render_mesh_instances: Res<RenderMeshInstances>,
-    material_meshes: Query<(Entity, &Handle<Mesh>), With<VoxelizationMaterial>>,
     mut views: Query<(&ExtractedView, &mut RenderPhase<Transparent3d>)>,
     render_graph_settings: Res<RenderGraphSettings>,
 ) {
@@ -335,26 +329,27 @@ fn queue_custom(
 
     for (view, mut transparent_phase) in &mut views {
         let rangefinder = view.rangefinder3d();
-        for (entity, mesh_handle) in &material_meshes {
+        for entity in &material_meshes {
             let Some(mesh_instance) = render_mesh_instances.get(&entity) else {
                 continue;
             };
+            let Some(mesh) = render_meshes.get(mesh_instance.mesh_asset_id) else {
+                continue;
+            };
 
-            if let Some(mesh) = render_meshes.get(mesh_handle) {
-                let pipeline = pipelines
-                    .specialize(&mut pipeline_cache, &custom_pipeline, key, &mesh.layout)
-                    .unwrap();
+            let pipeline = pipelines
+                .specialize(&mut pipeline_cache, &custom_pipeline, key, &mesh.layout)
+                .unwrap();
 
-                transparent_phase.add(Transparent3d {
-                    entity,
-                    pipeline,
-                    draw_function: draw_custom,
-                    distance: rangefinder
-                        .distance_translation(&mesh_instance.transforms.transform.translation),
-                    batch_range: 0..1,
-                    dynamic_offset: None,
-                });
-            }
+            transparent_phase.add(Transparent3d {
+                entity,
+                pipeline,
+                draw_function: draw_custom,
+                distance: rangefinder
+                    .distance_translation(&mesh_instance.transforms.transform.translation),
+                batch_range: 0..1,
+                dynamic_offset: None,
+            });
         }
     }
 }
@@ -372,7 +367,7 @@ fn queue_bind_group(
     voxelization_materials: Query<(Entity, &VoxelizationMaterial)>,
     gpu_images: Res<RenderAssets<Image>>,
     voxelization_pipeline: Res<VoxelizationPipeline>,
-    fallback_image: Res<FallbackImage>,
+    fallback_images: Res<FallbackImage>,
     mut voxelization_uniforms: ResMut<VoxelizationUniformsResource>,
 ) {
     for (entity, voxelization_material) in voxelization_materials.iter() {
@@ -389,11 +384,9 @@ fn queue_bind_group(
 
         let image_view =
             if let VoxelizationMaterialType::Texture(texture) = &voxelization_material.material {
-                gpu_images
-                    .get(texture)
-                    .unwrap_or(gpu_images.get(fallback_image.id()).unwrap())
+                gpu_images.get(texture).unwrap_or(&fallback_images.d2)
             } else {
-                gpu_images.get(fallback_image.id()).unwrap()
+                &fallback_images.d2
             };
 
         let voxelization_bind_group = render_device.create_bind_group(

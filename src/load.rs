@@ -57,8 +57,6 @@ impl GH {
         let max_dim = size.x.max(size.y).max(size.z);
         let dim = Self::next_power_of_2(max_dim as u32) as usize;
 
-        println!("dim: {:?}", dim);
-
         if dim > 256 {
             return Err(format!(
                 "Model is too large to fit in the texture. Max dimension is {}",

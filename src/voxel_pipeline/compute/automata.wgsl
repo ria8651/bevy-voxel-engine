@@ -185,6 +185,10 @@ fn automata(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
         if rand.y < (f32(material.x) + 7.0) / 20.0 && (material.y & AUTOMATA_FLAG) > 0u {
             textureStore(voxel_world, pos.zyx, vec4(0u));
         }
+
+        if rand.y < 0.01 {
+            textureStore(voxel_world, pos.zyx, vec4(0u));
+        }
     }
 
     // fire spreading

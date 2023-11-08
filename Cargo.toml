@@ -27,3 +27,6 @@ rand = "0.8"
 tinyfiledialogs = "3.9"
 bevy_mod_debugdump = "0.9"
 bevy_obj = "0.12.0"
+
+[profile.release]
+debug = true

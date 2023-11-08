@@ -106,7 +106,7 @@ impl Plugin for VoxelWorldPlugin {
                 entries: &[
                     BindGroupLayoutEntry {
                         binding: 0,
-                        visibility: ShaderStages::FRAGMENT | ShaderStages::COMPUTE,
+                        visibility: ShaderStages::VERTEX_FRAGMENT | ShaderStages::COMPUTE,
                         ty: BindingType::Buffer {
                             ty: BufferBindingType::Uniform,
                             has_dynamic_offset: false,
@@ -116,7 +116,7 @@ impl Plugin for VoxelWorldPlugin {
                     },
                     BindGroupLayoutEntry {
                         binding: 1,
-                        visibility: ShaderStages::FRAGMENT | ShaderStages::COMPUTE,
+                        visibility: ShaderStages::VERTEX_FRAGMENT | ShaderStages::COMPUTE,
                         ty: BindingType::StorageTexture {
                             access: StorageTextureAccess::ReadWrite,
                             format: TextureFormat::R16Uint,
@@ -126,7 +126,7 @@ impl Plugin for VoxelWorldPlugin {
                     },
                     BindGroupLayoutEntry {
                         binding: 2,
-                        visibility: ShaderStages::FRAGMENT | ShaderStages::COMPUTE,
+                        visibility: ShaderStages::VERTEX_FRAGMENT | ShaderStages::COMPUTE,
                         ty: BindingType::Buffer {
                             ty: BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
@@ -136,7 +136,7 @@ impl Plugin for VoxelWorldPlugin {
                     },
                     BindGroupLayoutEntry {
                         binding: 3,
-                        visibility: ShaderStages::FRAGMENT | ShaderStages::COMPUTE,
+                        visibility: ShaderStages::VERTEX_FRAGMENT | ShaderStages::COMPUTE,
                         ty: BindingType::Texture {
                             sample_type: TextureSampleType::Float { filterable: true },
                             view_dimension: TextureViewDimension::D3,
