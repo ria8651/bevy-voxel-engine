@@ -36,24 +36,30 @@ struct Gun;
 
 fn main() {
     let mut app = App::new();
-    app.add_plugins(DefaultPlugins)
-        .add_plugins(ObjPlugin)
-        .add_plugins(BevyVoxelEnginePlugin)
-        .add_plugins(character::Character)
-        .add_plugins(ui::UiPlugin)
-        .add_plugins(fps_counter::FpsCounter)
-        .add_systems(Startup, setup)
-        .add_systems(
-            Update,
-            (
-                update_suzanne,
-                shoot,
-                update_fire,
-                spawn_stuff,
-                update_velocitys,
-                update_guns,
-            ),
-        );
+    app.add_plugins((
+        DefaultPlugins,
+        ObjPlugin,
+        BevyVoxelEnginePlugin,
+        character::Character,
+        ui::UiPlugin,
+        fps_counter::FpsCounter,
+    ))
+    .add_systems(Startup, setup)
+    .add_systems(
+        Update,
+        (
+            update_suzanne,
+            shoot,
+            update_fire,
+            spawn_stuff,
+            update_velocitys,
+            update_guns,
+        ),
+    );
+
+    // let settings = bevy_mod_debugdump::render_graph::Settings::default();
+    // let dot = bevy_mod_debugdump::render_graph_dot(&app, &settings);
+    // std::fs::write("render_graph.dot", dot).unwrap();
 
     app.run();
 }
@@ -116,6 +122,7 @@ fn setup(
                 projection: projection.clone(),
                 ..default()
             },
+            // Camera3dBundle::default(),
             CharacterEntity {
                 in_spectator: false,
                 grounded: false,
@@ -232,13 +239,13 @@ fn update_suzanne(time: Res<Time>, mut cube: Query<&mut Transform, With<Suzanne>
 
 fn shoot(
     mut commands: Commands,
-    // input: Res<Input<MouseButton>>,
+    mouse: Res<Input<MouseButton>>,
     keyboard: Res<Input<KeyCode>>,
     mut character: Query<(&Transform, &mut CharacterEntity)>,
 ) {
     let (transform, mut character_entity) = character.single_mut();
 
-    if keyboard.just_pressed(KeyCode::Key1) {
+    if mouse.just_pressed(MouseButton::Left) {
         commands.spawn((
             Transform::from_translation(transform.translation),
             Particle {
@@ -253,7 +260,7 @@ fn shoot(
             Bullet { bullet_type: 1 },
         ));
     }
-    if keyboard.just_pressed(KeyCode::Key2) {
+    if mouse.just_pressed(MouseButton::Right) {
         commands.spawn((
             Transform::from_translation(transform.translation),
             Particle {

@@ -149,7 +149,7 @@ fn shoot_ray(r: Ray, physics_distance: f32, flags: u32) -> HitInfo {
         let dist = ray_box_dist(Ray(pos, dir), vec3(-1.0), vec3(1.0)).x;
         if (dist == 0.0) {
             if (physics_distance * wtr > 0.0) {
-                return HitInfo(false, 0u, vec4(0.0), (pos + dir * physics_distance * wtr * wtr) * rtw, vec3(0.0), vec3(0.0), IDENTITY, 1u);
+                return HitInfo(false, 0u, vec4(0.0), (pos + dir * physics_distance * wtr) * rtw, vec3(0.0), vec3(0.0), IDENTITY, 1u);
             }
             return intersect_scene(Ray(pos, dir), 1u);
         }
