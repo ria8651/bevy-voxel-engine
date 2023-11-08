@@ -8,14 +8,39 @@ use character::CharacterEntity;
 use rand::Rng;
 use std::f32::consts::PI;
 
-#[path = "common/character.rs"]
 mod character;
-
-#[path = "common/fps_counter.rs"]
 mod fps_counter;
-
-#[path = "common/ui.rs"]
 mod ui;
+
+fn main() {
+    let mut app = App::new();
+    app.add_plugins((
+        DefaultPlugins,
+        ObjPlugin,
+        BevyVoxelEnginePlugin,
+        character::Character,
+        ui::UiPlugin,
+        fps_counter::FpsCounter,
+    ))
+    .add_systems(Startup, setup)
+    .add_systems(
+        Update,
+        (
+            update_suzanne,
+            shoot,
+            update_fire,
+            spawn_stuff,
+            update_guns,
+            sand_spawner,
+        ),
+    );
+
+    // let settings = bevy_mod_debugdump::render_graph::Settings::default();
+    // let dot = bevy_mod_debugdump::render_graph_dot(&app, &settings);
+    // std::fs::write("render_graph.dot", dot).unwrap();
+
+    app.run();
+}
 
 // zero: normal bullet
 // one: orange portal bullet
@@ -34,28 +59,13 @@ struct CharacterPortals {
 #[derive(Component)]
 struct Gun;
 
-fn main() {
-    let mut app = App::new();
-    app.add_plugins((
-        DefaultPlugins,
-        ObjPlugin,
-        BevyVoxelEnginePlugin,
-        character::Character,
-        ui::UiPlugin,
-        fps_counter::FpsCounter,
-    ))
-    .add_systems(Startup, setup)
-    .add_systems(
-        Update,
-        (update_suzanne, shoot, update_fire, spawn_stuff, update_guns),
-    );
+#[derive(Component)]
+struct VoxelizationPreviewCamera;
+#[derive(Component)]
+struct Suzanne;
 
-    // let settings = bevy_mod_debugdump::render_graph::Settings::default();
-    // let dot = bevy_mod_debugdump::render_graph_dot(&app, &settings);
-    // std::fs::write("render_graph.dot", dot).unwrap();
-
-    app.run();
-}
+#[derive(Component)]
+struct SandSpawner;
 
 // world space cordinates are in terms of 4 voxels per meter with 0, 0
 // in the world lining up with the center of the voxel world and the edge
@@ -63,10 +73,13 @@ fn main() {
 fn setup(
     mut commands: Commands,
     mut load_voxel_world: ResMut<LoadVoxelWorld>,
+    mut meshes: ResMut<Assets<Mesh>>,
     asset_server: Res<AssetServer>,
 ) {
+    // load a voxel world
     *load_voxel_world = LoadVoxelWorld::File("assets/monu9.vox".to_string());
 
+    // portals
     let mut character_portals = vec![None; 2];
     for i in 0..2 {
         character_portals[i] = Some(
@@ -76,9 +89,7 @@ fn setup(
                         mesh_handle: asset_server.load("models/portal.obj"),
                         transform: Transform::from_xyz(0.0, 100.0, 0.0)
                             .looking_at(Vec3::ZERO, Vec3::Y)
-                            .with_scale(
-                                Vec3::new(i as f32 * 2.0 - 1.0, 1.0, i as f32 * 2.0 - 1.0),
-                            ),
+                            .with_scale(Vec3::new(i as f32 * 2.0 - 1.0, 1.0, i as f32 * 2.0 - 1.0)),
                         voxelization_material: VoxelizationMaterial {
                             flags: Flags::ANIMATION_FLAG | Flags::PORTAL_FLAG,
                             ..default()
@@ -104,12 +115,10 @@ fn setup(
 
     // character
     let character_transform = Transform::from_xyz(0.0, 20.0, -1.0).looking_at(Vec3::ZERO, Vec3::Y);
-
     let projection = Projection::Perspective(PerspectiveProjection {
         fov: PI / 2.0,
         ..default()
     });
-
     commands
         .spawn((
             VoxelCameraBundle {
@@ -117,7 +126,6 @@ fn setup(
                 projection: projection.clone(),
                 ..default()
             },
-            // Camera3dBundle::default(),
             CharacterEntity {
                 in_spectator: false,
                 grounded: false,
@@ -171,9 +179,8 @@ fn setup(
         Gun,
     ));
 
-    // rotated portal
+    // rotated portals
     let pos = vec![Vec3::new(5.0, 0.0, -5.0), Vec3::new(-5.0, 0.0, 5.0)];
-
     for i in 0..2 {
         commands
             .spawn((
@@ -218,12 +225,24 @@ fn setup(
         },
         Suzanne,
     ));
-}
 
-#[derive(Component)]
-struct VoxelizationPreviewCamera;
-#[derive(Component)]
-struct Suzanne;
+    // sand spawner
+    commands.spawn((
+        VoxelizationBundle {
+            mesh_handle: meshes.add(Mesh::from(shape::UVSphere {
+                radius: 3.0,
+                ..default()
+            })),
+            transform: Transform::from_xyz(5.0, 0.0, 5.0),
+            voxelization_material: VoxelizationMaterial {
+                flags: Flags::NONE,
+                ..default()
+            },
+            ..default()
+        },
+        SandSpawner,
+    ));
+}
 
 fn update_suzanne(time: Res<Time>, mut cube: Query<&mut Transform, With<Suzanne>>) {
     for mut transform in cube.iter_mut() {
@@ -398,5 +417,27 @@ fn spawn_stuff(
                 }
             }
         }
+    }
+}
+
+fn sand_spawner(
+    mut sand_spawner: Query<(&mut Transform, &mut VoxelizationMaterial), With<SandSpawner>>,
+    character_query: Query<&Transform, (With<CharacterEntity>, Without<SandSpawner>)>,
+    input: Res<Input<KeyCode>>,
+) {
+    let character = character_query.single();
+    let (mut sand_spawner, mut sand_material) = sand_spawner.single_mut();
+
+    sand_spawner.translation = character.translation - character.local_z() * 10.0;
+
+    if input.pressed(KeyCode::R) {
+        sand_material.material = VoxelizationMaterialType::Material(8);
+        sand_material.flags = Flags::NONE;
+    } else if input.pressed(KeyCode::E) {
+        sand_material.material = VoxelizationMaterialType::Material(100);
+        sand_material.flags = Flags::SAND_FLAG | Flags::COLLISION_FLAG;
+    } else {
+        sand_material.material = VoxelizationMaterialType::Material(0);
+        sand_material.flags = Flags::NONE;
     }
 }

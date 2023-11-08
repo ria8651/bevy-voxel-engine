@@ -45,14 +45,13 @@ fn write_pos(pos: vec3<i32>, material: u32, flags: u32) {
 @compute @workgroup_size(4, 4, 4)
 fn automata(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let pos = vec3(i32(invocation_id.x), i32(invocation_id.y), i32(invocation_id.z));
-    let pos_seed = vec3<u32>(vec3<f32>(pos));
+    let pos_seed = vec3<u32>(pos);
     let pos_time_seed = vec3<u32>(vec3<f32>(pos) + compute_uniforms.time * 240.0);
 
     let material = get_texture_value(pos);
     
     // grass
     let pos_rand = hash(pos_seed + 100u);
-
     if material.x == 44u && (material.y & ANIMATION_FLAG) == 0u && hash(pos_seed + 50u).x >= 0.5 {
         for (var i = 1; i < 4 + i32(pos_rand.y * 3.0 - 0.5); i += 1) {
             let i = f32(i);
@@ -178,8 +177,7 @@ fn automata(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
         let new_mat = get_texture_value(new_pos);
         if in_texture_bounds(new_pos) && new_mat.x == 0u && rand.z > 0.08 {
             let new_material = min(material.x + u32(rand.y * 1.3), 13u);
-            let flags = AUTOMATA_FLAG;
-            textureStore(voxel_world, new_pos.zyx, vec4(new_material | (flags << 8u)));
+            textureStore(voxel_world, new_pos.zyx, vec4(new_material | (AUTOMATA_FLAG << 8u)));
         }
 
         if rand.y < (f32(material.x) + 7.0) / 20.0 && (material.y & AUTOMATA_FLAG) > 0u {
@@ -193,8 +191,7 @@ fn automata(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
 
     // fire spreading
     let fire_rand = hash(pos_time_seed + 30u);
-
-    if material.x >= 9u && material.x <= 10u && fire_rand.x < 0.1 {
+    if material.x >= 9u && material.x <= 10u {
         // pick a random offset to check
         let i = i32(6.0 * fire_rand.y);
 
@@ -216,7 +213,13 @@ fn automata(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
         let new_pos = pos + offset;
         let new_mat = get_texture_value(new_pos);
 
-        if in_texture_bounds(new_pos) && new_mat.x != 0u && (new_mat.y & COLLISION_FLAG) > 0u {
+        if in_texture_bounds(new_pos) && new_mat.x == 8u {
+            textureStore(voxel_world, pos.zyx, vec4(0u));
+        } else if in_texture_bounds(new_pos) 
+            && new_mat.x != 0u 
+            && (new_mat.y & COLLISION_FLAG) > 0u
+            && fire_rand.x < 0.1
+        {
             textureStore(voxel_world, new_pos.zyx, vec4(material.x | (COLLISION_FLAG << 8u)));
         }
     }
