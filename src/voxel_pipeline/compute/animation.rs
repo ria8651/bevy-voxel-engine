@@ -25,7 +25,7 @@ impl FromWorld for Pipeline {
         let update_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
             label: Some(Cow::from("animation pipeline")),
             layout: vec![voxel_bind_group_layout, compute_bind_group_layout],
-            shader: super::ANIMATION_SHADER_HANDLE.typed(),
+            shader: super::ANIMATION_SHADER_HANDLE,
             shader_defs: vec![],
             entry_point: Cow::from("animation"),
             push_constant_ranges: vec![],
@@ -46,7 +46,7 @@ impl render_graph::Node for AnimationNode {
         let compute_data = world.resource::<ComputeData>();
         let pipeline_cache = world.resource::<PipelineCache>();
         let animation_data = world.resource::<AnimationData>();
-        let render_graph_settings = world.get_resource::<RenderGraphSettings>().unwrap();
+        let render_graph_settings = world.resource::<RenderGraphSettings>();
 
         if !render_graph_settings.animation {
             return Ok(());

@@ -1,5 +1,20 @@
 #define_import_path bevy_voxel_engine::raytracing
 
+#import bevy_voxel_engine::common::{
+    VOXELS_PER_METER,
+    PORTAL_FLAG,
+    VoxelUniforms,
+    Ray,
+    ray_plane,
+    in_bounds,
+    ray_box_dist,
+}
+#import bevy_voxel_engine::bindings::{
+    voxel_world,
+    voxel_uniforms,
+    gh
+}
+
 fn get_value_index(index: u32) -> bool {
     return ((gh[index / 32u] >> (index % 32u)) & 1u) != 0u;
 }
@@ -75,6 +90,7 @@ fn get_value(pos: vec3<f32>) -> Voxel {
 
     let rounded_pos = (floor(pos * f32(voxel_uniforms.texture_size) * 0.5) + 0.5) / (f32(voxel_uniforms.texture_size) * 0.5);
     let data = textureLoad(voxel_world, vec3<i32>(scaled * f32(voxel_uniforms.texture_size)).zyx).r;
+
     return Voxel(data, rounded_pos, voxel_uniforms.texture_size);
 }
 
@@ -97,44 +113,24 @@ const IDENTITY = mat4x4<f32>(
 );
 
 fn intersect_scene(r: Ray, steps: u32) -> HitInfo {
-    // // pillar
-    // let t = ray_box_dist(r, vec3(-1.0), vec3(1.0, -10000.0, 1.0)).x;
-    // if (t != 0.0) {
-    //     let pos = r.pos + r.dir * t;
-    //     let normal = trunc(pos * vec3(1.00001, 0.0, 1.00001));
-    //     return HitInfo(true, 0u, vec4(vec3(0.2), 0.0), pos, vec3(0.0), normal, IDENTITY, steps);
-    // }
-
-    // // skybox
-    // let t = ray_box_dist(r, vec3(3.0), vec3(-3.0, -10000.0, -3.0)).y;
-    // if (t != 0.0) {
-    //     let pos = r.pos + r.dir * t;
-    //     if (pos.y > -1.0) {
-    //         let normal = -trunc(pos / vec3(2.99999));
-    //         let col = skybox(normalize(pos - vec3(0.0, -1.0, 0.0)), u.time);
-    //         // let col = vec3(0.3, 0.3, 0.8);
-    //         return HitInfo(true, 0u, vec4(col, 1.0), pos, vec3(0.0), normal, IDENTITY, steps);
-    //     } else {
-    //         let normal = -trunc(pos / vec3(2.99999, 10000.0, 2.99999));
-    //         return HitInfo(true, 0u, vec4(vec3(0.2), 0.0), pos, vec3(0.0), normal, IDENTITY, steps);
-    //     }
-    // }
-
     let rtw = f32(voxel_uniforms.texture_size) / (VOXELS_PER_METER * 2.0); // render to world ratio
 
     let normal = vec3(0.0, 1.0, 0.0);
     let hit = ray_plane(r, vec3(0.0, -1.0, 0.0), normal).xyz;
+
     if (any(hit != vec3(0.0))) {
         let pos = hit + normal * 0.000002;
-        let colour = vec3(113.0, 129.0, 44.0) / 255.0;
-        return HitInfo(true, 0u, vec4(colour, 0.0), pos * rtw, pos * rtw, normal, IDENTITY, steps);
+
+        // green floor
+        let color = vec3(113.0, 129.0, 44.0) / 255.0;
+
+        return HitInfo(true, 0u, vec4(color, 0.0), pos * rtw, pos * rtw, normal, IDENTITY, steps);
     }
 
     let infinity = 1000000000.0 * r.dir;
+
     return HitInfo(false, 0u, vec4(0.0), infinity, infinity, vec3(0.0), IDENTITY, steps);
 }
-
-const PI: f32 = 3.14159265358979323846264338327950288;
 
 /// physics_distance is in terms of t so make sure to normalize your 
 /// ray direction if you want it to be in world cordinates.
@@ -143,7 +139,7 @@ fn shoot_ray(r: Ray, physics_distance: f32, flags: u32) -> HitInfo {
     let wtr = VOXELS_PER_METER * 2.0 / f32(voxel_uniforms.texture_size); // world to render ratio
     let rtw = f32(voxel_uniforms.texture_size) / (VOXELS_PER_METER * 2.0); // render to world ratio
 
-    let physics_distance = physics_distance * wtr;
+    let physics_distance2 = physics_distance * wtr;
     var pos = r.pos * wtr;
     let dir_mask = vec3<f32>(r.dir == vec3(0.0));
     var dir = r.dir + dir_mask * 0.000001;
@@ -153,8 +149,8 @@ fn shoot_ray(r: Ray, physics_distance: f32, flags: u32) -> HitInfo {
         // Get position on surface of the octree
         let dist = ray_box_dist(Ray(pos, dir), vec3(-1.0), vec3(1.0)).x;
         if (dist == 0.0) {
-            if (physics_distance > 0.0) {
-                return HitInfo(false, 0u, vec4(0.0), (pos + dir * physics_distance) * rtw, vec3(0.0), vec3(0.0), IDENTITY, 1u);
+            if (physics_distance2 > 0.0) {
+                return HitInfo(false, 0u, vec4(0.0), (pos + dir * physics_distance2) * rtw, vec3(0.0), vec3(0.0), IDENTITY, 1u);
             }
             return intersect_scene(Ray(pos, dir), 1u);
         }
@@ -162,10 +158,6 @@ fn shoot_ray(r: Ray, physics_distance: f32, flags: u32) -> HitInfo {
         pos = pos + dir * dist;
         distance += dist;
     }
-
-    // let voxel = get_value(pos);
-    // let normal = trunc(pos * 1.00001);
-    // return HitInfo(true, voxel.data, u.materials[voxel.data & 0xFFu], pos + normal * 0.000004, vec3(0.0), normal, IDENTITY, 10u);
 
     var r_sign = sign(dir);
     var tcpotr = pos; // the current position of the ray
@@ -206,7 +198,7 @@ fn shoot_ray(r: Ray, physics_distance: f32, flags: u32) -> HitInfo {
 
                 portal_mat = portal.transformation * portal_mat;
 
-                // return HitInfo(true, voxel.data, vec4(tcpotr, 0.0), tcpotr * rtw + normal * 0.0001, reprojection_pos, normal, portal_mat, steps);
+                //return HitInfo(true, voxel.data, vec4(tcpotr, 0.0), tcpotr * rtw + normal * 0.0001, reprojection_pos, normal, portal_mat, steps);
             }
         }
 

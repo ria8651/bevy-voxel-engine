@@ -1,11 +1,14 @@
-#import bevy_voxel_engine::common
+#import bevy_voxel_engine::common::{
+    VoxelUniforms,
+    ANIMATION_FLAG,
+    PORTAL_FLAG
+}
 
-@group(0) @binding(0)
-var<uniform> voxel_uniforms: VoxelUniforms;
-@group(0) @binding(1)
-var voxel_world: texture_storage_3d<r16uint, read_write>;
-@group(0) @binding(2)
-var<storage, read_write> gh: array<atomic<u32>>;
+#import bevy_voxel_engine::bindings::{
+    voxel_world,
+    voxel_uniforms,
+    gh
+}
 
 fn get_texture_value(pos: vec3<i32>) -> vec2<u32> {
     let texture_value = textureLoad(voxel_world, pos.zyx).r;
@@ -21,7 +24,7 @@ fn clear(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
 
     let material = get_texture_value(pos);
 
-    // delete old animaiton data
+    // Delete old animation data
     if ((material.y & (ANIMATION_FLAG | PORTAL_FLAG)) > 0u) {
         textureStore(voxel_world, pos.zyx, vec4(0u));
         return;

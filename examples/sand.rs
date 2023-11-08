@@ -8,16 +8,20 @@ use bevy_voxel_engine::{
 };
 use character::CharacterEntity;
 
-#[path = "features/character.rs"]
+#[path = "common/character.rs"]
 mod character;
+
+#[path = "common/fps_counter.rs"]
+mod fps_counter;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugin(BevyVoxelEnginePlugin)
-        .add_plugin(character::Character)
-        .add_startup_system(setup)
-        .add_system(update)
+        .add_plugins(BevyVoxelEnginePlugin)
+        .add_plugins(character::Character)
+        .add_plugins(fps_counter::FpsCounter)
+        .add_systems(Startup, setup)
+        .add_systems(Update, update)
         .run();
 }
 
@@ -32,8 +36,8 @@ fn setup(
     // voxel world
     *load_voxel_world = LoadVoxelWorld::File("assets/monu9.vox".to_string());
 
-    // character
     let transform = Transform::from_xyz(5.0, 5.0, -5.0).looking_at(Vec3::ZERO, Vec3::Y);
+
     commands.spawn((
         VoxelCameraBundle {
             transform,

@@ -25,7 +25,7 @@ impl FromWorld for Pipeline {
         let update_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
             label: Some(Cow::from("physics pipeline")),
             layout: vec![voxel_bind_group_layout, compute_bind_group_layout],
-            shader: super::PHYSICS_SHADER_HANDLE.typed(),
+            shader: super::PHYSICS_SHADER_HANDLE,
             shader_defs: vec![],
             entry_point: Cow::from("physics"),
             push_constant_ranges: vec![],
@@ -36,6 +36,7 @@ impl FromWorld for Pipeline {
 }
 
 impl render_graph::Node for PhysicsNode {
+
     fn run(
         &self,
         _graph: &mut RenderGraphContext,
@@ -46,7 +47,7 @@ impl render_graph::Node for PhysicsNode {
         let compute_data = world.resource::<ComputeData>();
         let pipeline_cache = world.resource::<PipelineCache>();
         let physics_data = world.resource::<PhysicsData>();
-        let render_graph_settings = world.get_resource::<RenderGraphSettings>().unwrap();
+        let render_graph_settings = world.resource::<RenderGraphSettings>();
 
         if !render_graph_settings.physics {
             return Ok(());

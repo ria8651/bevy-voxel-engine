@@ -27,7 +27,7 @@ impl FromWorld for Pipeline {
         let update_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
             label: Some(Cow::from("rebuild pipeline")),
             layout: vec![voxel_bind_group_layout],
-            shader: super::REBUILD_SHADER_HANDLE.typed(),
+            shader: super::REBUILD_SHADER_HANDLE,
             shader_defs: vec![],
             entry_point: Cow::from("rebuild_gh"),
             push_constant_ranges: vec![],
@@ -49,7 +49,7 @@ impl render_graph::Node for RebuildNode {
         let pipeline_cache = world.resource::<PipelineCache>();
         let render_queue = world.resource::<RenderQueue>();
         let dispatch_size = voxel_uniforms.texture_size / 4;
-        let render_graph_settings = world.get_resource::<RenderGraphSettings>().unwrap();
+        let render_graph_settings = world.resource::<RenderGraphSettings>();
 
         if !render_graph_settings.rebuild {
             return Ok(());
@@ -66,9 +66,9 @@ impl render_graph::Node for RebuildNode {
             None => return Ok(()),
         };
 
-        // clear the old grid hierarchy so we can build a new one
+        // Clear the old grid hierarchy so we can build a new one
         render_queue.write_buffer(
-            &voxel_data.grid_heierachy,
+            &voxel_data.grid_hierarchy,
             0,
             bytemuck::cast_slice(&vec![0u8; gh_size]),
         );

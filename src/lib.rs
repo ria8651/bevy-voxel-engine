@@ -7,7 +7,7 @@ use physics::PhysicsPlugin;
 pub use physics::VOXELS_PER_METER;
 use voxel_pipeline::RenderPlugin;
 pub use voxel_pipeline::{
-    denoise::DenoiseSettings, trace::TraceSettings, voxelization::VoxelizationMaterial,
+    trace::TraceSettings, voxelization::VoxelizationMaterial,
     voxelization::VoxelizationMaterialType, RenderGraphSettings,
 };
 
@@ -126,7 +126,7 @@ impl Default for VoxelCameraBundle {
     fn default() -> Self {
         Self {
             camera_render_graph: CameraRenderGraph::new("voxel"),
-            tonemapping: Tonemapping::ReinhardLuminance,
+            tonemapping: Tonemapping::AcesFitted,
             camera: Camera {
                 hdr: true,
                 ..default()
@@ -149,7 +149,8 @@ pub struct VoxelizationBundle {
     pub transform: Transform,
     pub global_transform: GlobalTransform,
     pub visibility: Visibility,
-    pub computed_visibility: ComputedVisibility,
+    pub inherited_visibility: InheritedVisibility,
+    pub view_visibility: ViewVisibility,
 }
 
 pub struct BevyVoxelEnginePlugin;
@@ -157,8 +158,8 @@ pub struct BevyVoxelEnginePlugin;
 impl Plugin for BevyVoxelEnginePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(Msaa::Off)
-            .add_plugin(PhysicsPlugin)
-            .add_plugin(RenderPlugin);
+            .add_plugins(PhysicsPlugin)
+            .add_plugins(RenderPlugin);
     }
 }
 
@@ -169,7 +170,7 @@ pub enum LoadVoxelWorld {
     None,
 }
 
-#[allow(non_snake_case, dead_code)]
+#[allow(non_snake_case)]
 pub mod Flags {
     pub const AUTOMATA_FLAG: u8 = 128; // 0b10000000
     pub const PORTAL_FLAG: u8 = 64; // 0b01000000

@@ -1,8 +1,8 @@
 use bevy::{
-    asset::load_internal_asset,
+    asset::{load_internal_asset, Handle},
     prelude::*,
-    reflect::TypeUuid,
     render::{
+        Render,
         extract_resource::{ExtractResource, ExtractResourcePlugin},
         render_resource::*,
         renderer::{RenderDevice, RenderQueue},
@@ -14,24 +14,16 @@ use bevy::{
 pub mod animation;
 pub mod automata;
 pub mod clear;
-pub mod mip;
 pub mod physics;
 pub mod rebuild;
 
 const MAX_TYPE_BUFFER_DATA: usize = 1000000; // 4mb
 
-pub const ANIMATION_SHADER_HANDLE: HandleUntyped =
-    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 7356431584756113968);
-pub const AUTOMATA_SHADER_HANDLE: HandleUntyped =
-    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 2461997473694366307);
-pub const CLEAR_SHADER_HANDLE: HandleUntyped =
-    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 15320669235097444653);
-pub const MIP_SHADER_HANDLE: HandleUntyped =
-    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 6189143918759879663);
-pub const PHYSICS_SHADER_HANDLE: HandleUntyped =
-    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 5103938181551247167);
-pub const REBUILD_SHADER_HANDLE: HandleUntyped =
-    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 18135969847573717619);
+pub const ANIMATION_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(7356431584756113968);
+pub const AUTOMATA_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(2461997473694366307);
+pub const CLEAR_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(15320669235097444653);
+pub const PHYSICS_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(5103938181551247167);
+pub const REBUILD_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(18135969847573717619);
 
 pub struct ComputeResourcesPlugin;
 
@@ -57,12 +49,6 @@ impl Plugin for ComputeResourcesPlugin {
         );
         load_internal_asset!(
             app,
-            MIP_SHADER_HANDLE,
-            "../shaders/compute/mip.wgsl",
-            Shader::from_wgsl
-        );
-        load_internal_asset!(
-            app,
             PHYSICS_SHADER_HANDLE,
             "../shaders/compute/physics.wgsl",
             Shader::from_wgsl
@@ -73,15 +59,24 @@ impl Plugin for ComputeResourcesPlugin {
             "../shaders/compute/rebuild.wgsl",
             Shader::from_wgsl
         );
+    }
 
-        let render_device = app.world.resource::<RenderDevice>();
-        let render_queue = app.world.resource::<RenderQueue>();
+    fn finish(&self, app: &mut App) {
+        let render_device = app
+            .sub_app(RenderApp)
+            .world
+            .resource::<RenderDevice>();
+
+        let render_queue = app
+            .sub_app(RenderApp)
+            .world
+            .resource::<RenderQueue>();
 
         let mut uniform_buffer = UniformBuffer::from(ComputeUniforms {
             time: 0.0,
             delta_time: 0.0,
         });
-        uniform_buffer.write_buffer(render_device, render_queue);
+        uniform_buffer.write_buffer(&render_device, &render_queue);
 
         let physics_buffer_gpu = render_device.create_buffer_with_data(&BufferInitDescriptor {
             contents: bytemuck::cast_slice(&vec![0u32; MAX_TYPE_BUFFER_DATA]),
@@ -136,10 +131,10 @@ impl Plugin for ComputeResourcesPlugin {
                 ],
             });
 
-        let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
-            label: None,
-            layout: &bind_group_layout,
-            entries: &[
+        let bind_group = render_device.create_bind_group(
+            None,
+            &bind_group_layout,
+            &[
                 BindGroupEntry {
                     binding: 0,
                     resource: uniform_buffer.binding().unwrap(),
@@ -153,7 +148,7 @@ impl Plugin for ComputeResourcesPlugin {
                     resource: animation_buffer.as_entire_binding(),
                 },
             ],
-        });
+        );
 
         app.insert_resource(PhysicsData {
             dispatch_size: 0,
@@ -166,10 +161,12 @@ impl Plugin for ComputeResourcesPlugin {
             dispatch_size: 0,
             animation_buffer,
         })
-        .add_plugin(ExtractResourcePlugin::<PhysicsData>::default())
-        .add_plugin(ExtractResourcePlugin::<AnimationData>::default());
+        .add_plugins(ExtractResourcePlugin::<PhysicsData>::default())
+        .add_plugins(ExtractResourcePlugin::<AnimationData>::default());
 
-        app.sub_app_mut(RenderApp)
+        let render_app = app.sub_app_mut(RenderApp);
+
+        render_app
             .insert_resource(ComputeData {
                 bind_group_layout,
                 bind_group,
@@ -180,8 +177,7 @@ impl Plugin for ComputeResourcesPlugin {
             .init_resource::<automata::Pipeline>()
             .init_resource::<physics::Pipeline>()
             .init_resource::<animation::Pipeline>()
-            .init_resource::<mip::Pipeline>()
-            .add_system(prepare_uniforms.in_set(RenderSet::Prepare));
+            .add_systems(Render, prepare_uniforms.in_set(RenderSet::Prepare));
     }
 }
 

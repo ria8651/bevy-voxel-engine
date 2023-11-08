@@ -1,19 +1,20 @@
 use super::voxel_world::{VoxelData, VoxelUniforms};
 use crate::{Flags, RenderGraphSettings, VOXELS_PER_METER};
+
 use bevy::{
-    asset::load_internal_asset,
+    asset::{load_internal_asset, Handle},
     core_pipeline::{clear_color::ClearColorConfig, core_3d::Transparent3d},
     ecs::system::{
         lifetimeless::{Read, SQuery, SRes},
         SystemParamItem,
     },
     pbr::{
-        DrawMesh, MeshPipeline, MeshPipelineKey, MeshUniform, SetMeshBindGroup,
+        DrawMesh, MeshPipeline, MeshPipelineViewLayoutKey, MeshPipelineKey, RenderMeshInstances, SetMeshBindGroup,
         SetMeshViewBindGroup,
     },
     prelude::*,
-    reflect::TypeUuid,
     render::{
+        Render,
         camera::{RenderTarget, ScalingMode},
         extract_component::{ExtractComponent, ExtractComponentPlugin},
         extract_resource::{ExtractResource, ExtractResourcePlugin},
@@ -31,12 +32,12 @@ use bevy::{
     utils::HashMap,
 };
 
-const VOXELIZATION_SHADER_HANDLE: HandleUntyped =
-    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 1975691635883203525);
+const VOXELIZATION_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(1975691635883203525);
 
 pub struct VoxelizationPlugin;
 
 impl Plugin for VoxelizationPlugin {
+
     fn build(&self, app: &mut App) {
         load_internal_asset!(
             app,
@@ -45,18 +46,21 @@ impl Plugin for VoxelizationPlugin {
             Shader::from_wgsl
         );
 
-        app.add_plugin(ExtractResourcePlugin::<FallbackImage>::default())
-            .add_plugin(ExtractComponentPlugin::<VoxelizationMaterial>::default())
-            .add_startup_system(setup)
-            .add_system(update_cameras);
+        app
+            .add_plugins(ExtractResourcePlugin::<FallbackImage>::default())
+            .add_plugins(ExtractComponentPlugin::<VoxelizationMaterial>::default())
+            .add_systems(Startup, setup)
+            .add_systems(Update, update_cameras);
+    }
 
+    fn finish(&self, app: &mut App) {
         app.sub_app_mut(RenderApp)
             .add_render_command::<Transparent3d, DrawCustom>()
             .init_resource::<VoxelizationPipeline>()
             .init_resource::<SpecializedMeshPipelines<VoxelizationPipeline>>()
             .insert_resource(VoxelizationUniformsResource(HashMap::new()))
-            .add_system(queue_bind_group.in_set(RenderSet::Queue))
-            .add_system(queue_custom.in_set(RenderSet::Queue));
+            .add_systems(Render, queue_bind_group.in_set(RenderSet::Queue))
+            .add_systems(Render, queue_custom.in_set(RenderSet::Queue));
     }
 }
 
@@ -132,17 +136,21 @@ fn update_cameras(
     mut voxelization_cameras: Query<(&mut Transform, &mut Projection), With<VoxelizationCamera>>,
     voxel_uniforms: Res<VoxelUniforms>,
 ) {
-    let voxelization_image = images.get_mut(&voxelization_image).unwrap();
+    let voxelization_image = images.get_mut(voxelization_image.id())
+        .expect("Voxelization image not found");
+
     if voxelization_image.size().x as u32 != voxel_uniforms.texture_size {
-        // update cameras
+
+        // Update cameras
         debug!(
             "Updating {} voxelization cameras to as resolution of {}",
             voxelization_cameras.iter().len(),
             voxel_uniforms.texture_size
         );
+
         let mut i = 0;
         for (mut transform, mut projection) in voxelization_cameras.iter_mut() {
-            // resize image
+            // Resize image
             let size = voxel_uniforms.texture_size;
             voxelization_image.resize(Extent3d {
                 width: size,
@@ -150,7 +158,7 @@ fn update_cameras(
                 depth_or_array_layers: 1,
             });
 
-            // update camera
+            // Update camera
             *transform = match i {
                 0 => Transform::from_translation(Vec3::ZERO).looking_at(Vec3::X, Vec3::Y),
                 1 => Transform::from_translation(Vec3::ZERO).looking_at(Vec3::Y, Vec3::Z),
@@ -291,11 +299,11 @@ impl SpecializedMeshPipeline for VoxelizationPipeline {
         layout: &MeshVertexBufferLayout,
     ) -> Result<RenderPipelineDescriptor, SpecializedMeshPipelineError> {
         let mut descriptor = self.mesh_pipeline.specialize(key, layout)?;
-        descriptor.vertex.shader = VOXELIZATION_SHADER_HANDLE.typed();
-        descriptor.fragment.as_mut().unwrap().shader = VOXELIZATION_SHADER_HANDLE.typed();
+        descriptor.vertex.shader = VOXELIZATION_SHADER_HANDLE;
+        descriptor.fragment.as_mut().unwrap().shader = VOXELIZATION_SHADER_HANDLE;
         descriptor.layout = vec![
-            self.mesh_pipeline.view_layout.clone(),
-            self.mesh_pipeline.mesh_layout.clone(),
+            self.mesh_pipeline.get_view_layout(MeshPipelineViewLayoutKey::MULTISAMPLED).clone(),
+            //self.mesh_pipeline.mesh_layouts.model_only.clone(), // TODO: Is it necessary?
             self.world_bind_group_layout.clone(),
             self.voxelization_bind_group_layout.clone(),
         ];
@@ -310,7 +318,8 @@ fn queue_custom(
     mut pipelines: ResMut<SpecializedMeshPipelines<VoxelizationPipeline>>,
     mut pipeline_cache: ResMut<PipelineCache>,
     render_meshes: Res<RenderAssets<Mesh>>,
-    material_meshes: Query<(Entity, &MeshUniform, &Handle<Mesh>), With<VoxelizationMaterial>>,
+    render_mesh_instances: Res<RenderMeshInstances>,
+    material_meshes: Query<(Entity, &Handle<Mesh>), With<VoxelizationMaterial>>,
     mut views: Query<(&ExtractedView, &mut RenderPhase<Transparent3d>)>,
     render_graph_settings: Res<RenderGraphSettings>,
 ) {
@@ -327,16 +336,24 @@ fn queue_custom(
 
     for (view, mut transparent_phase) in &mut views {
         let rangefinder = view.rangefinder3d();
-        for (entity, mesh_uniform, mesh_handle) in &material_meshes {
+        for (entity, mesh_handle) in &material_meshes {
+            let Some(mesh_instance) = render_mesh_instances.get(&entity) else {
+                continue;
+            };
+
             if let Some(mesh) = render_meshes.get(mesh_handle) {
                 let pipeline = pipelines
                     .specialize(&mut pipeline_cache, &custom_pipeline, key, &mesh.layout)
                     .unwrap();
+                
                 transparent_phase.add(Transparent3d {
                     entity,
                     pipeline,
                     draw_function: draw_custom,
-                    distance: rangefinder.distance(&mesh_uniform.transform),
+                    distance: rangefinder
+                        .distance_translation(&mesh_instance.transforms.transform.translation),
+                    batch_range: 0..1,
+                    dynamic_offset: None,
                 });
             }
         }
@@ -375,15 +392,15 @@ fn queue_bind_group(
             if let VoxelizationMaterialType::Texture(texture) = &voxelization_material.material {
                 gpu_images
                     .get(texture)
-                    .unwrap_or(gpu_images.get(&fallback_image).unwrap())
+                    .unwrap_or(gpu_images.get(fallback_image.id()).unwrap())
             } else {
-                gpu_images.get(&fallback_image).unwrap()
+                gpu_images.get(fallback_image.id()).unwrap()
             };
 
-        let voxelization_bind_group = render_device.create_bind_group(&BindGroupDescriptor {
-            label: None,
-            layout: &voxelization_pipeline.voxelization_bind_group_layout,
-            entries: &[
+        let voxelization_bind_group = render_device.create_bind_group(
+            None,
+            &voxelization_pipeline.voxelization_bind_group_layout,
+            &[
                 BindGroupEntry {
                     binding: 0,
                     resource: uniforms.binding().unwrap(),
@@ -397,7 +414,7 @@ fn queue_bind_group(
                     resource: BindingResource::Sampler(&sampler),
                 },
             ],
-        });
+        );
 
         commands
             .entity(entity)
