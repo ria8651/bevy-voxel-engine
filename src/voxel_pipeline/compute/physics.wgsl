@@ -58,19 +58,14 @@ fn physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
         );
         var hit_normal = vec3(0.0);
         var portal_rotation = IDENTITY;
-        
-        // TODO: Find out why this is "needed"
-        let delta_time = compute_uniforms.delta_time / 20.0;
 
-        velocity += gravity * delta_time;
+        velocity += gravity * compute_uniforms.delta_time;
 
         if (data_type == 0) {
-            // Point
-
             // Step point by ray
             if (any(abs(velocity) > vec3(0.0001))) {
                 let direction = Ray(world_pos, normalize(velocity));
-                let distance = length(velocity) * delta_time;
+                let distance = length(velocity) * compute_uniforms.delta_time;
                 let hit = shoot_ray(direction, distance, COLLISION_FLAG);
                 portal_rotation = hit.portals;
                 world_pos = hit.pos;
@@ -126,7 +121,7 @@ fn physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
             // Player
             if (any(abs(velocity) > vec3(0.01))) {
                 let direction = normalize(velocity);
-                let distance = length(velocity) * delta_time;
+                let distance = length(velocity) * compute_uniforms.delta_time;
 
                 let size = vec3(
                     bitcast<i32>(physics_data[data_index + 24]),
@@ -178,8 +173,8 @@ fn physics(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
                 }
 
                 if (any(abs(velocity) > vec3(0.01))) {
-                    let direction = normalize(velocity * delta_time);
-                    let distance = length(velocity) * delta_time;
+                    let direction = normalize(velocity * compute_uniforms.delta_time);
+                    let distance = length(velocity) * compute_uniforms.delta_time;
                     let hit = shoot_ray(Ray(world_pos, direction), distance, 1u);
                     portal_rotation = hit.portals;
                     velocity = (hit.portals * vec4(velocity, 0.0)).xyz;

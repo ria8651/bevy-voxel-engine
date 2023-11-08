@@ -9,12 +9,11 @@ use bevy::{
         SystemParamItem,
     },
     pbr::{
-        DrawMesh, MeshPipeline, MeshPipelineViewLayoutKey, MeshPipelineKey, RenderMeshInstances, SetMeshBindGroup,
-        SetMeshViewBindGroup,
+        DrawMesh, MeshPipeline, MeshPipelineKey, MeshPipelineViewLayoutKey, RenderMeshInstances,
+        SetMeshBindGroup, SetMeshViewBindGroup,
     },
     prelude::*,
     render::{
-        Render,
         camera::{RenderTarget, ScalingMode},
         extract_component::{ExtractComponent, ExtractComponentPlugin},
         extract_resource::{ExtractResource, ExtractResourcePlugin},
@@ -27,7 +26,7 @@ use bevy::{
         render_resource::*,
         renderer::{RenderDevice, RenderQueue},
         view::ExtractedView,
-        RenderApp, RenderSet,
+        Render, RenderApp, RenderSet,
     },
     utils::HashMap,
 };
@@ -37,7 +36,6 @@ const VOXELIZATION_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(197569
 pub struct VoxelizationPlugin;
 
 impl Plugin for VoxelizationPlugin {
-
     fn build(&self, app: &mut App) {
         load_internal_asset!(
             app,
@@ -46,8 +44,7 @@ impl Plugin for VoxelizationPlugin {
             Shader::from_wgsl
         );
 
-        app
-            .add_plugins(ExtractResourcePlugin::<FallbackImage>::default())
+        app.add_plugins(ExtractResourcePlugin::<FallbackImage>::default())
             .add_plugins(ExtractComponentPlugin::<VoxelizationMaterial>::default())
             .add_systems(Startup, setup)
             .add_systems(Update, update_cameras);
@@ -136,11 +133,11 @@ fn update_cameras(
     mut voxelization_cameras: Query<(&mut Transform, &mut Projection), With<VoxelizationCamera>>,
     voxel_uniforms: Res<VoxelUniforms>,
 ) {
-    let voxelization_image = images.get_mut(voxelization_image.id())
+    let voxelization_image = images
+        .get_mut(voxelization_image.id())
         .expect("Voxelization image not found");
 
     if voxelization_image.size().x as u32 != voxel_uniforms.texture_size {
-
         // Update cameras
         debug!(
             "Updating {} voxelization cameras to as resolution of {}",
@@ -302,7 +299,9 @@ impl SpecializedMeshPipeline for VoxelizationPipeline {
         descriptor.vertex.shader = VOXELIZATION_SHADER_HANDLE;
         descriptor.fragment.as_mut().unwrap().shader = VOXELIZATION_SHADER_HANDLE;
         descriptor.layout = vec![
-            self.mesh_pipeline.get_view_layout(MeshPipelineViewLayoutKey::MULTISAMPLED).clone(),
+            self.mesh_pipeline
+                .get_view_layout(MeshPipelineViewLayoutKey::MULTISAMPLED)
+                .clone(),
             //self.mesh_pipeline.mesh_layouts.model_only.clone(), // TODO: Is it necessary?
             self.world_bind_group_layout.clone(),
             self.voxelization_bind_group_layout.clone(),
@@ -345,7 +344,7 @@ fn queue_custom(
                 let pipeline = pipelines
                     .specialize(&mut pipeline_cache, &custom_pipeline, key, &mesh.layout)
                     .unwrap();
-                
+
                 transparent_phase.add(Transparent3d {
                     entity,
                     pipeline,

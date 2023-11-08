@@ -22,12 +22,14 @@ impl FromWorld for Pipeline {
     fn from_world(world: &mut World) -> Self {
         let voxel_bind_group_layout = world.resource::<VoxelData>().bind_group_layout.clone();
 
+        let asset_server = world.resource_mut::<AssetServer>();
+        let shader = asset_server.load("embedded://bevy_voxel_engine/voxel_pipeline/compute/rebuild.wgsl");
+        
         let pipeline_cache = world.resource_mut::<PipelineCache>();
-
         let update_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
             label: Some(Cow::from("rebuild pipeline")),
             layout: vec![voxel_bind_group_layout],
-            shader: super::REBUILD_SHADER_HANDLE,
+            shader,
             shader_defs: vec![],
             entry_point: Cow::from("rebuild_gh"),
             push_constant_ranges: vec![],

@@ -20,12 +20,14 @@ impl FromWorld for Pipeline {
         let voxel_bind_group_layout = world.resource::<VoxelData>().bind_group_layout.clone();
         let compute_bind_group_layout = world.resource::<ComputeData>().bind_group_layout.clone();
 
+        let asset_server = world.resource::<AssetServer>();
+        let shader = asset_server.load("embedded://bevy_voxel_engine/voxel_pipeline/compute/physics.wgsl");
+        
         let pipeline_cache = world.resource_mut::<PipelineCache>();
-
         let update_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
             label: Some(Cow::from("physics pipeline")),
             layout: vec![voxel_bind_group_layout, compute_bind_group_layout],
-            shader: super::PHYSICS_SHADER_HANDLE,
+            shader,
             shader_defs: vec![],
             entry_point: Cow::from("physics"),
             push_constant_ranges: vec![],
@@ -36,7 +38,6 @@ impl FromWorld for Pipeline {
 }
 
 impl render_graph::Node for PhysicsNode {
-
     fn run(
         &self,
         _graph: &mut RenderGraphContext,

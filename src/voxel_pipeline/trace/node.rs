@@ -71,27 +71,24 @@ impl render_graph::Node for TraceNode {
         let normal = graph.get_input_texture("normal")?;
         let position = graph.get_input_texture("position")?;
 
-        let trace_bind_group =
-            render_context
-                .render_device()
-                .create_bind_group(
-                    None,
-                    &trace_pipeline_data.trace_bind_group_layout,
+        let trace_bind_group = render_context.render_device().create_bind_group(
+            None,
+            &trace_pipeline_data.trace_bind_group_layout,
             &[
-                        BindGroupEntry {
-                            binding: 0,
-                            resource: trace_uniform_buffer.binding().unwrap(),
-                        },
-                        BindGroupEntry {
-                            binding: 1,
-                            resource: BindingResource::TextureView(&normal),
-                        },
-                        BindGroupEntry {
-                            binding: 2,
-                            resource: BindingResource::TextureView(&position),
-                        },
-                    ],
-                );
+                BindGroupEntry {
+                    binding: 0,
+                    resource: trace_uniform_buffer.binding().unwrap(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&normal),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&position),
+                },
+            ],
+        );
 
         let destination_descriptor = RenderPassDescriptor {
             label: Some("trace pass"),

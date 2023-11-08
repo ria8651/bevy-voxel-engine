@@ -7,17 +7,14 @@ use bevy_egui::{
     egui::{self, Slider},
     EguiContexts, EguiPlugin,
 };
-use bevy_voxel_engine::{
-    Flags, LoadVoxelWorld, RenderGraphSettings, TraceSettings, VoxelPhysics,
-};
+use bevy_voxel_engine::{Flags, LoadVoxelWorld, RenderGraphSettings, TraceSettings, VoxelPhysics};
 use rand::Rng;
 
 pub struct UiPlugin;
 
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(EguiPlugin)
-            .add_systems(Update, ui_system);
+        app.add_plugins(EguiPlugin).add_systems(Update, ui_system);
     }
 }
 
@@ -136,7 +133,7 @@ fn ui_system(
                 }
                 ui.label(format!("Particle count: {}", particle_query.iter().count()));
             });
-            
+
             ui.collapsing("Passes", |ui| {
                 ui.checkbox(&mut render_graph_settings.clear, "clear");
                 ui.checkbox(&mut render_graph_settings.automata, "automata");

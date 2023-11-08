@@ -40,18 +40,23 @@ struct Gun;
 fn main() {
     let mut app = App::new();
     app.add_plugins(DefaultPlugins)
-    .add_plugins(ObjPlugin)
-    .add_plugins(BevyVoxelEnginePlugin)
-    .add_plugins(character::Character)
-    .add_plugins(ui::UiPlugin)
-    .add_plugins(fps_counter::FpsCounter)
-    .add_systems(Startup, setup)
-    .add_systems(Update, update_suzanne)
-    .add_systems(Update, shoot)
-    .add_systems(Update, update_fire)
-    .add_systems(Update, spawn_stuff);
-    // .add_system(update_velocitys)
-    //.add_system(update_guns)
+        .add_plugins(ObjPlugin)
+        .add_plugins(BevyVoxelEnginePlugin)
+        .add_plugins(character::Character)
+        .add_plugins(ui::UiPlugin)
+        .add_plugins(fps_counter::FpsCounter)
+        .add_systems(Startup, setup)
+        .add_systems(
+            Update,
+            (
+                update_suzanne,
+                shoot,
+                update_fire,
+                spawn_stuff,
+                update_velocitys,
+                update_guns,
+            ),
+        );
 
     app.run();
 }
@@ -100,8 +105,7 @@ fn setup(
     }
 
     // character
-    let character_transform = Transform::from_xyz(0.0, 40.0, -1.0)
-        .looking_at(Vec3::ZERO, Vec3::Y);
+    let character_transform = Transform::from_xyz(0.0, 40.0, -1.0).looking_at(Vec3::ZERO, Vec3::Y);
 
     let projection = Projection::Perspective(PerspectiveProjection {
         fov: PI / 2.0,
@@ -131,7 +135,7 @@ fn setup(
                 CollisionEffect::None,
             ),
             BoxCollider {
-                half_size: IVec3::new(2, 4, 2),
+                half_size: IVec3::new(4, 8, 4),
             },
             BloomSettings {
                 intensity: 0.25,
@@ -161,7 +165,6 @@ fn setup(
             ));
         });
 
-    /*
     // portal gun
     commands.spawn((
         VoxelizationBundle {
@@ -174,11 +177,10 @@ fn setup(
         },
         Gun,
     ));
-    */
 
     // rotated portal
     let pos = vec![Vec3::new(5.0, 0.0, -5.0), Vec3::new(-5.0, 0.0, 5.0)];
-    
+
     for i in 0..2 {
         commands
             .spawn((
@@ -207,7 +209,7 @@ fn setup(
                 });
             });
     }
-    
+
     // voxelized mesh
     commands.spawn((
         VoxelizationBundle {
@@ -239,7 +241,7 @@ fn update_suzanne(time: Res<Time>, mut cube: Query<&mut Transform, With<Suzanne>
 
 fn shoot(
     mut commands: Commands,
-    input: Res<Input<MouseButton>>,
+    // input: Res<Input<MouseButton>>,
     keyboard: Res<Input<KeyCode>>,
     mut character: Query<(&Transform, &mut CharacterEntity)>,
 ) {
@@ -276,9 +278,7 @@ fn shoot(
         ));
     }
 
-    if keyboard.just_pressed(KeyCode::E) {
-        println!("Pressed E");
-
+    if keyboard.just_pressed(KeyCode::F) {
         commands.spawn((
             Transform::from_translation(transform.translation),
             Particle {
@@ -347,24 +347,23 @@ fn update_guns(
     }
 }
 
-// fn update_velocitys(
-//     mut commands: Commands,
-//     mut velocity_query: Query<(&Transform, &mut VoxelPhysics, Entity), With<Bullet>>,
-//     time: Res<Time>,
-// ) {
-//     // let to_destroy = ConcurrentQueue::unbounded();
-//     // velocity_query.par_for_each_mut(8, |(_transform, mut velocity, _entity)| {
-//     //     // velocity.velocity += Vec3::new(0.0, -9.81 * time.delta_seconds(), 0.0);
-//     //     // let e = animation::world_to_render(transform.translation.abs(), uniforms.texture_size);
-//     //     // if e.x > 1.0 || e.y > 1.0 || e.z > 1.0 {
-//     //     //     to_destroy.push(entity).unwrap();
-//     //     // }
-//     // });
+fn update_velocitys(// mut commands: Commands,
+    // mut velocity_query: Query<(&Transform, &mut VoxelPhysics, Entity), With<Bullet>>,
+    // time: Res<Time>,
+) {
+    // let (to_destroy, ) = channel::unbounded();
+    // velocity_query.for_each_mut(|(_transform, mut velocity, _entity)| {
+    //     velocity.velocity += Vec3::new(0.0, -9.81 * time.delta_seconds(), 0.0);
+    //     let e = animation::world_to_render(transform.translation.abs(), uniforms.texture_size);
+    //     if e.x > 1.0 || e.y > 1.0 || e.z > 1.0 {
+    //         to_destroy.push(entity).unwrap();
+    //     }
+    // });
 
-//     // while let Ok(entity) = to_destroy.pop() {
-//     //     commands.entity(entity).despawn();
-//     // }
-// }
+    // while let Ok(entity) = to_destroy.pop() {
+    //     commands.entity(entity).despawn();
+    // }
+}
 
 fn spawn_stuff(
     mut commands: Commands,

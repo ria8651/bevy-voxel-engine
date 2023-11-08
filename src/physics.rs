@@ -8,8 +8,8 @@ use crate::{
 };
 use bevy::{
     prelude::*,
-    render::renderer::{RenderDevice, RenderQueue},
     render::render_resource::MapMode,
+    render::renderer::{RenderDevice, RenderQueue},
     utils::HashMap,
 };
 
@@ -101,7 +101,7 @@ pub fn insert_physics_data(
         drop(data);
         physics_data.physics_buffer_cpu.unmap();
 
-        if result[0] == 0 {            
+        if result[0] == 0 {
             warn!("No physics data returned from the gpu!");
             return;
         }

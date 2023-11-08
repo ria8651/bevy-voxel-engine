@@ -6,8 +6,6 @@ description = "A raytraced, small world voxel engine built with the bevy game en
 exclude = ["assets/"]
 repository = "https://github.com/ria8651/bevy-voxel-engine"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 bevy = { version = "0.12", default-features = false, features = [
     "bevy_core_pipeline",
@@ -26,7 +24,6 @@ wgpu = "0.17.0"
 [dev-dependencies]
 bevy_egui = "0.23.0"
 rand = "0.8"
-concurrent-queue = "1.2"
 tinyfiledialogs = "3.9"
 bevy_mod_debugdump = "0.8.1"
 bevy_obj = "0.12.0"

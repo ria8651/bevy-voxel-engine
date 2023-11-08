@@ -91,6 +91,7 @@ impl FromWorld for Pipeline {
 
         // let voxel_bind_group_layout = world.resource::<VoxelData>().bind_group_layout.clone();
         let pipeline_cache = world.resource_mut::<PipelineCache>();
+let asset_server = world.resource_mut::<AssetServer>();
 
         let copy_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
             label: Some(Cow::from("copy pipeline")),

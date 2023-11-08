@@ -1,25 +1,21 @@
 use self::{
     attachments::{AttachmentsNode, AttachmentsPlugin},
     compute::{
-        animation::AnimationNode, automata::AutomataNode, clear::ClearNode,
-        physics::PhysicsNode, rebuild::RebuildNode, ComputeResourcesPlugin,
+        animation::AnimationNode, automata::AutomataNode, clear::ClearNode, physics::PhysicsNode,
+        rebuild::RebuildNode, ComputeResourcesPlugin,
     },
     trace::{TraceNode, TracePlugin},
     voxel_world::VoxelWorldPlugin,
     voxelization::VoxelizationPlugin,
 };
 use bevy::{
-    core_pipeline::{
-        fxaa::FxaaNode, 
-        tonemapping::TonemappingNode, 
-        upscaling::UpscalingNode,
-    },
+    core_pipeline::{fxaa::FxaaNode, tonemapping::TonemappingNode, upscaling::UpscalingNode},
     prelude::*,
     render::{
-        RenderApp,
         extract_resource::{ExtractResource, ExtractResourcePlugin},
         main_graph::node::CAMERA_DRIVER,
         render_graph::{RenderGraph, ViewNodeRunner},
+        RenderApp,
     },
     ui::UiPassNode,
 };
@@ -61,7 +57,10 @@ impl Plugin for RenderPlugin {
 
         voxel_graph.add_node("attachments", attachments);
         voxel_graph.add_node("trace", trace);
-        voxel_graph.add_node("tonemapping", ViewNodeRunner::new(tonemapping, render_world));
+        voxel_graph.add_node(
+            "tonemapping",
+            ViewNodeRunner::new(tonemapping, render_world),
+        );
         voxel_graph.add_node("fxaa", ViewNodeRunner::new(fxaa, render_world));
         voxel_graph.add_node("ui", ui);
         voxel_graph.add_node("upscaling", ViewNodeRunner::new(upscaling, render_world));

@@ -31,15 +31,15 @@ struct DirectLightningInfo {
     shadow: f32,
 };
 
-fn calculate_direct(sun_dir: vec3<f32>, sky_color: vec3<f32>, material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed: vec3<u32>, shadow_samples: u32) -> DirectLightningInfo {
+fn calculate_direct(material: vec4<f32>, pos: vec3<f32>, normal: vec3<f32>, seed: vec3<u32>, shadow_samples: u32) -> DirectLightningInfo {
     // Diffuse
-    let diffuse = max(dot(normal, -normalize(sun_dir)), 0.0);
+    let diffuse = max(dot(normal, -normalize(SUN_DIR)), 0.0);
 
     // Shadow
     var shadow = 1.0;
 
     if trace_uniforms.shadows != 0u {
-        let shadow_ray = Ray(pos, -sun_dir);
+        let shadow_ray = Ray(pos, -normalize(SUN_DIR));
         let shadow_hit = shoot_ray(shadow_ray, 0.0, 0u);
         shadow = f32(!shadow_hit.hit);
     }
@@ -86,25 +86,7 @@ fn glmod(x: vec2<f32>, y: vec2<f32>) -> vec2<f32> {
     return x - y * floor(x / y);
 }
 
-// Calculate the angle between two vectors
-fn angle_between_vectors(v1: vec3<f32>, v2: vec3<f32>) -> f32 {
-    return acos(dot(v1, v2) / (length(v1) * length(v2)));
-}
-
-// Calculate the progressive value based on sun angle
-fn calculate_sun_progress(sun_dir: vec3<f32>) -> f32 {
-    let up = vec3<f32>(0.0, 1.0, 0.0);
-
-    // Calculate the angle between sun_dir and the "up" vector
-    let angle = angle_between_vectors(sun_dir, up);
-
-    // If the sun is below the horizon or exactly at the horizon, return 0
-    if (angle > PI / 2.0) {
-        return mix(0.2, 1.0, -sun_dir.y);
-    }
-
-    return 0.2;
-}
+const SUN_DIR: vec3<f32> = vec3(0.4, -0.6, 0.8);
 
 @fragment
 fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
@@ -122,14 +104,10 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     let hit = shoot_ray(ray, 0.0, 0u);
     var steps = hit.steps;
 
-    let timespan = 0.1;
-    let w = clamp((trace_uniforms.time * timespan + 12.0) % 24.0, 0.0, 24.0);
-    let skybox_info = skybox(ray.dir, w);
-
     var samples = 0.0;
     if hit.hit {
         // Direct lighting
-        let direct_lighting = calculate_direct(skybox_info.sun_dir, skybox_info.sky_color, hit.material, hit.pos, hit.normal, seed + 1u, trace_uniforms.samples);
+        let direct_lighting = calculate_direct(hit.material, hit.pos, hit.normal, seed + 1u, trace_uniforms.samples);
 
         // Indirect lighting
         let texture_coords = hit.pos * VOXELS_PER_METER + f32(voxel_uniforms.texture_size) / 2.0;
@@ -140,11 +118,9 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
         let voxel_ao = pow(interpolated_ao_pweig, 1.0 / 3.0);
         let indirect_lighting_color = vec3(0.3 * voxel_ao);
 
-        let sun_progress = calculate_sun_progress(skybox_info.sun_dir);
-
-        output_color = (indirect_lighting_color + direct_lighting.color) * hit.material.rgb * sun_progress;
+        output_color = (indirect_lighting_color + direct_lighting.color) * hit.material.rgb;
     } else {
-        output_color = skybox_info.sky_color;
+        output_color = vec3(0.3);
     }
 
     if trace_uniforms.show_ray_steps != 0u {

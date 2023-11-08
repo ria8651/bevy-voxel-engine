@@ -5,11 +5,10 @@ use crate::{
 use bevy::{
     prelude::*,
     render::{
-        Render,
         extract_resource::{ExtractResource, ExtractResourcePlugin},
         render_resource::*,
         renderer::{RenderDevice, RenderQueue},
-        RenderApp, RenderSet,
+        Render, RenderApp, RenderSet,
     },
 };
 use std::sync::Arc;
@@ -20,15 +19,9 @@ impl Plugin for VoxelWorldPlugin {
     fn build(&self, _app: &mut App) {}
 
     fn finish(&self, app: &mut App) {
-        let render_device = app
-            .sub_app(RenderApp)
-            .world
-            .resource::<RenderDevice>();
+        let render_device = app.sub_app(RenderApp).world.resource::<RenderDevice>();
 
-        let render_queue = app
-            .sub_app(RenderApp)
-            .world
-            .resource::<RenderQueue>();
+        let render_queue = app.sub_app(RenderApp).world.resource::<RenderQueue>();
 
         let gh = GH::empty(128);
         let buffer_size = gh.get_buffer_size();
@@ -41,7 +34,7 @@ impl Plugin for VoxelWorldPlugin {
             levels[i] = UVec4::new(gh.levels[i], 0, 0, 0);
             offsets[i] = UVec4::new(gh_offsets[i], 0, 0, 0);
         }
-    
+
         // Uniforms
         let voxel_uniforms = VoxelUniforms {
             pallete: gh.pallete.into(),

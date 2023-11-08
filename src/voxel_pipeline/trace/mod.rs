@@ -1,15 +1,14 @@
 use super::voxel_world::VoxelData;
 use bevy::{
-    asset::{load_internal_asset, Handle},
+    asset::{embedded_asset, load_internal_asset},
     core_pipeline::fullscreen_vertex_shader::fullscreen_shader_vertex_state,
     prelude::*,
     render::{
-        Render,
         extract_component::{ExtractComponent, ExtractComponentPlugin},
         render_resource::*,
         renderer::{RenderDevice, RenderQueue},
         view::{ExtractedView, ViewTarget},
-        RenderApp, RenderSet,
+        Render, RenderApp, RenderSet,
     },
     utils::HashMap,
 };
@@ -17,39 +16,19 @@ pub use node::TraceNode;
 
 mod node;
 
-const TRACE_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(3541867952248261868);
-const COMMON_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(1874948457211004189);
-const BINDINGS_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(1874948457211004188);
-const RAYTRACING_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(10483863284569474370);
+const COMMON_HANDLE: Handle<Shader> = Handle::weak_from_u128(1874948457211004189);
+const BINDINGS_HANDLE: Handle<Shader> = Handle::weak_from_u128(1874948457211004188);
+const RAYTRACING_HANDLE: Handle<Shader> = Handle::weak_from_u128(10483863284569474370);
 
 pub struct TracePlugin;
 
 impl Plugin for TracePlugin {
     fn build(&self, app: &mut App) {
-        load_internal_asset!(
-            app,
-            TRACE_SHADER_HANDLE,
-            "../shaders/trace.wgsl",
-            Shader::from_wgsl
-        );
-        load_internal_asset!(
-            app,
-            COMMON_SHADER_HANDLE,
-            "../shaders/common.wgsl",
-            Shader::from_wgsl
-        );
-        load_internal_asset!(
-            app,
-            BINDINGS_SHADER_HANDLE,
-            "../shaders/bindings.wgsl",
-            Shader::from_wgsl
-        );
-        load_internal_asset!(
-            app,
-            RAYTRACING_SHADER_HANDLE,
-            "../shaders/raytracing.wgsl",
-            Shader::from_wgsl
-        );
+        embedded_asset!(app, "src/", "trace.wgsl");
+
+        load_internal_asset!(app, COMMON_HANDLE, "common.wgsl", Shader::from_wgsl);
+        load_internal_asset!(app, BINDINGS_HANDLE, "bindings.wgsl", Shader::from_wgsl);
+        load_internal_asset!(app, RAYTRACING_HANDLE, "raytracing.wgsl", Shader::from_wgsl);
 
         app.add_plugins(ExtractComponentPlugin::<TraceSettings>::default());
     }
@@ -151,6 +130,7 @@ fn prepare_uniforms(
 impl FromWorld for TracePipelineData {
     fn from_world(render_world: &mut World) -> Self {
         let voxel_data = render_world.resource::<VoxelData>();
+        let asset_server = render_world.resource::<AssetServer>();
 
         let voxel_bind_group_layout = voxel_data.bind_group_layout.clone();
 
@@ -192,6 +172,8 @@ impl FromWorld for TracePipelineData {
                 ],
             });
 
+        let trace_shader_handle =
+            asset_server.load("embedded://bevy_voxel_engine/voxel_pipeline/trace/trace.wgsl");
         let trace_pipeline_descriptor = RenderPipelineDescriptor {
             label: Some("trace pipeline".into()),
             layout: vec![
@@ -200,7 +182,7 @@ impl FromWorld for TracePipelineData {
             ],
             vertex: fullscreen_shader_vertex_state(),
             fragment: Some(FragmentState {
-                shader: TRACE_SHADER_HANDLE,
+                shader: trace_shader_handle,
                 shader_defs: Vec::new(),
                 entry_point: "fragment".into(),
                 targets: vec![Some(ColorTargetState {

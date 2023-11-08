@@ -99,8 +99,7 @@ impl GH {
                 voxel.y as i32,
             );
 
-            let index = 
-                pos.x as usize * dim * dim + pos.y as usize * dim + pos.z as usize;
+            let index = pos.x as usize * dim * dim + pos.y as usize * dim + pos.z as usize;
 
             gh.texture_data[index as usize * 2] = voxel.i;
             gh.texture_data[index as usize * 2 + 1] = Flags::COLLISION_FLAG;
@@ -111,21 +110,20 @@ impl GH {
 
     fn next_power_of_2(number: u32) -> u32 {
         let mut n = number;
-        
+
         // Subtract 1 from the number
         n -= 1;
-        
+
         // Perform a bitwise OR operation to set all the lower bits to 1
         n |= n >> 1;
         n |= n >> 2;
         n |= n >> 4;
         n |= n >> 8;
         n |= n >> 16;
-        
+
         // Add 1 to get the next power of 2
         n += 1;
-        
+
         n
     }
-    
 }

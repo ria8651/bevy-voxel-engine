@@ -1,26 +1,14 @@
-use bevy::{
-    core_pipeline::fxaa::Fxaa,
-    prelude::*,
-};
+use bevy::{core_pipeline::fxaa::Fxaa, prelude::*};
 use bevy_voxel_engine::{
-    BevyVoxelEnginePlugin, Edges, Flags, LoadVoxelWorld, Portal, VoxelCameraBundle,
-    VoxelPhysics, CollisionEffect, BoxCollider,
+    BevyVoxelEnginePlugin, BoxCollider, CollisionEffect, Edges, Flags, LoadVoxelWorld, Portal,
+    VoxelCameraBundle, VoxelPhysics,
 };
 use std::f32::consts::PI;
-use character::CharacterEntity;
-
-#[path = "common/fps_counter.rs"]
-mod fps_counter;
-
-#[path = "common/character.rs"]
-mod character;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BevyVoxelEnginePlugin)
-        .add_plugins(fps_counter::FpsCounter)
-        .add_plugins(character::Character)
         .add_systems(Startup, setup)
         .add_systems(Update, update)
         .run();
@@ -38,8 +26,7 @@ fn setup(
     *load_voxel_world = LoadVoxelWorld::File("assets/monu9.vox".to_string());
 
     // character
-    let character_transform = Transform::from_xyz(5.0, 5.0, -5.0)
-        .looking_at(Vec3::ZERO, Vec3::Y);
+    let character_transform = Transform::from_xyz(5.0, 5.0, -5.0).looking_at(Vec3::ZERO, Vec3::Y);
 
     let projection = Projection::Perspective(PerspectiveProjection {
         fov: PI / 2.0,
@@ -52,12 +39,6 @@ fn setup(
             transform: character_transform,
             projection: projection.clone(),
             ..default()
-        },
-        CharacterEntity {
-            in_spectator: true,
-            grounded: false,
-            look_at: -character_transform.local_z(),
-            up: Vec3::new(0.0, 1.0, 0.0),
         },
         VoxelPhysics::new(
             Vec3::splat(0.0),

@@ -107,7 +107,6 @@ impl AttachmentsNode {
 }
 
 impl render_graph::Node for AttachmentsNode {
-
     fn output(&self) -> Vec<SlotInfo> {
         vec![
             SlotInfo::new("normal", SlotType::TextureView),
