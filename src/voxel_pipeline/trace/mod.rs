@@ -1,15 +1,14 @@
 use super::voxel_world::VoxelData;
 use bevy::{
-    asset::load_internal_asset,
+    asset::{embedded_asset, load_internal_asset},
     core_pipeline::fullscreen_vertex_shader::fullscreen_shader_vertex_state,
     prelude::*,
-    reflect::TypeUuid,
     render::{
         extract_component::{ExtractComponent, ExtractComponentPlugin},
         render_resource::*,
         renderer::{RenderDevice, RenderQueue},
         view::{ExtractedView, ViewTarget},
-        RenderApp, RenderSet,
+        Render, RenderApp, RenderSet,
     },
     utils::HashMap,
 };
@@ -17,84 +16,53 @@ pub use node::TraceNode;
 
 mod node;
 
-const TRACE_SHADER_HANDLE: HandleUntyped =
-    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 3541867952248261868);
-const REPROJECTION_SHADER_HANDLE: HandleUntyped =
-    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 18296058895300425745);
-const COMMON_SHADER_HANDLE: HandleUntyped =
-    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 1874948457211004189);
-const RAYTRACING_SHADER_HANDLE: HandleUntyped =
-    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 10483863284569474370);
+const COMMON_HANDLE: Handle<Shader> = Handle::weak_from_u128(1874948457211004189);
+const BINDINGS_HANDLE: Handle<Shader> = Handle::weak_from_u128(1874948457211004188);
+const RAYTRACING_HANDLE: Handle<Shader> = Handle::weak_from_u128(10483863284569474370);
 
 pub struct TracePlugin;
 
 impl Plugin for TracePlugin {
     fn build(&self, app: &mut App) {
-        load_internal_asset!(
-            app,
-            TRACE_SHADER_HANDLE,
-            "../shaders/trace.wgsl",
-            Shader::from_wgsl
-        );
-        load_internal_asset!(
-            app,
-            REPROJECTION_SHADER_HANDLE,
-            "../shaders/reprojection.wgsl",
-            Shader::from_wgsl
-        );
-        load_internal_asset!(
-            app,
-            COMMON_SHADER_HANDLE,
-            "../shaders/common.wgsl",
-            Shader::from_wgsl
-        );
-        load_internal_asset!(
-            app,
-            RAYTRACING_SHADER_HANDLE,
-            "../shaders/raytracing.wgsl",
-            Shader::from_wgsl
-        );
+        embedded_asset!(app, "src/", "trace.wgsl");
 
-        app.add_plugin(ExtractComponentPlugin::<TraceSettings>::default());
+        load_internal_asset!(app, COMMON_HANDLE, "common.wgsl", Shader::from_wgsl);
+        load_internal_asset!(app, BINDINGS_HANDLE, "bindings.wgsl", Shader::from_wgsl);
+        load_internal_asset!(app, RAYTRACING_HANDLE, "raytracing.wgsl", Shader::from_wgsl);
 
-        // setup custom render pipeline
-        app.sub_app_mut(RenderApp)
+        app.add_plugins(ExtractComponentPlugin::<TraceSettings>::default());
+    }
+
+    fn finish(&self, app: &mut App) {
+        let render_app = app.sub_app_mut(RenderApp);
+
+        // Setup custom render pipeline
+        render_app
             .init_resource::<TracePipelineData>()
             .insert_resource(LastCameras(HashMap::new()))
-            .add_system(prepare_uniforms.in_set(RenderSet::Prepare));
+            .add_systems(Render, prepare_uniforms.in_set(RenderSet::Prepare));
     }
 }
 
 #[derive(Resource)]
 struct TracePipelineData {
     trace_pipeline_id: CachedRenderPipelineId,
-    reprojection_pipeline_id: CachedRenderPipelineId,
-    accumulation_pipeline_id: CachedRenderPipelineId,
     trace_bind_group_layout: BindGroupLayout,
-    reprojection_bind_group_layout: BindGroupLayout,
 }
 
 #[derive(Component, Clone, ExtractComponent)]
 pub struct TraceSettings {
     pub show_ray_steps: bool,
-    pub indirect_lighting: bool,
     pub samples: u32,
-    pub reprojection_factor: f32,
     pub shadows: bool,
-    pub misc_bool: bool,
-    pub misc_float: f32,
 }
 
 impl Default for TraceSettings {
     fn default() -> Self {
         Self {
             show_ray_steps: false,
-            indirect_lighting: false,
             samples: 1,
-            reprojection_factor: 0.75,
             shadows: true,
-            misc_bool: false,
-            misc_float: 1.0,
         }
     }
 }
@@ -107,12 +75,8 @@ pub struct TraceUniforms {
     pub projection: Mat4,
     pub time: f32,
     pub show_ray_steps: u32,
-    pub indirect_lighting: u32,
     pub samples: u32,
-    pub reprojection_factor: f32,
     pub shadows: u32,
-    pub misc_bool: u32,
-    pub misc_float: f32,
 }
 
 #[derive(Component, Deref, DerefMut)]
@@ -150,12 +114,8 @@ fn prepare_uniforms(
             projection,
             time: elapsed as f32,
             show_ray_steps: settings.show_ray_steps as u32,
-            indirect_lighting: settings.indirect_lighting as u32,
             samples: settings.samples,
-            reprojection_factor: settings.reprojection_factor,
             shadows: settings.shadows as u32,
-            misc_bool: settings.misc_bool as u32,
-            misc_float: settings.misc_float,
         };
 
         let mut uniform_buffer = UniformBuffer::from(uniforms);
@@ -169,9 +129,11 @@ fn prepare_uniforms(
 
 impl FromWorld for TracePipelineData {
     fn from_world(render_world: &mut World) -> Self {
-        let voxel_data = render_world.get_resource::<VoxelData>().unwrap();
+        let voxel_data = render_world.resource::<VoxelData>();
+        let asset_server = render_world.resource::<AssetServer>();
 
         let voxel_bind_group_layout = voxel_data.bind_group_layout.clone();
+
         let trace_bind_group_layout = render_world
             .resource::<RenderDevice>()
             .create_bind_group_layout(&BindGroupLayoutDescriptor {
@@ -202,16 +164,6 @@ impl FromWorld for TracePipelineData {
                         visibility: ShaderStages::FRAGMENT,
                         ty: BindingType::StorageTexture {
                             access: StorageTextureAccess::ReadWrite,
-                            format: TextureFormat::Rgba16Float,
-                            view_dimension: TextureViewDimension::D2,
-                        },
-                        count: None,
-                    },
-                    BindGroupLayoutEntry {
-                        binding: 3,
-                        visibility: ShaderStages::FRAGMENT,
-                        ty: BindingType::StorageTexture {
-                            access: StorageTextureAccess::ReadWrite,
                             format: TextureFormat::Rgba32Float,
                             view_dimension: TextureViewDimension::D2,
                         },
@@ -219,22 +171,9 @@ impl FromWorld for TracePipelineData {
                     },
                 ],
             });
-        let reprojection_bind_group_layout = render_world
-            .resource::<RenderDevice>()
-            .create_bind_group_layout(&BindGroupLayoutDescriptor {
-                label: Some("reprojection bind group layout"),
-                entries: &[BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::FRAGMENT,
-                    ty: BindingType::Texture {
-                        sample_type: TextureSampleType::Float { filterable: false },
-                        view_dimension: TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                    count: None,
-                }],
-            });
 
+        let trace_shader_handle =
+            asset_server.load("embedded://bevy_voxel_engine/voxel_pipeline/trace/trace.wgsl");
         let trace_pipeline_descriptor = RenderPipelineDescriptor {
             label: Some("trace pipeline".into()),
             layout: vec![
@@ -243,53 +182,9 @@ impl FromWorld for TracePipelineData {
             ],
             vertex: fullscreen_shader_vertex_state(),
             fragment: Some(FragmentState {
-                shader: TRACE_SHADER_HANDLE.typed(),
+                shader: trace_shader_handle,
                 shader_defs: Vec::new(),
                 entry_point: "fragment".into(),
-                targets: vec![Some(ColorTargetState {
-                    format: ViewTarget::TEXTURE_FORMAT_HDR,
-                    blend: None,
-                    write_mask: ColorWrites::ALL,
-                })],
-            }),
-            primitive: PrimitiveState::default(),
-            depth_stencil: None,
-            multisample: MultisampleState::default(),
-            push_constant_ranges: vec![],
-        };
-        let reprojection_pipeline_descriptor = RenderPipelineDescriptor {
-            label: Some("reprojection pipeline".into()),
-            layout: vec![
-                trace_bind_group_layout.clone(),
-                reprojection_bind_group_layout.clone(),
-            ],
-            vertex: fullscreen_shader_vertex_state(),
-            fragment: Some(FragmentState {
-                shader: REPROJECTION_SHADER_HANDLE.typed(),
-                shader_defs: Vec::new(),
-                entry_point: "fragment".into(),
-                targets: vec![Some(ColorTargetState {
-                    format: ViewTarget::TEXTURE_FORMAT_HDR,
-                    blend: None,
-                    write_mask: ColorWrites::ALL,
-                })],
-            }),
-            primitive: PrimitiveState::default(),
-            depth_stencil: None,
-            multisample: MultisampleState::default(),
-            push_constant_ranges: vec![],
-        };
-        let accumulation_pipeline_descriptor = RenderPipelineDescriptor {
-            label: Some("accumulation pipeline".into()),
-            layout: vec![
-                trace_bind_group_layout.clone(),
-                reprojection_bind_group_layout.clone(),
-            ],
-            vertex: fullscreen_shader_vertex_state(),
-            fragment: Some(FragmentState {
-                shader: REPROJECTION_SHADER_HANDLE.typed(),
-                shader_defs: Vec::new(),
-                entry_point: "accumulation".into(),
                 targets: vec![Some(ColorTargetState {
                     format: ViewTarget::TEXTURE_FORMAT_HDR,
                     blend: None,
@@ -304,17 +199,10 @@ impl FromWorld for TracePipelineData {
 
         let cache = render_world.resource::<PipelineCache>();
         let trace_pipeline_id = cache.queue_render_pipeline(trace_pipeline_descriptor);
-        let reprojection_pipeline_id =
-            cache.queue_render_pipeline(reprojection_pipeline_descriptor);
-        let accumulation_pipeline_id =
-            cache.queue_render_pipeline(accumulation_pipeline_descriptor);
 
         TracePipelineData {
             trace_pipeline_id,
-            reprojection_pipeline_id,
-            accumulation_pipeline_id,
             trace_bind_group_layout,
-            reprojection_bind_group_layout,
         }
     }
 }

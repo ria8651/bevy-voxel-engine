@@ -21,12 +21,14 @@ impl FromWorld for Pipeline {
     fn from_world(world: &mut World) -> Self {
         let voxel_bind_group_layout = world.resource::<VoxelData>().bind_group_layout.clone();
 
+        let asset_server = world.resource_mut::<AssetServer>();
+        let shader = asset_server.load("embedded://bevy_voxel_engine/voxel_pipeline/compute/clear.wgsl");
+        
         let pipeline_cache = world.resource_mut::<PipelineCache>();
-
         let update_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
             label: Some(Cow::from("clear pipeline")),
             layout: vec![voxel_bind_group_layout],
-            shader: super::CLEAR_SHADER_HANDLE.typed(),
+            shader,
             shader_defs: vec![],
             entry_point: Cow::from("clear"),
             push_constant_ranges: vec![],
@@ -47,7 +49,7 @@ impl render_graph::Node for ClearNode {
         let voxel_uniforms = world.resource::<VoxelUniforms>();
         let pipeline_cache = world.resource::<PipelineCache>();
         let dispatch_size = voxel_uniforms.texture_size / 4;
-        let render_graph_settings = world.get_resource::<RenderGraphSettings>().unwrap();
+        let render_graph_settings = world.resource::<RenderGraphSettings>();
 
         if !render_graph_settings.clear {
             return Ok(());

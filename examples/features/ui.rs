@@ -7,16 +7,14 @@ use bevy_egui::{
     egui::{self, Slider},
     EguiContexts, EguiPlugin,
 };
-use bevy_voxel_engine::{
-    DenoiseSettings, Flags, LoadVoxelWorld, RenderGraphSettings, TraceSettings, VoxelPhysics,
-};
+use bevy_voxel_engine::{Flags, LoadVoxelWorld, RenderGraphSettings, TraceSettings, VoxelPhysics};
 use rand::Rng;
 
 pub struct UiPlugin;
 
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(EguiPlugin).add_system(ui_system);
+        app.add_plugins(EguiPlugin).add_systems(Update, ui_system);
     }
 }
 
@@ -32,7 +30,6 @@ fn ui_system(
         Option<&mut Tonemapping>,
         Option<&mut Fxaa>,
     )>,
-    mut denoise_pass_data: ResMut<DenoiseSettings>,
     mut voxelization_preview_camera_query: Query<&mut Camera, With<VoxelizationPreviewCamera>>,
     mut character_query: Query<&mut CharacterEntity>,
 ) {
@@ -54,15 +51,8 @@ fn ui_system(
             {
                 ui.collapsing(format!("Camera Settings {}", i), |ui| {
                     ui.checkbox(&mut trace_settings.show_ray_steps, "Show ray steps");
-                    ui.checkbox(&mut trace_settings.indirect_lighting, "Indirect lighting");
                     ui.add(Slider::new(&mut trace_settings.samples, 1..=8).text("Samples"));
-                    ui.add(
-                        Slider::new(&mut trace_settings.reprojection_factor, 0.0..=1.0)
-                            .text("Reprojection"),
-                    );
                     ui.checkbox(&mut trace_settings.shadows, "Shadows");
-                    ui.checkbox(&mut trace_settings.misc_bool, "Misc");
-                    ui.add(Slider::new(&mut trace_settings.misc_float, 0.0..=1.0).text("Misc"));
                     if let Some(bloom_settings) = bloom_settings {
                         ui.add(
                             Slider::new(&mut bloom_settings.into_inner().intensity, 0.0..=1.0)
@@ -114,7 +104,7 @@ fn ui_system(
             ui.collapsing("Compute", |ui| {
                 if ui.button("spawn particles").clicked() {
                     let mut rng = rand::thread_rng();
-                    for _ in 0..10000 {
+                    for _ in 0..10 {
                         commands.spawn((
                             Transform::from_xyz(0.0, 0.0, 0.0),
                             Particle {
@@ -143,52 +133,15 @@ fn ui_system(
                 }
                 ui.label(format!("Particle count: {}", particle_query.iter().count()));
             });
-            ui.collapsing("Denoise", |ui| {
-                for i in 0..3 {
-                    ui.label(format!("Pass {}", i));
-                    ui.add(
-                        Slider::new(
-                            &mut denoise_pass_data.pass_settings[i].denoise_strength,
-                            0.0..=8.0,
-                        )
-                        .text("Strength"),
-                    );
-                    ui.add(
-                        Slider::new(
-                            &mut denoise_pass_data.pass_settings[i].colour_phi,
-                            0.01..=1.0,
-                        )
-                        .text("Colour")
-                        .logarithmic(true),
-                    );
-                    ui.add(
-                        Slider::new(
-                            &mut denoise_pass_data.pass_settings[i].normal_phi,
-                            0.1..=100.0,
-                        )
-                        .text("Normal")
-                        .logarithmic(true),
-                    );
-                    ui.add(
-                        Slider::new(
-                            &mut denoise_pass_data.pass_settings[i].position_phi,
-                            0.01..=1.0,
-                        )
-                        .text("Position")
-                        .logarithmic(true),
-                    );
-                }
-            });
+
             ui.collapsing("Passes", |ui| {
                 ui.checkbox(&mut render_graph_settings.clear, "clear");
                 ui.checkbox(&mut render_graph_settings.automata, "automata");
                 ui.checkbox(&mut render_graph_settings.animation, "animation");
                 ui.checkbox(&mut render_graph_settings.voxelization, "voxelization");
                 ui.checkbox(&mut render_graph_settings.rebuild, "rebuild");
-                ui.checkbox(&mut render_graph_settings.mip, "mip");
                 ui.checkbox(&mut render_graph_settings.physics, "physics");
                 ui.checkbox(&mut render_graph_settings.trace, "trace");
-                ui.checkbox(&mut render_graph_settings.denoise, "denoise");
             });
 
             for mut voxelization_preview_camera in voxelization_preview_camera_query.iter_mut() {
@@ -198,5 +151,16 @@ fn ui_system(
                 );
             }
             ui.checkbox(&mut character.in_spectator, "Spectator mode");
+
+            // show controls with multi line text
+            ui.label("Controls:");
+            ui.label("WASD, Space, Shift - move");
+            ui.label("Escape - toggle cursor");
+            ui.label("Left/Right mouse - portals");
+            ui.label("F - fireball");
+            ui.label("P - spectator mode");
+            ui.label("B - spawn box");
+            ui.label("E - spawn sand");
+            ui.label("R - spawn water");
         });
 }

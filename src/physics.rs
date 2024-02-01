@@ -8,6 +8,7 @@ use crate::{
 };
 use bevy::{
     prelude::*,
+    render::render_resource::MapMode,
     render::renderer::{RenderDevice, RenderQueue},
     utils::HashMap,
 };
@@ -18,9 +19,9 @@ pub struct PhysicsPlugin;
 
 impl Plugin for PhysicsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(insert_physics_data.in_base_set(CoreSet::PreUpdate))
-            .add_system(extract_physics_data.in_base_set(CoreSet::PostUpdate))
-            .add_system(extract_animation_data.in_base_set(CoreSet::PostUpdate));
+        app.add_systems(PreUpdate, insert_physics_data)
+            .add_systems(PostUpdate, extract_physics_data)
+            .add_systems(PostUpdate, extract_animation_data);
     }
 }
 
@@ -33,7 +34,7 @@ pub fn extract_physics_data(
     let mut type_buffer = TypeBuffer::new();
     let mut entities = HashMap::new();
 
-    // add points
+    // Add points
     for (transform, voxel_physics, entity) in particle_query.iter() {
         entities.insert(entity, type_buffer.header.len());
 
@@ -47,7 +48,7 @@ pub fn extract_physics_data(
         });
     }
 
-    // add boxes
+    // Add boxes
     for (transform, voxel_physics, box_collider, entity) in box_query.iter() {
         entities.insert(entity, type_buffer.header.len());
 
@@ -65,7 +66,7 @@ pub fn extract_physics_data(
     physics_data.dispatch_size = type_buffer.header.len() as u32;
     physics_data.buffer_length = (type_buffer.header.len() + type_buffer.data.len() + 1) as u64;
 
-    // copy physics data to the buffer
+    // Copy physics data to the buffer
     render_queue.write_buffer(
         &physics_data.physics_buffer_gpu,
         0,
@@ -85,12 +86,13 @@ pub fn insert_physics_data(
         return;
     }
 
-    // process last frames physics data
+    // Process last frames physics data
     if physics_data.dispatch_size > 0 {
         let physics_buffer_slice = physics_data
             .physics_buffer_cpu
             .slice(..physics_data.buffer_length * 4);
-        physics_buffer_slice.map_async(wgpu::MapMode::Read, |_| {});
+
+        physics_buffer_slice.map_async(MapMode::Read, |_| {});
         render_device.poll(wgpu::Maintain::Wait);
 
         let data = physics_buffer_slice.get_mapped_range();
@@ -104,7 +106,7 @@ pub fn insert_physics_data(
             return;
         }
 
-        // process points and boxes
+        // Process points and boxes
         for (mut transform, mut voxel_physics, entity) in voxel_physics_query.iter_mut() {
             if let Some(index) = physics_data.entities.get(&entity) {
                 let data_index = result[index + 1] as usize & 0xFFFFFF;
@@ -237,7 +239,7 @@ pub fn extract_animation_data(
 
     let voxel_world_size = voxel_uniforms.texture_size;
 
-    // add particles
+    // Add particles
     for (transform, particle) in particle_query.iter() {
         let pos = world_to_voxel(transform.translation, voxel_world_size);
         type_buffer.push_object(0, |type_buffer| {
@@ -247,7 +249,7 @@ pub fn extract_animation_data(
         });
     }
 
-    // add edges
+    // Add edges
     for (transform, edges) in edges_query.iter() {
         let pos = world_to_voxel(transform.translation, voxel_world_size);
         type_buffer.push_object(1, |type_buffer| {
@@ -258,7 +260,7 @@ pub fn extract_animation_data(
         });
     }
 
-    // add boxes
+    // Add boxes
     for (transform, boxes) in boxes_query.iter() {
         let pos = world_to_voxel(transform.translation, voxel_world_size);
         type_buffer.push_object(2, |type_buffer| {
@@ -269,10 +271,12 @@ pub fn extract_animation_data(
         });
     }
 
-    // grab all the poratls in pairs
+    // Grab all the portails in pairs
     voxel_uniforms.portals = [ExtractedPortal::default(); 32];
+
     let mut portals: Vec<(&Transform, &Portal, Mut<VoxelizationMaterial>)> =
         portal_query.iter_mut().collect();
+
     for i in 0..portals.len() {
         portals[i].2.material = VoxelizationMaterialType::Material(i as u8);
         if i % 2 == 1 {
@@ -303,7 +307,7 @@ pub fn extract_animation_data(
 
     animation_data.dispatch_size = type_buffer.header.len() as u32;
 
-    // copy animation data to the buffer
+    // Copy animation data to the buffer
     render_queue.write_buffer(
         &animation_data.animation_buffer,
         0,

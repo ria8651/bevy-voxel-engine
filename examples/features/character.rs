@@ -6,7 +6,7 @@ use bevy::{
 use bevy_voxel_engine::VoxelPhysics;
 
 const SPEED: f32 = 10.0;
-const SENSITIVITY: f32 = 0.004;
+const SENSITIVITY: f32 = 0.006;
 
 #[derive(Component)]
 pub struct CharacterEntity {
@@ -20,8 +20,8 @@ pub struct Character;
 
 impl Plugin for Character {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(setup_character)
-            .add_system(update_character);
+        app.add_systems(Startup, setup_character)
+            .add_systems(Update, update_character);
     }
 }
 
@@ -53,13 +53,14 @@ fn update_character(
 
     let (mut transform, mut voxel_physics, mut character) = character.single_mut();
     let target_velocity;
+
     if window.cursor.grab_mode == CursorGrabMode::Locked {
         character.look_at = voxel_physics.portal_rotation * character.look_at;
         character.up = voxel_physics.portal_rotation * character.up;
 
         // rotation
         let mut mouse_delta = Vec2::new(0.0, 0.0);
-        for event in mouse_motion_events.iter() {
+        for event in mouse_motion_events.read() {
             mouse_delta += event.delta;
         }
         if mouse_delta != Vec2::ZERO {
@@ -78,17 +79,23 @@ fn update_character(
         }
 
         let pos = transform.translation;
-        transform.look_at(pos + character.look_at, character.up);
 
-        // movement
+        let character_pos = pos + character.look_at;
+
+        transform.look_at(character_pos + character.look_at, character.up);
+
+        // Movement
+
         let mut input = Vec3::new(
             (keys.pressed(KeyCode::D) as i32 - keys.pressed(KeyCode::A) as i32) as f32,
-            (keys.pressed(KeyCode::Space) as i32 - keys.pressed(KeyCode::LShift) as i32) as f32,
+            (keys.pressed(KeyCode::Space) as i32 - keys.pressed(KeyCode::ShiftLeft) as i32) as f32,
             (keys.pressed(KeyCode::S) as i32 - keys.pressed(KeyCode::W) as i32) as f32,
         );
+
         if input != Vec3::ZERO {
             input = input.normalize();
         }
+
         input *= SPEED;
 
         if character.in_spectator {
@@ -99,13 +106,20 @@ fn update_character(
             if voxel_physics.velocity.y == 0.0 {
                 character.grounded = true;
             }
+
             if input.y > 0.0 && character.grounded {
-                voxel_physics.velocity.y = 5.0;
+                voxel_physics.velocity.y = 10.0;
                 character.grounded = false;
             }
-            voxel_physics.velocity += Vec3::new(0.0, -9.81 * time.delta_seconds(), 0.0);
+
+            let gravity = match voxel_physics.velocity.y > 0.0 {
+                true => -9.81,
+                false => -15.0,
+            };
+            voxel_physics.velocity += gravity * time.delta_seconds() * Vec3::Y;
 
             let plane_forward = transform.local_x().cross(Vec3::Y).normalize();
+
             target_velocity = input.z * plane_forward
                 + input.x * transform.local_x()
                 + voxel_physics.velocity.y * Vec3::Y;

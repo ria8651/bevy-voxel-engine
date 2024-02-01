@@ -1,5 +1,4 @@
 /target
-/.vscode
-trace-*
-render-graph.dot
-*.blend1
+Cargo.lock
+.DS_Store
+Derived/

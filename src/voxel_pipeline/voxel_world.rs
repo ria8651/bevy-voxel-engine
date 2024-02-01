@@ -8,7 +8,7 @@ use bevy::{
         extract_resource::{ExtractResource, ExtractResourcePlugin},
         render_resource::*,
         renderer::{RenderDevice, RenderQueue},
-        RenderApp, RenderSet,
+        Render, RenderApp, RenderSet,
     },
 };
 use std::sync::Arc;
@@ -16,9 +16,12 @@ use std::sync::Arc;
 pub struct VoxelWorldPlugin;
 
 impl Plugin for VoxelWorldPlugin {
-    fn build(&self, app: &mut App) {
-        let render_device = app.world.resource::<RenderDevice>();
-        let render_queue = app.world.resource::<RenderQueue>();
+    fn build(&self, _app: &mut App) {}
+
+    fn finish(&self, app: &mut App) {
+        let render_device = app.sub_app(RenderApp).world.resource::<RenderDevice>();
+
+        let render_queue = app.sub_app(RenderApp).world.resource::<RenderQueue>();
 
         let gh = GH::empty(128);
         let buffer_size = gh.get_buffer_size();
@@ -32,7 +35,7 @@ impl Plugin for VoxelWorldPlugin {
             offsets[i] = UVec4::new(gh_offsets[i], 0, 0, 0);
         }
 
-        // uniforms
+        // Uniforms
         let voxel_uniforms = VoxelUniforms {
             pallete: gh.pallete.into(),
             portals: [ExtractedPortal::default(); 32],
@@ -41,11 +44,11 @@ impl Plugin for VoxelWorldPlugin {
             texture_size,
         };
         let mut uniform_buffer = UniformBuffer::from(voxel_uniforms.clone());
-        uniform_buffer.write_buffer(render_device, render_queue);
+        uniform_buffer.write_buffer(&render_device, &render_queue);
 
-        // texture
+        // Texture
         let voxel_world = render_device.create_texture_with_data(
-            render_queue,
+            &render_queue,
             &TextureDescriptor {
                 label: None,
                 size: Extent3d {
@@ -64,14 +67,14 @@ impl Plugin for VoxelWorldPlugin {
         );
         let voxel_world = voxel_world.create_view(&TextureViewDescriptor::default());
 
-        // storage
-        let grid_heierachy = render_device.create_buffer_with_data(&BufferInitDescriptor {
+        // Storage
+        let grid_hierarchy = render_device.create_buffer_with_data(&BufferInitDescriptor {
             contents: &vec![0; buffer_size],
             label: None,
             usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
         });
 
-        // mip texture
+        // Mip texture
         let mip_count = gh.texture_size.trailing_zeros();
         let mip_texture = render_device.create_texture(&TextureDescriptor {
             label: None,
@@ -89,7 +92,7 @@ impl Plugin for VoxelWorldPlugin {
         });
         let mip_texture_view = mip_texture.create_view(&TextureViewDescriptor::default());
 
-        // sampler
+        // Sampler
         let texture_sampler = render_device.create_sampler(&SamplerDescriptor {
             mag_filter: FilterMode::Linear,
             min_filter: FilterMode::Linear,
@@ -103,7 +106,7 @@ impl Plugin for VoxelWorldPlugin {
                 entries: &[
                     BindGroupLayoutEntry {
                         binding: 0,
-                        visibility: ShaderStages::FRAGMENT | ShaderStages::COMPUTE,
+                        visibility: ShaderStages::VERTEX_FRAGMENT | ShaderStages::COMPUTE,
                         ty: BindingType::Buffer {
                             ty: BufferBindingType::Uniform,
                             has_dynamic_offset: false,
@@ -113,7 +116,7 @@ impl Plugin for VoxelWorldPlugin {
                     },
                     BindGroupLayoutEntry {
                         binding: 1,
-                        visibility: ShaderStages::FRAGMENT | ShaderStages::COMPUTE,
+                        visibility: ShaderStages::VERTEX_FRAGMENT | ShaderStages::COMPUTE,
                         ty: BindingType::StorageTexture {
                             access: StorageTextureAccess::ReadWrite,
                             format: TextureFormat::R16Uint,
@@ -123,7 +126,7 @@ impl Plugin for VoxelWorldPlugin {
                     },
                     BindGroupLayoutEntry {
                         binding: 2,
-                        visibility: ShaderStages::FRAGMENT | ShaderStages::COMPUTE,
+                        visibility: ShaderStages::VERTEX_FRAGMENT | ShaderStages::COMPUTE,
                         ty: BindingType::Buffer {
                             ty: BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
@@ -133,7 +136,7 @@ impl Plugin for VoxelWorldPlugin {
                     },
                     BindGroupLayoutEntry {
                         binding: 3,
-                        visibility: ShaderStages::FRAGMENT | ShaderStages::COMPUTE,
+                        visibility: ShaderStages::VERTEX_FRAGMENT | ShaderStages::COMPUTE,
                         ty: BindingType::Texture {
                             sample_type: TextureSampleType::Float { filterable: true },
                             view_dimension: TextureViewDimension::D3,
@@ -150,10 +153,10 @@ impl Plugin for VoxelWorldPlugin {
                 ],
             });
 
-        let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
-            label: None,
-            layout: &bind_group_layout,
-            entries: &[
+        let bind_group = render_device.create_bind_group(
+            None,
+            &bind_group_layout,
+            &[
                 BindGroupEntry {
                     binding: 0,
                     resource: uniform_buffer.binding().unwrap(),
@@ -164,7 +167,7 @@ impl Plugin for VoxelWorldPlugin {
                 },
                 BindGroupEntry {
                     binding: 2,
-                    resource: grid_heierachy.as_entire_binding(),
+                    resource: grid_hierarchy.as_entire_binding(),
                 },
                 BindGroupEntry {
                     binding: 3,
@@ -175,28 +178,30 @@ impl Plugin for VoxelWorldPlugin {
                     resource: BindingResource::Sampler(&texture_sampler),
                 },
             ],
-        });
+        );
 
         app.insert_resource(LoadVoxelWorld::None)
             .insert_resource(NewGH::None)
             .insert_resource(voxel_uniforms)
-            .add_plugin(ExtractResourcePlugin::<NewGH>::default())
-            .add_plugin(ExtractResourcePlugin::<VoxelUniforms>::default())
-            .add_system(load_voxel_world);
+            .add_plugins(ExtractResourcePlugin::<NewGH>::default())
+            .add_plugins(ExtractResourcePlugin::<VoxelUniforms>::default())
+            .add_systems(Update, load_voxel_world);
 
-        app.sub_app_mut(RenderApp)
+        let render_app = app.sub_app_mut(RenderApp);
+
+        render_app
             .insert_resource(VoxelData {
                 uniform_buffer,
                 voxel_world,
-                grid_heierachy,
+                grid_hierarchy,
                 mip_texture,
                 texture_sampler,
                 bind_group_layout,
                 bind_group,
             })
-            .add_system(prepare_uniforms.in_set(RenderSet::Prepare))
-            .add_system(load_voxel_world_prepare.in_set(RenderSet::Prepare))
-            .add_system(queue_bind_group.in_set(RenderSet::Queue));
+            .add_systems(Render, prepare_uniforms.in_set(RenderSet::Prepare))
+            .add_systems(Render, load_voxel_world_prepare.in_set(RenderSet::Prepare))
+            .add_systems(Render, queue_bind_group.in_set(RenderSet::Queue));
     }
 }
 
@@ -204,7 +209,7 @@ impl Plugin for VoxelWorldPlugin {
 pub struct VoxelData {
     pub uniform_buffer: UniformBuffer<VoxelUniforms>,
     pub voxel_world: TextureView,
-    pub grid_heierachy: Buffer,
+    pub grid_hierarchy: Buffer,
     pub mip_texture: Texture,
     pub texture_sampler: Sampler,
     pub bind_group_layout: BindGroupLayout,
@@ -304,7 +309,7 @@ fn load_voxel_world_prepare(
         let buffer_size = gh.get_buffer_size();
 
         // grid hierarchy
-        voxel_data.grid_heierachy = render_device.create_buffer_with_data(&BufferInitDescriptor {
+        voxel_data.grid_hierarchy = render_device.create_buffer_with_data(&BufferInitDescriptor {
             contents: &vec![0; buffer_size],
             label: None,
             usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
@@ -352,10 +357,10 @@ fn load_voxel_world_prepare(
 }
 
 fn queue_bind_group(render_device: Res<RenderDevice>, mut voxel_data: ResMut<VoxelData>) {
-    let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
-        label: None,
-        layout: &voxel_data.bind_group_layout,
-        entries: &[
+    let bind_group = render_device.create_bind_group(
+        None,
+        &voxel_data.bind_group_layout,
+        &[
             BindGroupEntry {
                 binding: 0,
                 resource: voxel_data.uniform_buffer.binding().unwrap(),
@@ -366,7 +371,7 @@ fn queue_bind_group(render_device: Res<RenderDevice>, mut voxel_data: ResMut<Vox
             },
             BindGroupEntry {
                 binding: 2,
-                resource: voxel_data.grid_heierachy.as_entire_binding(),
+                resource: voxel_data.grid_hierarchy.as_entire_binding(),
             },
             BindGroupEntry {
                 binding: 3,
@@ -381,6 +386,6 @@ fn queue_bind_group(render_device: Res<RenderDevice>, mut voxel_data: ResMut<Vox
                 resource: BindingResource::Sampler(&voxel_data.texture_sampler),
             },
         ],
-    });
+    );
     voxel_data.bind_group = bind_group;
 }
