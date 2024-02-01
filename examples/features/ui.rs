@@ -151,5 +151,16 @@ fn ui_system(
                 );
             }
             ui.checkbox(&mut character.in_spectator, "Spectator mode");
+
+            // show controls with multi line text
+            ui.label("Controls:");
+            ui.label("WASD, Space, Shift - move");
+            ui.label("Escape - toggle cursor");
+            ui.label("Left/Right mouse - portals");
+            ui.label("F - fireball");
+            ui.label("P - spectator mode");
+            ui.label("B - spawn box");
+            ui.label("E - spawn sand");
+            ui.label("R - spawn water");
         });
 }

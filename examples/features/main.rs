@@ -73,7 +73,7 @@ struct SandSpawner;
 fn setup(
     mut commands: Commands,
     mut load_voxel_world: ResMut<LoadVoxelWorld>,
-    mut meshes: ResMut<Assets<Mesh>>,
+    // mut meshes: ResMut<Assets<Mesh>>,
     asset_server: Res<AssetServer>,
 ) {
     // load a voxel world
@@ -166,18 +166,18 @@ fn setup(
             ));
         });
 
-    // portal gun
-    commands.spawn((
-        VoxelizationBundle {
-            mesh_handle: asset_server.load("models/guns/portal_gun.obj"),
-            voxelization_material: VoxelizationMaterial {
-                material: VoxelizationMaterialType::Material(1),
-                flags: Flags::ANIMATION_FLAG,
-            },
-            ..default()
-        },
-        Gun,
-    ));
+    // weapon in hand
+    // commands.spawn((
+    //     VoxelizationBundle {
+    //         mesh_handle: asset_server.load("models/guns/portal_gun.obj"),
+    //         voxelization_material: VoxelizationMaterial {
+    //             material: VoxelizationMaterialType::Material(1),
+    //             flags: Flags::ANIMATION_FLAG,
+    //         },
+    //         ..default()
+    //     },
+    //     Gun,
+    // ));
 
     // rotated portals
     let pos = vec![Vec3::new(5.0, 0.0, -5.0), Vec3::new(-5.0, 0.0, 5.0)];
@@ -228,17 +228,11 @@ fn setup(
 
     // sand spawner
     commands.spawn((
-        VoxelizationBundle {
-            mesh_handle: meshes.add(Mesh::from(shape::UVSphere {
-                radius: 3.0,
-                ..default()
-            })),
-            transform: Transform::from_xyz(5.0, 0.0, 5.0),
-            voxelization_material: VoxelizationMaterial {
-                flags: Flags::NONE,
-                ..default()
-            },
-            ..default()
+        Transform::default(),
+        Box {
+            flags: Flags::NONE,
+            material: 0,
+            half_size: IVec3::new(6, 6, 6),
         },
         SandSpawner,
     ));
@@ -421,7 +415,7 @@ fn spawn_stuff(
 }
 
 fn sand_spawner(
-    mut sand_spawner: Query<(&mut Transform, &mut VoxelizationMaterial), With<SandSpawner>>,
+    mut sand_spawner: Query<(&mut Transform, &mut Box), With<SandSpawner>>,
     character_query: Query<&Transform, (With<CharacterEntity>, Without<SandSpawner>)>,
     input: Res<Input<KeyCode>>,
 ) {
@@ -431,13 +425,13 @@ fn sand_spawner(
     sand_spawner.translation = character.translation - character.local_z() * 10.0;
 
     if input.pressed(KeyCode::R) {
-        sand_material.material = VoxelizationMaterialType::Material(8);
+        sand_material.material = 8;
         sand_material.flags = Flags::NONE;
     } else if input.pressed(KeyCode::E) {
-        sand_material.material = VoxelizationMaterialType::Material(100);
+        sand_material.material = 100;
         sand_material.flags = Flags::SAND_FLAG | Flags::COLLISION_FLAG;
     } else {
-        sand_material.material = VoxelizationMaterialType::Material(0);
+        sand_material.material = 0;
         sand_material.flags = Flags::NONE;
     }
 }
