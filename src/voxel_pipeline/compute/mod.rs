@@ -22,11 +22,22 @@ pub struct ComputeResourcesPlugin;
 
 impl Plugin for ComputeResourcesPlugin {
     fn build(&self, app: &mut App) {
-        embedded_asset!(app, "src/", "animation.wgsl");
-        embedded_asset!(app, "src/", "automata.wgsl");
-        embedded_asset!(app, "src/", "clear.wgsl");
-        embedded_asset!(app, "src/", "physics.wgsl");
-        embedded_asset!(app, "src/", "rebuild.wgsl");
+        #[cfg(any(not(target_family = "windows"), target_env = "gnu"))]
+        {
+            embedded_asset!(app, "src/", "animation.wgsl");
+            embedded_asset!(app, "src/", "automata.wgsl");
+            embedded_asset!(app, "src/", "clear.wgsl");
+            embedded_asset!(app, "src/", "physics.wgsl");
+            embedded_asset!(app, "src/", "rebuild.wgsl");
+        }
+        #[cfg(all(target_family = "windows", not(target_env = "gnu")))]
+        {
+            embedded_asset!(app, "src\\", "animation.wgsl");
+            embedded_asset!(app, "src\\", "automata.wgsl");
+            embedded_asset!(app, "src\\", "clear.wgsl");
+            embedded_asset!(app, "src\\", "physics.wgsl");
+            embedded_asset!(app, "src\\", "rebuild.wgsl");
+        }
     }
 
     fn finish(&self, app: &mut App) {

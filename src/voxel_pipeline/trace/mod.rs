@@ -24,7 +24,14 @@ pub struct TracePlugin;
 
 impl Plugin for TracePlugin {
     fn build(&self, app: &mut App) {
-        embedded_asset!(app, "src/", "trace.wgsl");
+        #[cfg(any(not(target_family = "windows"), target_env = "gnu"))]
+        {
+            embedded_asset!(app, "src/", "trace.wgsl");
+        }
+        #[cfg(all(target_family = "windows", not(target_env = "gnu")))]
+        {
+            embedded_asset!(app, "src\\", "trace.wgsl");
+        }
 
         load_internal_asset!(app, COMMON_HANDLE, "common.wgsl", Shader::from_wgsl);
         load_internal_asset!(app, BINDINGS_HANDLE, "bindings.wgsl", Shader::from_wgsl);
