@@ -5,6 +5,7 @@ use bevy::{
     },
     prelude::*,
     render::pipelined_rendering::PipelinedRenderingPlugin,
+    window::WindowMode,
 };
 use bevy_obj::*;
 use bevy_voxel_engine::*;
@@ -42,7 +43,14 @@ fn main() {
                 watch_for_changes: true,
                 ..default()
             })
-            .disable::<PipelinedRenderingPlugin>(),
+            .disable::<PipelinedRenderingPlugin>()
+            .set(WindowPlugin {
+                primary_window: Some(Window {
+                    mode: WindowMode::BorderlessFullscreen,
+                    ..default()
+                }),
+                ..default()
+            }),
     )
     .add_plugin(ObjPlugin)
     .add_plugin(BevyVoxelEnginePlugin)
